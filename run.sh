@@ -1,1 +1,1 @@
-qemu-system-x86_64 -kernel o.qemu/kernel.elf -cpu qemu64,+fsgsbase -serial mon:stdio -nographic -device sga -device ahci,id=ahci0 -drive if=none,file=o.qemu/fs.img,format=raw,id=drive-sata0-0-0 -device ide-drive,bus=ahci0.0,drive=drive-sata0-0-0,id=sata0-0-0 -enable-kvm
+qemu-system-x86_64 -nographic -enable-kvm -cpu qemu64,+fsgsbase -kernel o.qemu/kernel.elf
