@@ -26,10 +26,10 @@ u64
 nsectime(void)
 {
   static bool used_ticks;
-  if (the_hpet) {
-    assert(!used_ticks);
-    return the_hpet->read_nsec();
-  }
+  // if (the_hpet) {
+  //   assert(!used_ticks);
+  //   return the_hpet->read_nsec();
+  // }
   // XXX Ticks don't happen when interrupts are disabled, which means
   // we lose track of wall-clock time, but if we don't have a HPET,
   // this is the best we can do.

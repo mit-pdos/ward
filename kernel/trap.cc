@@ -197,7 +197,8 @@ trap(struct trapframe *tf)
 {
   switch(tf->trapno){
   case T_IRQ0 + IRQ_TIMER:
-    kstats::inc(&kstats::sched_tick_count);
+    // ensure_secrets();
+    // kstats::inc(&kstats::sched_tick_count);
     // for now, just care about timer interrupts
 #if CODEX
     codex_magic_action_run_async_event(T_IRQ0 + IRQ_TIMER);
