@@ -73,12 +73,11 @@ do_pagefault(struct trapframe *tf)
     // data so map all secrets in now.
     switch_to_kstack();
 
-    if (pagefault(myproc()->vmap.get(), addr, tf->err) < 0) {
-      // We tried to lazily load the mapping, but it wasn't marked as quasi
-      // user-visible. Record the event and continue.
-      wm_addrs.increment(addr);
-      wm_rips.increment(tf->rip);
-    }
+    wm_addrs.increment(addr);
+    wm_rips.increment(tf->rip);
+
+    // Map the virtual address if it is marked quasi user-visible.
+    myproc()->vmap->qlazymap(addr);
 
     return 0;
   } else if (myproc()->uaccess_) {

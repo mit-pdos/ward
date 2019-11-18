@@ -21,3 +21,4 @@
 #define KTEXT       0xFFFFFFFFC0200000ull
 
 #define USERTOP     0x0000800000000000ull
+#define MEMTOP      ((__int128)1 << 64)

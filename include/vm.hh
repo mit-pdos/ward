@@ -9,6 +9,7 @@
 #include "kalloc.hh"
 #include "page_info.hh"
 #include "mfs.hh"
+#include "vector.hh"
 
 struct padded_length;
 
@@ -49,9 +50,9 @@ struct vmdesc : public mmu::page_tracker
     // Set if the page should be shared across fork().
     FLAG_SHARED = 1<<5,
 
-    // Set if the page should be quasi user-visible. Requires
-    // FLAG_ANON, conflicts with FLAG_COW and FLAG_SHARED.
-    FLAG_QVISIBLE = 1<<6,
+    // // Set if the page should be quasi user-visible. Requires
+    // // FLAG_ANON, conflicts with FLAG_COW and FLAG_SHARED.
+    // FLAG_QVISIBLE = 1<<6,
   };
 
   // Flags
@@ -85,11 +86,6 @@ struct vmdesc : public mmu::page_tracker
   // virtual address start (which may be negative).
   vmdesc(const sref<mnode> &ip, intptr_t start)
     : flags(FLAG_MAPPED | FLAG_WRITE), inode(ip), start(start) { }
-
-  // Construct a qvisible region in which virtual address q maps to v2p(k).
-  vmdesc(void* qaddr, void* kaddr)
-    : flags(FLAG_MAPPED | FLAG_QVISIBLE | FLAG_ANON | FLAG_WRITE),
-      start((intptr_t)qaddr - (intptr_t)kaddr) {}
 
   // A memory descriptor for writable anonymous memory.
   static struct vmdesc anon_desc;
@@ -128,6 +124,40 @@ private:
   vmdesc(u64 flags, const sref<class page_info> &page,
          const sref<mnode> &inode, intptr_t start)
     : flags(flags), page(page), inode(inode), start(start) { }
+};
+
+struct qvmdesc : public mmu::page_tracker{
+  enum {
+    // Bit used for radix tree range locking
+    FLAG_LOCK_BIT = 0,
+    FLAG_LOCK = 1<<FLAG_LOCK_BIT,
+
+    // Set if this virtual page frame has been mapped
+    FLAG_MAPPED = 1<<1,
+  };
+
+  u64 flags;
+  intptr_t offset;
+  const char* debug_name;
+
+  // Radix_array element methods
+
+  bit_spinlock get_lock()
+  {
+    return bit_spinlock(&flags, FLAG_LOCK_BIT);
+  }
+
+  bool is_set() const
+  {
+    return flags & FLAG_MAPPED;
+  }
+
+  NEW_DELETE_OPS(qvmdesc);
+
+  qvmdesc() : flags(0), offset(0), debug_name(nullptr) { }
+  qvmdesc(const char* debug_name) : flags(FLAG_MAPPED), offset(0), debug_name(debug_name) { }
+  qvmdesc(void* qaddr, void* kaddr, const char* debug_name) :
+    flags(FLAG_MAPPED), offset((intptr_t)kaddr - (intptr_t)qaddr), debug_name(debug_name) { }
 };
 
 void to_stream(class print_stream *s, const vmdesc &vmd);
@@ -186,6 +216,14 @@ struct vmap : public referenced {
   // Set write permission bit in vmdesc
   int set_write_permission(uptr start, uptr len, bool is_readonly, bool is_cow);
 
+  int qinsert(const qvmdesc &desc, uintptr_t start, uintptr_t len);
+  int qremove(uintptr_t start, uintptr_t len);
+  int qwillneed(uintptr_t start, uintptr_t len);
+  int qlazymap(uintptr_t addr);
+
+  void* qalloc(const char *name);
+  void qfree(void* page);
+
   uptr brk_;                    // Top of heap
 
 private:
@@ -200,11 +238,19 @@ private:
   friend void switchvm(struct proc *);
 
   // Virtual page frames
-  typedef radix_array<vmdesc, 0x10000000000000, PGSIZE,
-                      kalloc_allocator<vmdesc>, scoped_no_sched> vpf_array;
+  typedef radix_array<vmdesc, USERTOP / PGSIZE, PGSIZE,
+                      qalloc_allocator<vmdesc>, scoped_no_sched> vpf_array;
+  typedef radix_array<qvmdesc, MEMTOP / PGSIZE, PGSIZE,
+                      kalloc_allocator<qvmdesc>, scoped_no_sched> qvpf_array;
+
   vpf_array vpfs_;
+  qvpf_array qvpfs_;
 
   struct spinlock brklock_;
+
+  // Cache of free quasi user-visible pages for processes in this address space.
+  static_vector<void*, 32> qpage_pool_;
+  struct spinlock qpage_pool_lock_;
 
   enum class access_type
   {
@@ -218,3 +264,5 @@ private:
   page_info *ensure_page(const vpf_array::iterator &it, access_type type,
                          bool *allocated = nullptr);
 };
+
+static_assert(sizeof(vmap) <= PGSIZE);

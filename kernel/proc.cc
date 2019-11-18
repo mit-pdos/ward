@@ -179,8 +179,8 @@ exit(int status)
     switchvm(myproc());
 
     // Remove user visible state associated with this proc from vmap.
-    vmap->remove((uptr)myproc(), PGSIZE);
-    vmap->remove((uptr)myproc()->kstack, KSTACKSIZE);
+    vmap->qremove((uintptr_t)myproc(), PGSIZE);
+    vmap->qremove((uintptr_t)myproc()->kstack, KSTACKSIZE);
   }
 
   // Lock the parent first, since otherwise we might deadlock.
@@ -286,8 +286,8 @@ proc::alloc(void)
 
 void proc::init_vmap()
 {
-  vmap->insert(vmdesc(this, this), (uptr)this, PGSIZE);
-  vmap->insert(vmdesc(qstack, kstack), (uptr)kstack, KSTACKSIZE);
+  vmap->qinsert(qvmdesc("proc-struct"), (uintptr_t)this, PGSIZE);
+  vmap->qinsert(qvmdesc(qstack, kstack, "qstack"), (uintptr_t)kstack, KSTACKSIZE);
 }
 
 void

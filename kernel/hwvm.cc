@@ -89,10 +89,10 @@ private:
   // Map a page of the direct map. When applied to the user page table
   // (even without the U-bit set), this page of memory will be "quasi
   // user visible" because of Meltdown style attacks.
-  void uexpose(void* page, int level = L_4K, bool execute = false)
+  void uexpose(vmap* vmap, void* page, int level = L_4K, bool execute = false)
   {
     auto it = find((u64)page, level);
-    *it.create(0) = v2p(page) | PTE_P | PTE_W
+    *it.create(0, vmap) = v2p(page) | PTE_P | PTE_W
       | (execute ? 0 : PTE_NX)
       | (level == L_4K ? 0 : PTE_PS);
   }
@@ -105,14 +105,14 @@ public:
     free(L_PML4, PX(L_PML4, KGLOBAL), false);
   }
 
-  // Delete'ing a ::pgmap also frees all sub-pgmaps (except those
-  // shared with kpml4), but does not free any non-page structure
-  // pages pointed to by the page table.  Note that there is no
-  // operator new; the only way to get a new ::pgmap is kclone().
-  static void operator delete(void *p)
-  {
-    kfree(p);
-  }
+  // // Delete'ing a ::pgmap also frees all sub-pgmaps (except those
+  // // shared with kpml4), but does not free any non-page structure
+  // // pages pointed to by the page table.  Note that there is no
+  // // operator new; the only way to get a new ::pgmap is kclone().
+  // static void operator delete(void *p)
+  // {
+  //   kfree(p);
+  // }
 
   // Allocate and return a new pgmap the clones the kernel part of
   // this pgmap.
@@ -129,7 +129,7 @@ public:
 
   // Allocate and return a new pgmap the clones the kernel part of this pgmap,
   // and populates the quasi user-visible part.
-  pgmap_pair kclone_pair() const
+  pgmap_pair kclone_pair(const qalloc_allocator<pgmap>& alloc) const
   {
     pgmap *pml4 = (pgmap*)kalloc("PML4-pair", PGSIZE * 2);
     if (!pml4)
@@ -145,15 +145,18 @@ public:
 
     k = PX(L_PML4, KGLOBAL);
     memset(&pair.user->e[0], 0, PGSIZE);
-    pair.user->uexpose((void*)mycpu(), pgmap::L_4K);
-    pair.user->uexpose((void*)&mycpu()->cpu, pgmap::L_4K);
-    pair.user->uexpose((void*)idt, pgmap::L_4K);
+    pair.user->uexpose(alloc, (void*)mycpu(), pgmap::L_4K);
+    pair.user->uexpose(alloc, (void*)&mycpu()->cpu, pgmap::L_4K);
+    pair.user->uexpose(alloc, (void*)idt, pgmap::L_4K);
+
+    pair.user->uexpose(alloc, (void*)&pair.user, pgmap::L_4K);
+    pair.user->uexpose(alloc, (void*)&pair.kernel, pgmap::L_4K);
 
     for(u64 i = 0; i < KSTACKSIZE; i += PGSIZE) {
-      pair.user->uexpose((void*)(mycpu()->ts.ist[1] + i - KSTACKSIZE), pgmap::L_4K); // nmi stack
-      pair.user->uexpose((void*)(mycpu()->ts.ist[2] + i - KSTACKSIZE), pgmap::L_4K); // double fault stack
+      pair.user->uexpose(alloc, (void*)(mycpu()->ts.ist[1] + i - KSTACKSIZE), pgmap::L_4K); // nmi stack
+      pair.user->uexpose(alloc, (void*)(mycpu()->ts.ist[2] + i - KSTACKSIZE), pgmap::L_4K); // double fault stack
     }
-    *(pair.user->find(KTEXT, pgmap::L_2M).create(0)) = v2p(qtext) | PTE_PS | PTE_P | PTE_W;
+    *(pair.user->find(KTEXT, pgmap::L_2M).create(0, alloc)) = v2p(qtext) | PTE_PS | PTE_P | PTE_W;
 
     return pair;
   }
@@ -207,7 +210,7 @@ public:
     // @c cur.  If @c create is zero and the path to @c va does not
     // exist, sets @c cur to nullptr.  Otherwise, the path will be
     // created with the flags @c create.
-    void resolve(pme_t create = 0)
+    void resolve(pme_t create = 0, vmap* vmap = nullptr)
     {
       cur = pml4;
       for (reached = L_PML4; reached > level; reached--) {
@@ -222,7 +225,7 @@ public:
         } else {
           // XXX(Austin) Could use zalloc except during really early
           // boot (really, zalloc shouldn't crash during early boot).
-          pgmap *next = (pgmap*) kalloc(levelnames[reached - 1]);
+          pgmap *next = (pgmap*) vmap->qalloc(levelnames[reached - 1]);
           if (!next)
             throw_bad_alloc();
           memset(next, 0, sizeof *next);
@@ -230,7 +233,7 @@ public:
                 entryp, &entry, v2p(next) | create)) {
             // The above call updated entry with the current value in
             // entryp, so retry after the entry load.
-            kfree(next);
+            vmap->qfree(next);
             goto retry;
           }
           cur = next;
@@ -239,9 +242,9 @@ public:
     }
 
   public:
-    // Default constructor
-    constexpr iterator() : pml4(nullptr), va(0), level(0), reached(0),
-                           cur(nullptr) { }
+    // // Default constructor
+    // constexpr iterator() : pml4(nullptr), va(0), level(0), reached(0),
+    //                        cur(nullptr) { }
 
     // Return the page structure level this iterator is traversing.
     int get_level() const
@@ -277,10 +280,10 @@ public:
     // directory entries will have flags <tt>flags|PTE_P|PTE_W</tt>.
     // After this, exists() will be true (though is_set() will only be
     // set if is_set() was already true).
-    iterator &create(pme_t flags)
+    iterator &create(pme_t flags, vmap* vmap)
     {
       if (!cur)
-        resolve(flags | PTE_P | PTE_W);
+        resolve(flags | PTE_P | PTE_W, vmap);
       return *this;
     }
 
@@ -347,7 +350,6 @@ initpg(struct cpu *c)
     kpml4_initialized = true;
 
     int level = pgmap::L_2M;
-    pgmap::iterator it;
 
     // Can we use 1GB mappings?
     if (cpuid::features().page1GB) {
@@ -355,14 +357,14 @@ initpg(struct cpu *c)
     }
 
     // Make the text and rodata segments read only
-    *kpml4.find(KTEXT, pgmap::L_2M).create(0) = v2p((void*)KTEXT) | PTE_P | PTE_PS;
+    *kpml4.find(KTEXT, pgmap::L_2M).create(0, nullptr) = v2p((void*)KTEXT) | PTE_P | PTE_PS;
     lcr3(rcr3());
 
     // Create direct map region
     for (auto it = kpml4.find(KBASE, level); it.index() < KBASEEND;
          it += it.span()) {
       paddr pa = it.index() - KBASE;
-      *it.create(0) = pa | PTE_W | PTE_P | PTE_PS | PTE_NX;
+      *it.create(0, nullptr) = pa | PTE_W | PTE_P | PTE_PS | PTE_NX;
     }
     assert(!kpml4.find(KBASEEND, level).is_set());
 
@@ -371,7 +373,7 @@ initpg(struct cpu *c)
     // other page tables.
     for (auto it = kpml4.find(KVMALLOC, pgmap::L_PDPT); it.index() < KVMALLOCEND;
          it += it.span()) {
-      it.create(0);
+      it.create(0, nullptr);
       assert(!it.is_set());
     }
     kvmallocpos = KVMALLOC;
@@ -512,7 +514,7 @@ vmalloc_raw(size_t bytes, size_t guard, const char *name)
     void *page = kalloc(name);
     if (!page)
       throw_bad_alloc();
-    *it.create(0) = v2p(page) | PTE_P | PTE_W;
+    *it.create(0, nullptr) = v2p(page) | PTE_P | PTE_W;
   }
   mtlabel(mtrace_label_heap, (void*)base, bytes, name, strlen(name));
 
@@ -654,7 +656,7 @@ namespace mmu_shared_page_table {
   void
   page_map_cache::__insert(uintptr_t va, pme_t pte)
   {
-    pml4->find(va).create(PTE_U)->store(pte, memory_order_relaxed);
+    pml4->find(va).create(PTE_U, nullptr)->store(pte, memory_order_relaxed);
   }
 
   void
@@ -695,7 +697,7 @@ namespace mmu_per_core_page_table {
   }
 
   void
-  page_map_cache::insert(uintptr_t va, page_tracker *t, pme_t pte)
+  page_map_cache::insert(vmap* vmap, uintptr_t va, page_tracker *t, pme_t pte)
   {
     scoped_cli cli;
     pgmap_pair& mypml4s = *pml4s;
@@ -714,11 +716,11 @@ namespace mmu_per_core_page_table {
     cpuid_t id = myid();
     auto &mypml4s = pml4s[id];
     if (!mypml4s.kernel) {
-      mypml4s = kpml4.kclone_pair();
+      mypml4s = kpml4.kclone_pair(p->vmap.get());
     }
 
-    p->vmap->willneed((uptr)p, PGSIZE);
-    p->vmap->willneed((uptr)p->kstack, KSTACKSIZE);
+    p->vmap->qwillneed((uintptr_t)p, PGSIZE);
+    p->vmap->qwillneed((uintptr_t)p->kstack, KSTACKSIZE);
 
     bool flush_tlb = true;
     int pcid = mycpu()->pcid_history_head;

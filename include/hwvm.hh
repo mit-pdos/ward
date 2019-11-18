@@ -4,6 +4,7 @@
 #include "percpu.hh"
 #include "bitset.hh"
 #include "bits.hh"
+#include "kalloc.hh"
 
 struct pgmap;
 
@@ -206,13 +207,14 @@ namespace mmu_per_core_page_table {
   class page_map_cache
   {
     percpu<pgmap_pair> pml4s;
+    qalloc_allocator<pgmap> pgmap_alloc_;
     friend class shootdown;
 
     // Clear and TLB flush a region of this core's page table.
     void clear(uintptr_t start, uintptr_t end);
 
   public:
-    page_map_cache()
+    page_map_cache(vmap* vmap) : pgmap_alloc_(vmap)
     {
       for (size_t i = 0; i < NCPU; ++i) {
         pml4s[i].user = nullptr;

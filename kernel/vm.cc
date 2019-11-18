@@ -44,6 +44,19 @@ void to_stream(class print_stream *s, const vmdesc &vmd)
     s->print("null}");
 }
 
+
+void to_stream(class print_stream *s, const qvmdesc &vmd)
+{
+  s->print("vmdesc{", sflags(vmd.flags, {
+        {"LOCK", vmdesc::FLAG_LOCK},
+        {"MAPPED", vmdesc::FLAG_MAPPED},
+      }), " ");
+  if (vmd.offset)
+    s->print(vmd.offset, "}");
+  else
+    s->print("null}");
+}
+
 /*
  * Page holder
  */
@@ -123,12 +136,12 @@ vmap::alloc(void)
   static_assert(sizeof(vmap) <= PGSIZE);
   vmap* page = (vmap*)zalloc("vmap::alloc");
   sref<vmap> v = sref<vmap>::transfer(new (page) vmap());
-  v->insert(vmdesc(page, page), (uptr)page, PGSIZE);
+  v->qinsert(qvmdesc("vmap-struct"), (uintptr_t)page, PGSIZE);
   return v;
 }
 
-vmap::vmap() : 
-  brk_(0), brklock_("brk_lock", LOCKSTAT_VM)
+vmap::vmap() :
+  brk_(0), vpfs_(this), brklock_("brk_lock", LOCKSTAT_VM)
 {
 }
 
@@ -150,7 +163,7 @@ vmap::copy()
     auto lock = vpfs_.acquire(vpfs_.begin(), vpfs_.end());
     for (auto it = vpfs_.begin(), end = vpfs_.end(); it != end; ) {
       // Skip unset spans and qvisible spans
-      if (!it.is_set() || (it->flags & vmdesc::FLAG_QVISIBLE)) {
+      if (!it.is_set()) {
         // We can use the base span because we know we just reached this
         // span.
         out += it.base_span();
@@ -244,6 +257,28 @@ again:
 }
 
 int
+vmap::qinsert(const qvmdesc &desc, uintptr_t start, uintptr_t len)
+{
+  if (SDEBUG)
+    sdebug.println("vm: qinsert(", desc, ",", shex(start), ",", shex(len), ")");
+
+  assert(start % PGSIZE == 0);
+  assert(len % PGSIZE == 0);
+
+  mmu::shootdown shootdown;
+
+  auto begin = qvpfs_.find(start / PGSIZE);
+  auto end = qvpfs_.find((start + len) / PGSIZE);
+  auto lock = qvpfs_.acquire(begin, end);
+
+  cache.invalidate(start, len, begin, &shootdown);
+  qvpfs_.fill(begin, end, desc, true);
+  shootdown.perform();
+
+  return 0;
+}
+
+int
 vmap::remove(uptr start, uptr len)
 {
   kstats::inc(&kstats::munmap_count);
@@ -265,6 +300,23 @@ vmap::remove(uptr start, uptr len)
   // XXX If this is a large unset, we could actively re-fold already
   // expanded regions.
   vpfs_.unset(begin, end);
+  shootdown.perform();
+
+  return 0;
+}
+
+int
+vmap::qremove(uintptr_t start, uintptr_t len)
+{
+  if (SDEBUG)
+    sdebug.println("vm: qremove(", start, ",", len, ")");
+
+  mmu::shootdown shootdown;
+  auto begin = qvpfs_.find(start / PGSIZE);
+  auto end = qvpfs_.find((start + len) / PGSIZE);
+  auto lock = qvpfs_.acquire(begin, end);
+  cache.invalidate(start, len, begin, &shootdown);
+  qvpfs_.unset(begin, end);
   shootdown.perform();
 
   return 0;
@@ -296,15 +348,29 @@ vmap::willneed(uptr start, uptr len)
     if (!page)
       continue;
 
-    u64 flags = (it->flags & vmdesc::FLAG_QVISIBLE) ? PTE_NX : PTE_U;
-
     if (it->flags & vmdesc::FLAG_COW || !writable)
-      cache.insert(it.index() * PGSIZE, &*it, page->pa() | PTE_P | flags);
+      cache.insert(it.index() * PGSIZE, &*it, page->pa() | PTE_P | PTE_U);
     else
-      cache.insert(it.index() * PGSIZE, &*it, page->pa() | PTE_P | flags | PTE_W);
+      cache.insert(it.index() * PGSIZE, &*it, page->pa() | PTE_P | PTE_U | PTE_W);
   }
 
   shootdown.perform();
+  return 0;
+}
+
+int
+vmap::qwillneed(uintptr_t start, uintptr_t len)
+{
+  auto begin = qvpfs_.find(start / PGSIZE);
+  auto end = qvpfs_.find((start + len) / PGSIZE);
+  auto lock = qvpfs_.acquire(begin, end);
+
+  for (auto it = begin; it < end; it += it.span()) {
+    if (it.is_set()) {
+      paddr pa = v2p((void*)(it.index() * PGSIZE - it->offset));
+      cache.insert(it.index() * PGSIZE, &*it, pa | PTE_P | PTE_NX | PTE_W);
+    }
+  }
   return 0;
 }
 
@@ -449,22 +515,35 @@ vmap::pagefault(uptr va, u32 err)
     if (!page)
       return -1;
 
-    u64 flags = (it->flags & vmdesc::FLAG_QVISIBLE) ? PTE_NX : PTE_U;
-
     // If this is a read COW fault, we can reuse the COW page, but
     // don't mark it writable!
     if (desc.flags & vmdesc::FLAG_COW)
-      cache.insert(va, &*it, page->pa() | PTE_P | flags);
+      cache.insert(va, &*it, page->pa() | PTE_P | PTE_U);
     else {
       if (desc.flags & vmdesc::FLAG_WRITE)
-        cache.insert(va, &*it, page->pa() | PTE_P | flags | PTE_W);
+        cache.insert(va, &*it, page->pa() | PTE_P | PTE_U | PTE_W);
       else
-        cache.insert(va, &*it, page->pa() | PTE_P | flags);
+        cache.insert(va, &*it, page->pa() | PTE_P | PTE_U);
     }
 
     shootdown.perform();
   }
   return 1;
+}
+
+int
+vmap::qlazymap(uintptr_t va)
+{
+  va = PGROUNDDOWN(va);
+
+  auto it = qvpfs_.find(va / PGSIZE);
+  auto lock = qvpfs_.acquire(it);
+  if (!it.is_set())
+    return -1;
+
+  paddr pa = v2p((void*)(it.index() * PGSIZE - it->offset));
+  cache.insert(va, &*it, pa | PTE_P | PTE_NX | PTE_W);
+  return 0;
 }
 
 int
@@ -684,16 +763,10 @@ vmap::ensure_page(const vmap::vpf_array::iterator &it, vmap::access_type type,
       assert(!(desc.flags & vmdesc::FLAG_COW));
       if (allocated)
         *allocated = true;
-      if (desc.flags & vmdesc::FLAG_QVISIBLE) {
-        paddr pa = v2p((void*)(it.index() * PGSIZE + it->start));
-        auto p = new(page_info::of(pa)) page_info_nokfree();
-        page = sref<page_info>::transfer(p);
-      } else {
-        char *p = zalloc("(vmap::pagelookup)");
-        if (!p)
-          throw_bad_alloc();
-        page = sref<page_info>::transfer(new(page_info::of(p)) page_info());
-      }
+      char *p = zalloc("(vmap::pagelookup)");
+      if (!p)
+        throw_bad_alloc();
+      page = sref<page_info>::transfer(new(page_info::of(p)) page_info());
     } else {
       u64 page_idx = (it.index() * PGSIZE - desc.start) / PGSIZE;
       page = desc.inode->as_file()->get_page(page_idx).get_page_info();
@@ -773,4 +846,52 @@ safe_read_vm(void *dst, uintptr_t src, size_t n)
   if (!myproc() || !myproc()->vmap)
     return 0;
   return myproc()->vmap->safe_read(dst, src, n);
+}
+
+void*
+vmap::qalloc(const char* name)
+{
+  scoped_acquire l(&qpage_pool_lock_);
+
+  if (qpage_pool_.empty()) {
+    ensure_secrets();
+    while (qpage_pool_.size() < qpage_pool_.capacity() / 2) {
+      void* page = zalloc("qalloc");
+      qinsert(qvmdesc("qalloc"), (uintptr_t)page, PGSIZE);
+      qpage_pool_.push_back(page);
+    }
+  }
+
+  void* page = qpage_pool_.back();
+  qpage_pool_.pop_back();
+  return page;
+}
+
+void
+vmap::qfree(void* page)
+{
+  scoped_acquire l(&qpage_pool_lock_);
+
+  if (qpage_pool_.size() < qpage_pool_.capacity()) {
+    memset(page, 0, PGSIZE);
+    qpage_pool_.push_back(page);
+    return;
+  }
+
+  ensure_secrets();
+  kfree(page);
+  while (qpage_pool_.size() > qpage_pool_.capacity() / 2) {
+    void* page = qpage_pool_.back();
+    qpage_pool_.pop_back();
+    qremove((uintptr_t)page, PGSIZE);
+    kfree(page);
+  }
+}
+
+void* qalloc(vmap* vmap, const char* name) {
+  return vmap->qalloc(name);
+}
+
+void qfree(vmap* vmap, void* page) {
+  vmap->qfree(page);
 }

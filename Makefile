@@ -75,7 +75,7 @@ INCLUDES  = --sysroot=$(O)/sysroot \
 	-include param.h -include libutil/include/compiler.h
 COMFLAGS  = -static -DXV6_HW=$(HW) -DXV6 \
 	    -fno-builtin -fno-strict-aliasing -fno-omit-frame-pointer -fms-extensions \
-	    -mno-red-zone
+	    -mno-red-zone -fno-diagnostics-show-caret
 COMFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector) -I$(shell $(CC) -print-file-name=include)
 COMFLAGS  += -Wl,-m,elf_x86_64 -nostdlib -ffreestanding
 LDFLAGS   = -m elf_x86_64

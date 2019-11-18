@@ -70,17 +70,17 @@ struct proc {
   int uaccess_;
   u64 user_fs_;
   volatile int pid;            // Process ID
-  sref<vmap> vmap;             // va -> vma
-
   __page_pad__;
+  sref<vmap> vmap;             // va -> vma
+  sref<inode> cwd;             // Current directory
+  sref<mnode> cwd_m;           // Current directory
+  sref<filetable> ftable;      // File descriptor table
+
 
   vmalloc_ptr<char[]> kstack_vm; // vmalloc'd kstack, if using vmalloc
   struct proc *parent;         // Parent process
   int status;                  // exit's returns status
   struct context *context;     // swtch() here to run process
-  sref<filetable> ftable;      // File descriptor table
-  sref<inode> cwd;             // Current directory
-  sref<mnode> cwd_m;           // Current directory
   char name[16];               // Process name (debugging)
   u64 tsc;
   u64 curcycles;

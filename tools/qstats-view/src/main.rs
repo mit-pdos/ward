@@ -99,6 +99,10 @@ fn main() {
                     location.line.unwrap_or(0),
                 )
             }
+            println!("      {:x}", addr);
         }
     }
+
+    println!();
+    println!("total = {}", rips.iter().map(|r| r.1).sum::<u64>());
 }
