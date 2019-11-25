@@ -20,11 +20,6 @@
 
 using namespace std;
 
-// Ensure tlbflush_req lives on a cache line by itself since we hit
-// this from all cores in batched_shootdown mode.
-static atomic<u64> tlbflush_req __mpalign__;
-static __padout__ __attribute__((used));
-
 // See: https://elixir.bootlin.com/linux/v5.3.12/source/arch/x86/include/asm/tlbflush.h#L151
 const u8 NUM_TLB_CONTEXTS = 6;
 struct tlb_context {
@@ -527,45 +522,6 @@ vmalloc_free(void *ptr)
 }
 
 void
-batched_shootdown::perform() const
-{
-  if (!need_shootdown)
-    return;
-
-  u64 myreq = ++tlbflush_req;
-  u64 cr3 = rcr3();
-
-  // the caller may not hold any spinlock, because other CPUs might
-  // be spinning waiting for that spinlock, with interrupts disabled,
-  // so we will deadlock waiting for their TLB flush..
-  assert(mycpu()->ncli == 0);
-
-  kstats::inc(&kstats::tlb_shootdown_count);
-  kstats::timer timer(&kstats::tlb_shootdown_cycles);
-
-  for (int i = 0; i < ncpu; i++) {
-    if (cpus[i].tlb_cr3 == cr3 && cpus[i].tlbflush_done < myreq) {
-      lapic->send_tlbflush(&cpus[i]);
-      kstats::inc(&kstats::tlb_shootdown_targets);
-    }
-  }
-
-  for (int i = 0; i < ncpu; i++)
-    while (cpus[i].tlb_cr3 == cr3 && cpus[i].tlbflush_done < myreq)
-      /* spin */ ;
-}
-
-void
-batched_shootdown::on_ipi()
-{
-  pushcli();
-  u64 nreq = tlbflush_req.load();
-  lcr3(rcr3());
-  mycpu()->tlbflush_done = nreq;
-  popcli();
-}
-
-void
 core_tracking_shootdown::on_ipi()
 {
   if (pcids_enabled()) {
@@ -719,139 +675,5 @@ namespace mmu_shared_page_table {
   page_map_cache::internal_pages() const
   {
     return pml4s.kernel->internal_pages();
-  }
-}
-
-namespace mmu_per_core_page_table {
-  page_map_cache::~page_map_cache()
-  {
-    for (size_t i = 0; i < ncpu; ++i) {
-      delete pml4s[i].user;
-      delete pml4s[i].kernel;
-    }
-  }
-
-  void
-  page_map_cache::insert(uintptr_t va, page_tracker *t, pme_t pte)
-  {
-    scoped_cli cli;
-    pgmap_pair& mypml4s = *pml4s;
-    assert(mypml4s.user);
-    assert(mypml4s.kernel);
-    mypml4s.user->find(va).create(PTE_U & pte)->store(pte, memory_order_relaxed);
-    if (va < USERTOP) {
-      mypml4s.kernel->find(va).create(PTE_U & pte)->store(pte, memory_order_relaxed);
-    }
-    t->tracker_cores.set(myid());
-  }
-
-  void
-  page_map_cache::switch_to(bool kernel, proc* p) const
-  {
-    cpuid_t id = myid();
-    auto &mypml4s = pml4s[id];
-    if (!mypml4s.kernel) {
-      mypml4s = kpml4.kclone_pair();
-    }
-
-    p->vmap->willneed((uptr)p, PGSIZE);
-    p->vmap->willneed((uptr)p->kstack, KSTACKSIZE);
-
-    bool flush_tlb = true;
-    int pcid = mycpu()->pcid_history_head;
-
-    static_assert(NCPU * PCID_HISTORY_SIZE <= 4096,
-                  "Per cpu pcids don't work with this many CPUS!");
-    auto& pcid_history = mycpu()->pcid_history;
-    for(int i = 0; i < PCID_HISTORY_SIZE; i++) {
-      if(pcid_history[i] == mypml4s.user) {
-        flush_tlb = false;
-        pcid = i;
-        break;
-      }
-    }
-
-    if(pcid == mycpu()->pcid_history_head) {
-      mycpu()->pcid_history_head = (pcid + 1) % PCID_HISTORY_SIZE;
-    }
-    pcid_history[pcid] = mypml4s.user;
-
-    u64 cr3 = v2p(kernel ? mypml4s.kernel : mypml4s.user)
-     | ((mycpu()->id * PCID_HISTORY_SIZE + pcid) * 2)
-     | (flush_tlb ? 0 : ((u64)1<<63))
-     | (kernel ? 0 : 1);
-    cr3 &= mycpu()->cr3_mask;
-
-    lcr3(cr3);
-    mycpu()->has_secrets = kernel;
-  }
-
-  u64
-  page_map_cache::internal_pages() const
-  {
-    u64 count = 0;
-
-    for (int i = 0; i < ncpu; i++) {
-      pgmap_pair& pm = pml4s[i];
-      if (!pm.kernel)
-        continue;
-      count += pm.kernel->internal_pages();
-    }
-
-    return count;
-  }
-
-  void
-  page_map_cache::clear(uintptr_t start, uintptr_t end)
-  {
-    // Are we the current page_map_cache on this core?  (Depending on
-    // MMU_SCHEME, *cur_page_map_cache may not be this type of
-    // page_map_cache, but if it isn't, we'll never take this code
-    // path.)
-    bool current =
-      (reinterpret_cast<const page_map_cache*>(*cur_page_map_cache) == this);
-    pgmap_pair& mypml4s = *pml4s;
-    // If we're clearing this CPU's page map cache, then we must have
-    // inserted something into it previously.  (Note that this may
-    // not hold if we start tracking shootdowns conservatively.)
-    assert(mypml4s.user);
-    assert(mypml4s.kernel);
-    for (auto it = mypml4s.user->find(start); it.index() < end; it += it.span()) {
-      if (it.is_set()) {
-        it->store(0, memory_order_relaxed);
-        // TODO(behrensj): does there need to be a remote invlpg here?
-      }
-    }
-
-    // Kernel page table doesn't use qvisible mappings.
-    end = min(end, (uintptr_t)USERTOP);
-    if (start >= end)
-      return;
-
-    for (auto it = mypml4s.kernel->find(start); it.index() < end; it += it.span()) {
-      if (it.is_set()) {
-        it->store(0, memory_order_relaxed);
-        if (current)
-          invlpg((void*)it.index());
-      }
-    }
-  }
-
-  void
-  shootdown::perform() const
-  {
-    // XXX Alternatively, we could reach into the per-core page tables
-    // directly from invalidate.  Then it would be able to zero them
-    // directly and gather PTE_P bits (instead of using a separate
-    // tracker), but it would probably require more communication.
-    if (targets.none())
-      return;
-    assert(start < end && end <= USERTOP);
-    kstats::inc(&kstats::tlb_shootdown_count);
-    kstats::inc(&kstats::tlb_shootdown_targets, targets.count());
-    kstats::timer timer(&kstats::tlb_shootdown_cycles);
-    run_on_cpus(targets, [this]() {
-        cache->clear(start, end);
-      });
   }
 }
