@@ -387,10 +387,6 @@ initpg(struct cpu *c)
     }
   }
 
-  if (!cpuid::features().fsgsbase) {
-    cprintf("wrfsbase instruction unsupported?!\n");
-    while(1);
-  }
   if (!cpuid::features().spec_ctrl) {
     cprintf("WARN: md-clear not advertised, attempting anyway\n");
   }
@@ -398,8 +394,8 @@ initpg(struct cpu *c)
     cprintf("WARN: spec-ctrl feature unavailable?!\n");
   }
 
-  // Enable global pages and fs/gs instructions. This has to happen on every core.
-  lcr4(rcr4() | CR4_PGE | CR4_FSGSBASE);
+  // Enable global pages. This has to happen on every core.
+  lcr4(rcr4() | CR4_PGE);
 }
 
 // Clean up mappings that were only required during early boot.

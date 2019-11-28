@@ -85,15 +85,17 @@ sysentry:
         pushq   %gs:GS_SYSCALLNO // syscall# saved from %rax
 
         movq $text, %rax
-        wrfsbase %rax
+        call write_fs
 
         sti
         call    sysentry_c
         cli
 
-        movq    %gs:GS_PROC, %r15
-        movq    PROC_USER_FS(%r15), %r15
-        wrfsbase %r15
+        push    %rax
+        movq    %gs:GS_PROC, %rax
+        movq    PROC_USER_FS(%rax), %rax
+        call    write_fs
+        pop     %rax
 
         // return using SYSRET
         add     $(8*3), %rsp  // Discard syscall#, fake activation record
@@ -151,10 +153,10 @@ trapcommon:
 1:      lfence
 
         movq %rsp, %rdi  // first argument to trap
-        rdfsbase %rax
+        call read_fs
         pushq %rax
         movq $text, %rax
-        wrfsbase %rax
+        call write_fs
         call trap_c
         popq %rax
         // Fall through to trapret
@@ -163,7 +165,7 @@ trapcommon:
 .balign 8
 trapret:
         cli
-        wrfsbase %rax
+        call write_fs
         addq $0x10, %rsp
         popq %r15
         popq %r14
@@ -225,6 +227,30 @@ trapret:
 2:      swapgs
 1:      lfence
         iretq
+
+// This function does the same thing as `wrfsbase %rax`
+write_fs:
+    push %rdx
+    push %rcx
+    mov %rax, %rdx
+    shrq $32, %rdx
+    mov $0xc0000100, %rcx
+    wrmsr
+    pop %rcx
+    pop %rdx
+    ret
+
+// This function does the same thing as `rdfsbase %rax`
+read_fs:
+    push %rdx
+    push %rcx
+    mov $0xc0000100, %rcx
+    rdmsr
+    shlq $32, %rdx
+    or %rdx, %rax
+    pop %rcx
+    pop %rdx
+    ret
 
 .data
 .balign 8
