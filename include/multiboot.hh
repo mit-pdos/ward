@@ -83,9 +83,12 @@ struct multiboot_saved
   u8 framebuffer_blue_field_position;
   u8 framebuffer_blue_mask_size;
 
+  // Only ever provided by multiboot2. Available if bit 29 in flags is set.
+  u64 efi_image_handle;
+
   // Only ever provided by multiboot2. Available if bit 30 in flags is set.
   u64 efi_mmap_descriptor_size = 0;
-  u64 efi_mmap_descriptor_version = 0;
+  u32 efi_mmap_descriptor_version = 0;
   u64 efi_mmap_descriptor_count = 0;
   u8 efi_mmap[0x2000];
 
@@ -102,6 +105,7 @@ extern multiboot_saved multiboot;
 #define MULTIBOOT_FLAG_VBE               (1 << 11)
 #define MULTIBOOT_FLAG_FRAMEBUFFER       (1 << 12)
 
+#define MULTIBOOT2_FLAG_EFI_IMAGE_HANDLE (1 << 30)
 #define MULTIBOOT2_FLAG_EFI_MMAP         (1 << 30)
 #define MULTIBOOT2_FLAG_EFI_SYSTEM_TABLE (1 << 31)
 
