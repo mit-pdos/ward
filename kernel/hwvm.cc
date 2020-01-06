@@ -381,6 +381,7 @@ initpg(struct cpu *c)
   static bool kpml4_initialized;
 
   if (!kpml4_initialized) {
+    cprintf("0\n");
     kpml4_initialized = true;
 
     int level = pgmap::L_2M;
@@ -391,17 +392,22 @@ initpg(struct cpu *c)
       level = pgmap::L_1G;
     }
 
+    cprintf("1\n");
     // Make the text and rodata segments read only
     *kpml4.find(KTEXT, pgmap::L_2M).create(0) = v2p((void*)KTEXT) | PTE_P | PTE_PS;
+    cprintf("2\n");
     lcr3(rcr3());
+    cprintf("3\n");
 
     // Create direct map region
     for (auto it = kpml4.find(KBASE, level); it.index() < KBASEEND;
          it += it.span()) {
       paddr pa = it.index() - KBASE;
-      *it.create(0) = pa | PTE_W | PTE_P | PTE_PS | PTE_NX;
+      *it.create(0) = pa | PTE_W | PTE_P | PTE_PS /*| PTE_NX*/;
     }
+    cprintf("4");
     assert(!kpml4.find(KBASEEND, level).is_set());
+    cprintf("4\n");
 
     // Create KVMALLOC area.  This doesn't map anything at this point;
     // it only fills in PML4 entries that can later be shared with all
@@ -412,11 +418,14 @@ initpg(struct cpu *c)
       assert(!it.is_set());
     }
     kvmallocpos = KVMALLOC;
+    cprintf("5\n");
   }
 
   if (cpuid::features().pcid && !cmdline_params.disable_pcid) {
     c->cr3_mask = 0xffffffff'ffffffff;
+    cprintf("6");
     lcr4(rcr4() | CR4_PCIDE);
+    cprintf("6\n");
   } else {
     c->cr3_mask = 0x7fffffff'fffff000;
     if (c->id == 0 && !cmdline_params.disable_pcid) {
@@ -427,7 +436,9 @@ initpg(struct cpu *c)
   if (!cpuid::features().fsgsbase) {
     cprintf("WARN: wrfsbase instructions unsupported\n");
   } else {
+    cprintf("7");
     lcr4(rcr4() | CR4_FSGSBASE);
+    cprintf("7\n");
   }
 
   if (!cpuid::features().spec_ctrl) {
@@ -441,10 +452,14 @@ initpg(struct cpu *c)
   writemsr(MSR_INTEL_DEBUGCTL, 0x1);
 
   // Enable global pages. This has to happen on every core.
+  cprintf("8");
   lcr4(rcr4() | CR4_PGE);
+  cprintf("8\n");
 
   // Prevent kernel mode from writing to read-only pages.
+  cprintf("9");
   lcr0(rcr0() | CR0_WP);
+  cprintf("9\n");
 }
 
 // Clean up mappings that were only required during early boot.

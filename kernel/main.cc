@@ -183,17 +183,22 @@ cmain(u64 mbmagic, u64 mbaddr)
   // in the image.  *cpu and such won't work until we inittls.
   percpu_offsets[0] = __percpu_start;
 
+  cprintf("A\n");
   extern u64 text;
   writefs(UDSEG);
   writemsr(MSR_FS_BASE, (u64)&text);
 
+  cprintf("B\n");
   initmultiboot(mbmagic, mbaddr);
+  cprintf("C\n");
   inituart();
   debugmultiboot(mbmagic, mbaddr);
   initcmdline();           // Requires initmultiboot
   initvga();               // Requires initmultiboot, initcmdline
   initphysmem();           // Requires initmultiboot
+  cprintf("F\n");
   initpg(&cpus[0]);        // Requires initphysmem
+  cprintf("G\n");
   inithz();                // CPU Hz, microdelay
   initseg(&cpus[0]);
   inittls(&cpus[0]);       // Requires initseg
@@ -228,6 +233,7 @@ cmain(u64 mbmagic, u64 mbaddr)
   for (size_t i = 0; i < __init_array_end - __init_array_start; i++)
       (*__init_array_start[i])(0, nullptr, nullptr);
 
+  cprintf("I\n");
   inithotpatch();
   inittrap();              // Requires inithotpatch
   inithpet();              // Requires initacpitables
@@ -260,6 +266,8 @@ cmain(u64 mbmagic, u64 mbaddr)
   initpartition();
   initinode();     // inode cache
   initmfs();
+  cprintf("J\n");
+
 
   if (VERBOSE)
     cprintf("ncpu %d %lu MHz\n", ncpu, cpuhz / 1000000);
