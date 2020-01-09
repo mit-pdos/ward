@@ -555,6 +555,7 @@ public:
         pa = 0;
       }
     }
+    cprintf("phys_map.alloc: No regions found... Panicking\n");
     if (pa == 0)
       panic("phys_map: out of memory allocating %lu bytes at %p",
             size, (void*)start);
@@ -970,6 +971,12 @@ initphysmem()
   extern char end[];
 
   if (multiboot.flags & MULTIBOOT2_FLAG_EFI_MMAP) {
+    for (int i = 0; i < multiboot.efi_mmap_descriptor_count; i++) {
+      auto d = (efi_memory_descriptor*)&multiboot.efi_mmap[multiboot.efi_mmap_descriptor_size*i];
+      if (d->type == 3 || d->type == 4 || d->type == 7) {
+        mem.add(d->paddr, d->paddr + PGSIZE * d->npages);
+      }
+    }
     for (int i = 0; i < multiboot.efi_mmap_descriptor_count; i++) {
       auto d = (efi_memory_descriptor*)&multiboot.efi_mmap[multiboot.efi_mmap_descriptor_size*i];
       if (d->type == 0 || d->type == 5 || d->type == 6 || d->type >= 8) {

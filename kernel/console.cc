@@ -306,12 +306,15 @@ panic(const char *fmt, ...)
 {
   va_list ap;
 
+  __cprintf("0\n");
   cli();
+  __cprintf("1\n");
   acquire(&cons.lock);
 
   __cprintf("cpu%d-%s: panic: ",
             mycpu()->id,
             myproc() ? myproc()->name : "(unknown)");
+  __cprintf("2\n");
   va_start(ap, fmt);
   vprintfmt(writecons, 0, fmt, ap);
   va_end(ap);

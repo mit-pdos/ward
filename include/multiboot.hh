@@ -105,7 +105,6 @@ extern multiboot_saved multiboot;
 #define MULTIBOOT_FLAG_VBE               (1 << 11)
 #define MULTIBOOT_FLAG_FRAMEBUFFER       (1 << 12)
 
-#define MULTIBOOT2_FLAG_EFI_IMAGE_HANDLE (1 << 30)
 #define MULTIBOOT2_FLAG_EFI_MMAP         (1 << 30)
 #define MULTIBOOT2_FLAG_EFI_SYSTEM_TABLE (1 << 31)
 

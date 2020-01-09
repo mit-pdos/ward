@@ -2,10 +2,14 @@
 #include "kernel.hh"
 #include "uefi.hh"
 #include "multiboot.hh"
+#include "cmdline.hh"
 
 void initvga(void);
 void initmultiboot(u64 mbmagic, u64 mbaddr);
 
+u64 __attribute__ ((noinline)) get_pc() {
+  return (u64)__builtin_return_address(0);
+}
 
 extern "C" u64 efi_cmain (u64 mbmagic, u64 mbaddr)
 {
@@ -19,6 +23,7 @@ extern "C" u64 efi_cmain (u64 mbmagic, u64 mbaddr)
   lcr3((u64)kpml4_cr3);
 
   initmultiboot(mbmagic, mbaddr);
+  cmdline_params.use_vga = true;
   initvga();
 
   cprintf("Booting in UEFI mode...\n");
@@ -73,6 +78,25 @@ extern "C" u64 efi_cmain (u64 mbmagic, u64 mbaddr)
 
   // Restore lowest PTE in kpml4 so other code doesn't get confused.
   kpml4_cr3[0] = kpml4_pte;
+  lcr3((u64)kpml4_cr3);
+
+  cprintf("Loading gdt\n");
+  volatile struct desctr dtr;
+  dtr.limit = sizeof(bootgdt) - 1;
+  dtr.base = (u64)bootgdt;
+  lgdt((void *)&dtr.limit);
+
+  // These both normally happen in init32e, but that doesn't run in EFI mode.
+  cprintf("Initializing IA32_EFER and CR4\n");
+  writemsr(0xc0000080, readmsr(0xc0000080) | (1<<0) | (1<<11));
+  lcr4(rcr4() | 0x630);  // Set CR4.PAE = CR4.PSE = CR4.OSFXSR = CR4.OSXMMEXCPT = 1.
+
+  cprintf("Current PC = 0x%lx\n", get_pc());
+
+  cprintf("Switching to high addresses\n");
+  __asm volatile("add %0, %%rsp; movabs $1f, %%rax; jmp *%%rax; 1:" :: "r"(KBASE) : "rax", "memory");
+
+  cprintf("Current PC = 0x%lx\n", get_pc());
 
   cprintf("About to call cmain(%lx, %lx)\n", mbmagic, mbaddr);
   cmain(mbmagic, mbaddr);
