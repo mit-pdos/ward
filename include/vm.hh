@@ -200,6 +200,10 @@ struct vmap : public referenced {
 
   futex_list futex_waiters_;
 
+  ilist<proc, &proc::sched_link> run_queue_;
+  ilink<vmap> sched_link;
+  spinlock sched_lock_; // protects run_queue_ and sched_link
+
 private:
   vmap();
   vmap(const vmap&);
@@ -209,7 +213,7 @@ private:
   uptr unmapped_area(size_t n);
 
   mmu::page_map_cache cache;
-  friend void switchvm(struct proc *);
+  friend void switchvm(struct vmap*, struct vmap*);
 
   // Virtual page frames
   typedef radix_array<vmdesc, USERTOP / PGSIZE, PGSIZE,

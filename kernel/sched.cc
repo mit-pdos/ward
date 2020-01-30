@@ -18,179 +18,121 @@
 
 enum { sched_debug = 0 };
 
-struct schedule : public balance_pool<schedule> {
-public:
-  schedule();
-  ~schedule() {};
-  NEW_DELETE_OPS(schedule);
+struct proc_group {
+  u64 asid;
 
-  void enq(proc* entry);
-  proc* deq();
-  void dump(print_stream *);
+  ilist<proc, &proc::sched_link> procs;
+  u64 nprocs;
 
-  void balance_move_to(schedule *other);
-  u64 balance_count() const;
-
-  sched_stat stats_;
-  u64 ncansteal_;
-private:
-  void sanity(void);
-
-  struct spinlock lock_ __mpalign__;
-  ilist<proc, &proc::sched_link> proc_;
-  volatile bool cansteal_ __mpalign__;
-  __padout__;
+  ilink<proc_group> link;
 };
 
-schedule::schedule()
-  : balance_pool(1), lock_("schedule::lock_", LOCKSTAT_SCHED)
-{
-  ncansteal_ = 0;
-  stats_.enqs = 0;
-  stats_.deqs = 0;
-  stats_.steals = 0;
-  stats_.misses = 0;
-  stats_.idle = 0;
-  stats_.busy = 0;
-  stats_.schedstart = 0;
-}
-
-u64
-schedule::balance_count() const {
-  // 1 if the number of processes that in runnable state and have
-  // run long enough that they could be stolen is bigger than 1?
-  // XXX length of queue?
-  //
-  // XXX reading ncansteal could be expensive, but local core updates
-  // it and remote core reads it, experiencing a cache-line transfer
-  return cansteal_ > 0 ? 1 : 0;
-}
-
-void
-schedule::balance_move_to(schedule* target)
-{
-  proc *victim = nullptr;
-
-  if (!cansteal_ || !tryacquire(&lock_))
-    return;
-
-  for (auto it = proc_.begin(); it != proc_.end(); ++it) {
-    if ((*it).cansteal(true)) {
-      proc_.erase(it);
-      if (--ncansteal_ == 0)
-        cansteal_ = false;
-      sanity();
-      victim = &(*it);
-    }
-  }
-  release(&lock_);
-  if (!victim) {
-    ++stats_.misses;
-    return;
-  }
-
-  scoped_acquire l(&victim->lock);
-  if (victim->get_state() == RUNNABLE && !victim->cpu_pin &&
-      victim->curcycles != 0 && victim->curcycles > VICTIMAGE)
-  {
-    victim->curcycles = 0;
-    victim->cpuid = mycpu()->id;
-    target->enq(victim);
-    ++stats_.steals;
-  } else {
-    ++stats_.misses;
-  }
-}
-
-void
-schedule::enq(proc* p)
-{
-  scoped_acquire x(&lock_);
-  proc_.push_back(p);
-  if (p->cansteal(true))
-    if (ncansteal_++ == 0) {
-      cansteal_ = true;
-    }
-  sanity();
-  stats_.enqs++;
-}
-
-proc*
-schedule::deq(void)
-{
-  if (proc_.empty())
-    return nullptr;
-  // Remove from head
-  scoped_acquire x(&lock_);
-  if (proc_.empty())
-    return nullptr;
-  proc &p = proc_.front();
-  proc_.pop_front();
-  if (p.cansteal(true))
-    if (--ncansteal_ == 0)
-      cansteal_ = false;
-  sanity();
-  stats_.deqs++;
-  return &p;
-}
-
-void
-schedule::dump(print_stream *s)
-{
-  s->print(" enq ", stats_.enqs, " deqs ", stats_.deqs, " steals ", stats_.steals, " misses ", stats_.misses);
-}
-
-void
-schedule::sanity(void)
-{
-#if DEBUG
-  u64 n = 0;
-
-  for (auto &p : proc_)
-    if (p.cansteal(true))
-      n++;
-
-  if (n != ncansteal_)
-    panic("schedule::sanity: %lu != %lu", n, ncansteal_);
-#endif
-}
+struct schedule {
+  struct spinlock lock;
+  sref<vmap> current_;
+  sched_stat stats_;
+};
 
 struct sched_dir {
 private:
-  balancer<sched_dir, schedule> b_;
-  percpu<schedule*> schedule_;
+  ilist<proc, &proc::sched_link> kernel_procs_;
+  ilist<vmap, &vmap::sched_link> user_procs_;
+  spinlock lock_;
+
+  percpu<schedule> schedule_;
 public:
-  sched_dir() : b_(this) {
-    for (int i = 0; i < NCPU; i++) {
-      schedule_[i] = new schedule();
-    }
-  };
+  sched_dir() {}
   ~sched_dir() {};
   NEW_DELETE_OPS(sched_dir);
 
-  schedule* balance_get(int id) const {
-    return schedule_[id];
-  }
+  // schedule* balance_get(int id) const {
+  //   return schedule_[id];
+  // }
 
   void steal() {
-    if (!SCHED_LOAD_BALANCE)
-      return;
+    // if (!SCHED_LOAD_BALANCE)
+    //   return;
 
-    scoped_cli cli;
-    b_.balance();
+    // scoped_cli cli;
+    // b_.balance();
   }
 
   void addrun(struct proc* p) {
     p->set_state(RUNNABLE);
-    schedule_[p->cpuid]->enq(p);
+
+    if(p->vmap) {
+      scoped_acquire l(&p->vmap->sched_lock_);
+      bool enqueue_vmap = p->vmap->run_queue_.empty();
+      p->vmap->run_queue_.push_back(p);
+      if (enqueue_vmap) {
+        scoped_acquire l2(&lock_);
+        user_procs_.push_back(p->vmap.get());
+      }
+    } else {
+      scoped_acquire l2(&lock_);
+      kernel_procs_.push_back(p);
+    }
   }
 
-  void sched(void)
+  proc* next_for_qdomain(vmap* vmap) {
+    scoped_acquire l(&vmap->sched_lock_);
+    if (vmap->run_queue_.empty())
+      return nullptr;
+
+    proc* p = &vmap->run_queue_.front();
+    if (p->cpu_pin && p->cpuid != mycpu()->id)
+      return nullptr;
+    vmap->run_queue_.pop_front();
+    if (vmap->run_queue_.empty()) {
+      scoped_acquire l2(&lock_);
+      user_procs_.erase(user_procs_.iterator_to(vmap));
+    }
+
+    return p;
+  }
+
+  proc* next_proc() {
+    vmap* vmap = nullptr;
+    {
+      scoped_acquire l2(&lock_);
+      if (user_procs_.empty()) {
+        if (kernel_procs_.empty())
+          return nullptr;
+
+        proc* p = &kernel_procs_.front();
+        if (p->cpu_pin && p->cpuid != mycpu()->id)
+          return nullptr;
+        kernel_procs_.pop_front();
+        // cprintf("[%d]: running pid=%d name=%s\n", mycpu()->id, p.pid, p.name);
+        return p;
+      } else {
+        vmap = &user_procs_.front();
+        user_procs_.pop_front();
+      }
+    }
+    scoped_acquire l(&vmap->sched_lock_);
+    if (vmap->run_queue_.empty())
+      return nullptr;
+
+    proc* p = &vmap->run_queue_.front();
+    if (p->cpu_pin && p->cpuid != mycpu()->id) {
+      p = nullptr;
+    } else {
+      vmap->run_queue_.pop_front();
+    }
+    if (!vmap->run_queue_.empty()) {
+      scoped_acquire l2(&lock_);
+      user_procs_.push_back(vmap);
+    }
+    // cprintf("[%d]: running pid=%d name=%s\n", mycpu()->id, p->pid, p->name);
+    return p;
+  }
+
+  void sched(bool voluntary)
   {
     extern void forkret(void);
     int intena;
     proc* prev;
-    proc* next;
 
     // Poke the watchdog
     wdpoke();
@@ -210,14 +152,20 @@ public:
     myproc()->curcycles += rdtsc() - myproc()->tsc;
 
     // Interrupts are disabled
-    next = schedule_[mycpu()->id]->deq();
+    proc* next = nullptr;
+    if (voluntary && myproc()->vmap) {
+      next = next_for_qdomain(myproc()->vmap.get());
+    }
+    if (!next) {
+      next = next_proc();
+    }
 
     u64 t = rdtsc();
-    if (myproc() == idleproc())
-      schedule_[mycpu()->id]->stats_.idle += t - schedule_[mycpu()->id]->stats_.schedstart;
-    else
-      schedule_[mycpu()->id]->stats_.busy += t - schedule_[mycpu()->id]->stats_.schedstart;
-    schedule_[mycpu()->id]->stats_.schedstart = t;
+    // if (myproc() == idleproc())
+    //   schedule_[mycpu()->id].stats_.idle += t - schedule_[mycpu()->id].stats_.schedstart;
+    // else
+    //   schedule_[mycpu()->id].stats_.busy += t - schedule_[mycpu()->id].stats_.schedstart;
+    // schedule_[mycpu()->id].stats_.schedstart = t;
 
     if (next == nullptr) {
       if (myproc()->get_state() != RUNNABLE ||
@@ -236,8 +184,6 @@ public:
       panic("non-RUNNABLE next %s %u", next->name, next->get_state());
 
     prev = myproc();
-    mycpu()->proc = next;
-    mycpu()->prev = prev;
 
     if (prev->get_state() == ZOMBIE)
       mtstop(prev);
@@ -245,11 +191,10 @@ public:
       mtpause(prev);
     mtign();
 
-    switchvm(next);
     next->set_state(RUNNING);
     next->tsc = rdtsc();
 
-    if (next->context->rip != (uptr)threadstub && next->context->rip != (uptr)forkret) {
+    if (next->context.ptr->rip != (uptr)threadstub && next->context.ptr->rip != (uptr)forkret) {
       mtresume(next);
     }
     mtrec();
@@ -262,20 +207,47 @@ public:
     if (cr0 != ncr0)
       lcr0(ncr0);
 
-    swtch(&prev->context, next->context);
+    mycpu()->ts.rsp[0] = (u64) next->kstack + KSTACKSIZE;
+
+    switchvm(prev->vmap.get(), next->vmap.get());
+
+    if (!prev->on_qstack && next->on_qstack) {
+    //   u64 rsp = (u64)next->context.ptr;
+    //   cprintf("rsp = %lx kstack = %lx\n", rsp, next->kstack);
+    //   assert(rsp >= (u64)next->kstack);
+    //   assert(rsp < (u64)next->kstack + KSTACKSIZE);
+    //   memcpy((char*)rsp, (char*)rsp - (u64)next->kstack + (u64)next->qstack,
+    //          (u64)next->kstack + KSTACKSIZE - rsp);
+      next->on_qstack = false;
+      memcpy(next->kstack, next->qstack, KSTACKSIZE);
+    }
+
+    // assert(prev->on_qstack == !secrets_mapped);
+    // ensure_secrets();
+    mycpu()->proc = next; // needs secrets before this line?
+    mycpu()->prev = prev;
+
+    prev->on_qstack = !secrets_mapped;
+    assert(!next->on_qstack);
+    // if (prev->on_qstack && !next->on_qstack) {
+      swtch_and_barrier((contextptr*)&prev->context.ptr, next->context.ptr);
+    // } else {
+    //   swtch((contextptr*)&prev->context.ptr, next->context.ptr);
+    // }
+
     mycpu()->intena = intena;
     post_swtch();
   }
 
-  void
-  scheddump(print_stream *s)
-  {
-    for (int i = 0; i < NCPU; i++) {
-      s->print("CPU: ", i);
-      schedule_[i]->dump(s);
-      s->println();
-    }
-  }
+  // void
+  // scheddump(print_stream *s)
+  // {
+  //   for (int i = 0; i < NCPU; i++) {
+  //     s->print("CPU: ", i);
+  //     schedule_[i]->dump(s);
+  //     s->println();
+  //   }
+  // }
 
 };
 
@@ -290,9 +262,9 @@ post_swtch(void)
 }
 
 void
-sched(void)
+sched(bool voluntary)
 {
-  thesched_dir.sched();
+  thesched_dir.sched(voluntary);
 }
 
 void
@@ -305,12 +277,12 @@ static int
 statread(char *dst, u32 off, u32 n)
 {
   window_stream s(dst, off, n);
-  thesched_dir.scheddump(&s);
+  // thesched_dir.scheddump(&s);
   return s.get_used();
 }
 
 int
-steal(void)
+steal()
 {
   thesched_dir.steal();
   return 0;

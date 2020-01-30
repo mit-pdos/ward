@@ -33,15 +33,19 @@ enum { sched_debug = 0 };
 
 proc::proc(int npid) :
   kstack(0), qstack(0), killed(0), tf(0), uaccess_(0), user_fs_(0), pid(npid),
-  unmapped_hint(0), parent(0), context(0), tsc(0), curcycles(0), cpuid(0),
-  fpu_state(nullptr), cpu_pin(0), oncv(0), cv_wakeup(0),
+  unmapped_hint(0), cv(nullptr), yield_(false), oncv(0), cv_wakeup(0), curcycles(0),
+  tsc(0), cpuid(0), cpu_pin(0), state_(EMBRYO), on_qstack(false), parent(0), fpu_state(nullptr),
   futex_lock("proc::futex_lock", LOCKSTAT_PROC), unmap_tlbreq_(0),
-  data_cpuid(-1), in_exec_(0), yield_(false), upath(nullptr), uargv(nullptr),
-  exception_inuse(0), magic(PROC_MAGIC), state_(EMBRYO)
+  data_cpuid(-1), in_exec_(0), upath(nullptr), uargv(nullptr),
+  exception_inuse(0), magic(PROC_MAGIC)
 {
   snprintf(lockname, sizeof(lockname), "cv:proc:%d", pid);
   lock = spinlock(lockname+3, LOCKSTAT_PROC);
-  cv = new condvar(lockname);
+
+  context.ptr = nullptr;
+  context.secrets_mapped = true;
+
+  // cv = new condvar(lockname);
   gc = new gc_handle();
   memset(__cxa_eh_global, 0, sizeof(__cxa_eh_global));
   memset(sig, 0, sizeof(sig));
@@ -100,7 +104,7 @@ proc::set_cpu_pin(int cpu)
   cpuid = cpu;
   cpu_pin = 1;
   myproc()->set_state(RUNNABLE);
-  sched();
+  sched(true);
   assert(mycpu()->id == cpu);
   return 0;
 }
@@ -112,7 +116,7 @@ yield(void)
   acquire(&myproc()->lock);  //DOC: yieldlock
   myproc()->set_state(RUNNABLE);
   myproc()->yield_ = false;
-  sched();
+  sched(true);
 }
 
 
@@ -172,7 +176,7 @@ exit(int status)
     sref<vmap> vmap = std::move(myproc()->vmap);
     // Switch to kernel page table, since we may be just about to
     // destroy the current page table.
-    switchvm(myproc());
+    switchvm(vmap.get(), nullptr);
 
     // Remove user visible state associated with this proc from vmap.
     vmap->remove((uptr)myproc(), PGSIZE);
@@ -207,7 +211,7 @@ exit(int status)
 
   // Jump into the scheduler, never to return.
   myproc()->set_state(ZOMBIE);
-  sched();
+  sched(true);
   panic("zombie exit");
 }
 
@@ -272,10 +276,11 @@ proc::alloc(void)
   sp -= 8;
   *(u64*)sp = (u64)trapret;
 
-  sp -= sizeof *p->context;
-  p->context = (struct context*)sp;
-  memset(p->context, 0, sizeof *p->context);
-  p->context->rip = (uptr)forkret;
+  sp -= sizeof(struct context);
+  p->context.ptr = (struct context*)sp;
+  p->context.secrets_mapped = true;
+  memset(p->context.ptr, 0, sizeof(struct context));
+  p->context.ptr->rip = (uptr)forkret;
 
   return p;
 }
@@ -284,6 +289,9 @@ void proc::init_vmap()
 {
   vmap->qinsert(this);
   vmap->qinsert(kstack, qstack, KSTACKSIZE);
+
+  cv = (condvar*)vmap->qalloc("proc::cv");
+  new (cv) condvar();
 }
 
 void
@@ -366,7 +374,7 @@ procdumpall(void)
             p->pid, name, state, p->cpuid, p->tsc);
     
     if(p->get_state() == SLEEPING){
-      getcallerpcs((void*)p->context->rbp, pc, NELEM(pc));
+      getcallerpcs((void*)p->context.ptr->rbp, pc, NELEM(pc));
       for(int i=0; i<10 && pc[i] != 0; i++)
         cprintf(" %lx\n", pc[i]);
     }
@@ -528,9 +536,9 @@ threadalloc(void (*fn)(void *), void *arg)
   p->init_vmap();
 
   // XXX can threadstub be deleted?
-  p->context->rip = (u64)threadstub;
-  p->context->r12 = (u64)fn;
-  p->context->r13 = (u64)arg;
+  p->context.ptr->rip = (u64)threadstub;
+  p->context.ptr->r12 = (u64)fn;
+  p->context.ptr->r13 = (u64)arg;
   p->parent = nullptr;
   p->cwd.reset();
 

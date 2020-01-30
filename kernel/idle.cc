@@ -20,7 +20,7 @@ struct idle {
 };
 
 namespace {
-  DEFINE_PERCPU(idle, idlem);
+  DEFINE_QPERCPU(idle, idlem);
 };
 
 void idleloop(void);
@@ -75,7 +75,7 @@ idleloop(void)
   for (;;) {
     acquire(&myproc()->lock);
     myproc()->set_state(RUNNABLE);
-    sched();
+    sched(false);
     finishzombies();
     if (steal() == 0) {
         // XXX(Austin) This will prevent us from immediately picking
