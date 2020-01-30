@@ -225,7 +225,7 @@ void            wdpoke(void);
 
 // sched.cc
 void            addrun(struct proc *);
-void            sched(void);
+void            sched(bool voluntary);
 void            post_swtch(void);
 void            scheddump(void);
 int             steal(void);
@@ -263,7 +263,7 @@ void            uartputc(char c);
 void            uartintr(void);
 
 // vm.c
-void            switchvm(struct proc*);
+void            switchvm(struct vmap*, struct vmap*);
 int             pagefault(struct vmap*, uptr, u32);
 void*           pagelookup(struct vmap*, uptr);
 void*           qalloc(vmap* vmap, const char* name);

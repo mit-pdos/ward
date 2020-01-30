@@ -3,8 +3,8 @@
 
 # Context switch
 #
-#   void swtch(struct context **old, struct context *new);
-# 
+#   void swtch(struct contextptr *old, struct context *new);
+#
 # Save current register context in old
 # and then load register context from new.
 # %rdi holds old, %rsi holds new.
@@ -20,6 +20,33 @@ swtch:
         movq %rsp, (%rdi)
         movq %rsi, %rsp
 
+        popq %r15
+        popq %r14
+        popq %r13
+        popq %r12
+        popq %rbp
+        popq %rbx
+        ret
+
+.globl swtch_and_barrier
+swtch_and_barrier:
+        pushq %rbx
+        pushq %rbp
+        pushq %r12
+        pushq %r13
+        pushq %r14
+        pushq %r15
+        movq %rsp, (%rdi)
+
+		cmpb $0, (secrets_mapped)
+		je 1f
+		movq %cr3, %rbx
+	    andq $(~0x1001), %rbx
+	    andq %gs:GS_CR3_MASK, %rbx
+	    movq %rbx, %cr3
+1:      lfence
+
+        movq %rsi, %rsp
         popq %r15
         popq %r14
         popq %r13
