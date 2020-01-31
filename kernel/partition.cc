@@ -37,6 +37,7 @@ private:
 subdisk::subdisk(disk *base, u32 partnum, u64 offset, u64 length)
   : base(base), offset(offset), length(length)
 {
+  cprintf("subdisk(%p, partnum=%u, offset=%lx, len=%lx): ", base, partnum, offset, length);
   if (offset + length < offset) {
     panic("subdisk: selected range offset=%lu, length=%lu overflows a u64", offset, length);
   }
@@ -48,6 +49,7 @@ subdisk::subdisk(disk *base, u32 partnum, u64 offset, u64 length)
   snprintf(dk_firmware, sizeof(dk_firmware), "n/a");
   snprintf(dk_model, sizeof(dk_model), "PARTITION");
   snprintf(dk_serial, sizeof(dk_serial), "n/a");
+  cprintf("registered\n");
 
   // some filesystems cannot be readily distinguished from MBRs, so we cannot recurse into partitions
   can_have_partitions = false;
@@ -325,6 +327,8 @@ on_disk_add(disk *d)
   if (!d->can_have_partitions) {
     return;
   }
+
+  cprintf("on_disk_add(%p)\n", d);
 
   static_vector<partition, 128> p;
 

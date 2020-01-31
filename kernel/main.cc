@@ -248,22 +248,33 @@ cmain(u64 mbmagic, u64 mbaddr)
   initfutex();
   initsamp();
   initlockstat();
+  cprintf("A\n");
   initacpi();              // Requires initacpitables, initkalloc?
+  cprintf("B\n");
   inite1000();             // Before initpci
+  cprintf("C\n");
 #if AHCIIDE
   initahci();
 #endif
+  cprintf("D\n");
   initpci();               // Suggests initacpi
   initnet();
   initrtc();               // Requires inithpet
+  cprintf("E\n");
   initdev();               // Misc /dev nodes
+  cprintf("F\n");
 #if PORTIDE
   initide();      // IDE driver
 #endif
+  cprintf("G\n");
   initmemide();
+  cprintf("H\n");
   initpartition();
+  cprintf("I\n");
   initinode();     // inode cache
+  cprintf("J\n");
   initmfs();
+  cprintf("K\n");
 
   if (VERBOSE)
     cprintf("ncpu %d %lu MHz\n", ncpu, cpuhz / 1000000);
@@ -271,11 +282,13 @@ cmain(u64 mbmagic, u64 mbaddr)
   inituser();      // first user process
   initdblflt();    // Requires inittrap
   initnmi();
-
   // XXX hack until mnodes can load from disk
   extern void mfsload();
+  cprintf("L\n");
   mfsload();
+  cprintf("M\n");
   initvfs();
+  cprintf("N\n");
 
 #if CODEX
   initcodex();

@@ -102,13 +102,13 @@ public:
 
   bool on_qstack;
 
+  contextptr context;          // swtch() here to run process
 
   __page_pad__;
 
   vmalloc_ptr<char[]> kstack_vm; // vmalloc'd kstack, if using vmalloc
   struct proc *parent;         // Parent process
   int status;                  // exit's returns status
-  contextptr context;          // swtch() here to run process
   sref<filetable> ftable;      // File descriptor table
   sref<vnode> cwd;             // Current directory
   char name[16];               // Process name (debugging)

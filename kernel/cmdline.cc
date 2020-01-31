@@ -40,7 +40,7 @@ param_metadata_t<bool> binary_params[] = {
 param_metadata_t<u64> uint_params[] = {};
 
 param_metadata_t<char *> string_params[] = {
-  { "root_disk", (char**) cmdline_params.root_disk, "0", NULL },
+  { "root_disk", (char**) cmdline_params.root_disk, "memide.0", NULL },
 };
 
 static int
@@ -242,7 +242,7 @@ initcmdline()
   for (auto &param : string_params)
     parse_string_param(param.name, param.default_val, (char*) param.pval);
 
-  if(CMDLINE_DEBUG)
+  // if(CMDLINE_DEBUG)
     cmdline_view_param(NULL);
 
   devsw[MAJ_CMDLINE].pread = cmdlineread;

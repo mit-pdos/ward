@@ -211,9 +211,10 @@ public:
 
     switchvm(prev->vmap.get(), next->vmap.get());
 
+    prev->on_qstack = !secrets_mapped;
     if (!prev->on_qstack && next->on_qstack) {
     //   u64 rsp = (u64)next->context.ptr;
-    //   cprintf("rsp = %lx kstack = %lx\n", rsp, next->kstack);
+    // //   cprintf("rsp = %lx kstack = %lx\n", rsp, next->kstack);
     //   assert(rsp >= (u64)next->kstack);
     //   assert(rsp < (u64)next->kstack + KSTACKSIZE);
     //   memcpy((char*)rsp, (char*)rsp - (u64)next->kstack + (u64)next->qstack,
@@ -222,18 +223,20 @@ public:
       memcpy(next->kstack, next->qstack, KSTACKSIZE);
     }
 
+    contextptr* pctx = (contextptr*)&prev->context.ptr;
+    context* nctx = next->context.ptr;
+
     // assert(prev->on_qstack == !secrets_mapped);
     // ensure_secrets();
     mycpu()->proc = next; // needs secrets before this line?
     mycpu()->prev = prev;
 
-    prev->on_qstack = !secrets_mapped;
-    assert(!next->on_qstack);
-    // if (prev->on_qstack && !next->on_qstack) {
-      swtch_and_barrier((contextptr*)&prev->context.ptr, next->context.ptr);
-    // } else {
-    //   swtch((contextptr*)&prev->context.ptr, next->context.ptr);
-    // }
+    assert(prev->on_qstack == !secrets_mapped);
+    if (prev->on_qstack && !next->on_qstack) {
+      swtch_and_barrier(pctx, nctx);
+    } else {
+      swtch((contextptr*)&prev->context.ptr, next->context.ptr);
+    }
 
     mycpu()->intena = intena;
     post_swtch();

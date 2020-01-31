@@ -39,7 +39,7 @@ swtch_and_barrier:
         movq %rsp, (%rdi)
 
 		cmpb $0, (secrets_mapped)
-		je 1f
+		jne 1f
 		movq %cr3, %rbx
 	    andq $(~0x1001), %rbx
 	    andq %gs:GS_CR3_MASK, %rbx

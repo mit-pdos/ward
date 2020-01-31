@@ -26,6 +26,7 @@ disk_register(disk *d)
   for (disk_listener l : listeners) {
     l(d);
   }
+  cprintf("disk_register(%u): Done.\n", d->devno);
 }
 
 void

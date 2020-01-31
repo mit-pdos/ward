@@ -868,6 +868,8 @@ wdpoke(void)
 void
 initwd(void)
 {
+  return;
+
   selector_state &wd_selector = selectors[1];
 
   // We go through here on CPU 1 first since CPU 0 is still
