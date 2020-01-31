@@ -227,6 +227,145 @@ OPTIONAL_OR_NOPS("lazy_barrier")
 
         movq %rsp, %rdi  // first argument to trap
         movq (secrets_mapped), %rsi  // second argument to trap
+
+        mov $0x1c9, %rcx  // MSR_LASTBRANCH_TOS
+        rdmsr
+        push %rax
+
+        addq $(-8*33), %rsp
+
+        mov $0x680, %rcx // MSR_LASTBRANCH_0_FROM_IP
+        rdmsr
+        movl %eax, 0x0(%rsp)
+        movl %edx, 0x4(%rsp)
+        mov $0x681, %rcx
+        rdmsr
+        movl %eax, 0x8(%rsp)
+        movl %edx, 0xc(%rsp)
+        mov $0x682, %rcx
+        rdmsr
+        movl %eax, 0x10(%rsp)
+        movl %edx, 0x14(%rsp)
+        mov $0x683, %rcx
+        rdmsr
+        movl %eax, 0x18(%rsp)
+        movl %edx, 0x1c(%rsp)
+        mov $0x684, %rcx
+        rdmsr
+        movl %eax, 0x20(%rsp)
+        movl %edx, 0x24(%rsp)
+        mov $0x685, %rcx
+        rdmsr
+        movl %eax, 0x28(%rsp)
+        movl %edx, 0x2c(%rsp)
+        mov $0x686, %rcx
+        rdmsr
+        movl %eax, 0x30(%rsp)
+        movl %edx, 0x34(%rsp)
+        mov $0x687, %rcx
+        rdmsr
+        movl %eax, 0x38(%rsp)
+        movl %edx, 0x3c(%rsp)
+
+        mov $0x688, %rcx // MSR_LASTBRANCH_8_FROM_IP
+        rdmsr
+        movl %eax, 0x40(%rsp)
+        movl %edx, 0x44(%rsp)
+        mov $0x689, %rcx
+        rdmsr
+        movl %eax, 0x48(%rsp)
+        movl %edx, 0x4c(%rsp)
+        mov $0x68a, %rcx
+        rdmsr
+        movl %eax, 0x50(%rsp)
+        movl %edx, 0x54(%rsp)
+        mov $0x68b, %rcx
+        rdmsr
+        movl %eax, 0x58(%rsp)
+        movl %edx, 0x5c(%rsp)
+        mov $0x68c, %rcx
+        rdmsr
+        movl %eax, 0x60(%rsp)
+        movl %edx, 0x64(%rsp)
+        mov $0x68d, %rcx
+        rdmsr
+        movl %eax, 0x68(%rsp)
+        movl %edx, 0x6c(%rsp)
+        mov $0x68e, %rcx
+        rdmsr
+        movl %eax, 0x70(%rsp)
+        movl %edx, 0x74(%rsp)
+        mov $0x68f, %rcx
+        rdmsr
+        movl %eax, 0x78(%rsp)
+        movl %edx, 0x7c(%rsp)
+
+        mov $0x690, %rcx // MSR_LASTBRANCH_16_FROM_IP
+        rdmsr
+        movl %eax, 0x80(%rsp)
+        movl %edx, 0x84(%rsp)
+        mov $0x691, %rcx
+        rdmsr
+        movl %eax, 0x88(%rsp)
+        movl %edx, 0x8c(%rsp)
+        mov $0x692, %rcx
+        rdmsr
+        movl %eax, 0x90(%rsp)
+        movl %edx, 0x94(%rsp)
+        mov $0x693, %rcx
+        rdmsr
+        movl %eax, 0x98(%rsp)
+        movl %edx, 0x9c(%rsp)
+        mov $0x694, %rcx
+        rdmsr
+        movl %eax, 0xa0(%rsp)
+        movl %edx, 0xa4(%rsp)
+        mov $0x695, %rcx
+        rdmsr
+        movl %eax, 0xa8(%rsp)
+        movl %edx, 0xac(%rsp)
+        mov $0x696, %rcx
+        rdmsr
+        movl %eax, 0xb0(%rsp)
+        movl %edx, 0xb4(%rsp)
+        mov $0x697, %rcx
+        rdmsr
+        movl %eax, 0xb8(%rsp)
+        movl %edx, 0xbc(%rsp)
+
+        mov $0x698, %rcx // MSR_LASTBRANCH_24_FROM_IP
+        rdmsr
+        movl %eax, 0xc0(%rsp)
+        movl %edx, 0xc4(%rsp)
+        mov $0x699, %rcx
+        rdmsr
+        movl %eax, 0xc8(%rsp)
+        movl %edx, 0xcc(%rsp)
+        mov $0x69a, %rcx
+        rdmsr
+        movl %eax, 0xd0(%rsp)
+        movl %edx, 0xd4(%rsp)
+        mov $0x69b, %rcx
+        rdmsr
+        movl %eax, 0xd8(%rsp)
+        movl %edx, 0xdc(%rsp)
+        mov $0x69c, %rcx
+        rdmsr
+        movl %eax, 0xe0(%rsp)
+        movl %edx, 0xe4(%rsp)
+        mov $0x69d, %rcx
+        rdmsr
+        movl %eax, 0xe8(%rsp)
+        movl %edx, 0xec(%rsp)
+        mov $0x69e, %rcx
+        rdmsr
+        movl %eax, 0xf0(%rsp)
+        movl %edx, 0xf4(%rsp)
+        mov $0x69f, %rcx
+        rdmsr
+        movl %eax, 0xf8(%rsp)
+        movl %edx, 0xfc(%rsp)
+
 OPTIONAL("fsgsbase", "yes")
         rdfsbase %rax
 OPTIONAL_OR_CALL("fsgsbase", emulate_rdfsbase)
@@ -237,6 +376,7 @@ OPTIONAL("fsgsbase", "yes")
 OPTIONAL_OR_CALL("fsgsbase", emulate_wrfsbase)
         call trap_c
         popq %rax
+        addq $(34*8), %rsp
         // Fall through to trapret
 
 .globl trapret

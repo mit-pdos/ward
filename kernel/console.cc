@@ -285,6 +285,17 @@ kerneltrap(struct trapframe *tf)
   printbinctx(tf->rip);
 
   if (readmsr(MSR_INTEL_DEBUGCTL) & 1) {
+    u64* lbr_base = (u64*)tf - 34;
+    u64 lbr_tos = lbr_base[33] & 0x1f;
+    __cprintf("\n");
+    for (int i = 0; i < 8; i++) {
+      __cprintf(" [%d] %16lx    [%2d] %16lx    [%d] %16lx\n",
+                i, lbr_base[(lbr_tos + (32 - i)) % 32],
+                i+8, lbr_base[(lbr_tos + (24 - i)) % 32],
+                i+16, lbr_base[(lbr_tos + (16 - i)) % 32]
+        );
+    }
+
     __cprintf("\nLast branch before exception: %lx -> %lx\n",
               readmsr(MSR_INTEL_LER_FROM_LIP), readmsr(MSR_INTEL_LER_TO_LIP));
   }
