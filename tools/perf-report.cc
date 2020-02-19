@@ -53,22 +53,6 @@ public:
   int lookup(uint64_t pc, std::vector<line_info> *out) const;
 };
 
-#ifdef __APPLE__
-static char* xstrndup(const char* str, size_t len)
-{
-  char* r;
-  
-  r = (char*) malloc(len + 1);
-  if (r == NULL)
-    return r;
-  memcpy(r, str, len);
-  r[len] = 0;
-  return r;
-}
-#else
-#define xstrndup strndup
-#endif
-
 Addr2line::Addr2line(const char* path)
 {
   static const char* addr2line_exe[] = {
@@ -237,6 +221,10 @@ print_entry(Addr2line &addr2line, uint64_t count, uint64_t total,
 
   printf("\n");
 }
+
+#ifdef __APPLE__
+#define pipe2(a,b) pipe(a)
+#endif
 
 static void
 selfless(void)
