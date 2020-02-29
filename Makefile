@@ -55,8 +55,8 @@ CXXFLAGS = -Wno-delete-non-virtual-dtor -Wno-gnu-designator -Wno-tautological-co
 CFLAGS   = -no-integrated-as
 ASFLAGS  =
 else
-CC  ?= $(TOOLPREFIX)gcc
-CXX ?= $(TOOLPREFIX)g++
+CC  = $(TOOLPREFIX)gcc
+CXX = $(TOOLPREFIX)g++
 CXXFLAGS = -Wno-delete-non-virtual-dtor  -fno-pie -fno-pic
 CFLAGS   = -fno-pie -fno-pic
 ASFLAGS  = -Wa,--divide -fno-pie -fno-pic
@@ -64,6 +64,7 @@ endif
 
 LD = $(TOOLPREFIX)ld
 NM = $(TOOLPREFIX)nm
+AR = $(TOOLPREFIX)ar
 OBJCOPY = $(TOOLPREFIX)objcopy
 STRIP = $(TOOLPREFIX)strip
 
@@ -216,7 +217,14 @@ else
 QEMUNUMA := node node
 endif
 
-QEMUOPTS += -smp $(QEMUSMP) -m $(QEMUMEM) -enable-kvm -cpu Haswell,+pcid,+fsgsbase,+md-clear,+spec-ctrl \
+UNAME := $(shell uname)
+ifeq ($(UNAME), Darwin)
+QEMUVIRT := -accel hvf
+else
+QEMUVIRT := -enable-kvm
+endif
+
+QEMUOPTS += -smp $(QEMUSMP) -m $(QEMUMEM) $(QEMUVIRT) -cpu Haswell,+pcid,+fsgsbase,+md-clear,+spec-ctrl \
 	$(if $(QEMUOUTPUT),-serial file:$(QEMUOUTPUT),-serial mon:stdio) \
 	-device sga \
 	$(foreach x,$(QEMUNUMA),-numa $(x)) \
