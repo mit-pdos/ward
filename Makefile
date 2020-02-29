@@ -63,9 +63,9 @@ CFLAGS   = -fno-pie -fno-pic
 ASFLAGS  = -Wa,--divide -fno-pie -fno-pic
 endif
 
+AR = $(TOOLPREFIX)ar
 LD = $(TOOLPREFIX)ld
 NM = $(TOOLPREFIX)nm
-AR = $(TOOLPREFIX)ar
 OBJCOPY = $(TOOLPREFIX)objcopy
 STRIP = $(TOOLPREFIX)strip
 
