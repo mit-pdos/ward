@@ -9,6 +9,7 @@ TOOLPREFIX ?=
 QEMU       ?= qemu-system-x86_64
 # Number of CPUs to emulate
 QEMUSMP    ?= 8
+
 # RAM to simulate (in MB)
 QEMUMEM    ?= 512
 # Default hardware build target.  See param.h for others.
@@ -97,8 +98,7 @@ ifeq ($(EXCEPTIONS),y)
   # objects, so the linker ignores these objects entirely.  If you start
   # getting "multiple definition" and "undefined reference" errors,
   # there's probably a new ABI symbol we need to define ourselves.
-  CXXRUNTIME = $(shell $(CC) -print-file-name=libgcc_eh.a) \
-	  $(shell $(CC) -print-file-name=libsupc++.a)
+	CXXRUNTIME = $(CURDIR)/libgcc/libgcc_eh.a $(CURDIR)/libgcc/libsupc++.a
   CXXFLAGS += -DEXCEPTIONS=1
   ifndef USE_CLANG
     CXXFLAGS += -fnothrow-opt -Wnoexcept
