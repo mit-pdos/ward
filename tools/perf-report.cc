@@ -222,10 +222,6 @@ print_entry(Addr2line &addr2line, uint64_t count, uint64_t total,
   printf("\n");
 }
 
-#ifdef __APPLE__
-#define pipe2(a,b) pipe(a)
-#endif
-
 static void
 selfless(void)
 {
@@ -233,8 +229,10 @@ selfless(void)
   char x;
   if (!isatty(1))
     return;
-  if (pipe(p) < 0 || pipe2(s, O_CLOEXEC) < 0)
+  if (pipe(p) < 0 || pipe(s) < 0)
     edie("%s: pipe", __func__);
+  fcntl(s[0], O_CLOEXEC);
+  fcntl(s[1], O_CLOEXEC);
   if (fork() > 0) {
     dup2(p[0], 0);
     close(p[1]);
