@@ -183,7 +183,9 @@ $(O)/fs.part: $(O)/tools/mkfs $(FSEXTRA) $(UPROGS) intel-ucode/*
 $(O)/fs.img: $(O)/fs.part
 	dd if=$< of=$@ conv=sparse obs=512 seek=2048
 	truncate -s "51M" $@
-	parted -s --align optimal $@ mklabel gpt mkpart sv6filesystem 1MiB 50MiB
+	@if [ $(shell uname) != "Darwin" ]; then\
+		parted -s --align optimal $@ mklabel gpt mkpart sv6filesystem 1MiB 50MiB;\
+	fi # OSX does not have port of parted command
 
 .PRECIOUS: $(O)/%.o
 .PHONY: clean qemu gdb rsync codex
