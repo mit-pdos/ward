@@ -28,7 +28,7 @@ our multicore machines also has a `HW` target (like `josmp` and
 `ben`), and other interesting `HW` targets are mentioned below.
 Builds go to `o.$HW`.
 
-## OSX
+### OSX
 To run Ward on OSX, there are some additional steps that need to be taken:
 1. [Install homebrew](https://brew.sh/)
 1. Install qemu: `brew install qemu`

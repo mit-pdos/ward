@@ -186,7 +186,7 @@ $(O)/fs.img: $(O)/fs.part
 	truncate -s "51M" $@
 	@if [ $(shell uname) != "Darwin" ]; then\
 		parted -s --align optimal $@ mklabel gpt mkpart sv6filesystem 1MiB 50MiB;\
-	fi # OSX does not have port of parted command
+	fi # TODO: find alternative to parted on OSX since this build step does not work without it
 
 .PRECIOUS: $(O)/%.o
 .PHONY: clean qemu gdb rsync codex
