@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "libutil.h"
 #include "amd64.h"
@@ -117,7 +118,7 @@ static struct
   }
 } gbarrier;
 
-static uint64_t start_tscs[NCPU], stop_tscs[NCPU], iters[NCPU], pages[NCPU];
+static uint64_t start_tscs[NCPU], stop_tscs[NCPU], tscs_deltas[NCPU], iters[NCPU], pages[NCPU];
 static std::atomic<uint64_t> total_underflows;
 #ifdef RECORD_PMC
 static uint64_t pmcs[NCPU];
@@ -199,6 +200,7 @@ thr(void *arg)
 
   bool mywarmup = true;
   uint64_t tsc1 = 0;
+  struct timespec time_start = {0,0};
   uint64_t myiters = 0, mypages = 0, myunderflows = 0;
 #ifdef RECORD_PMC
   uint64_t pmc1 = 0;
@@ -211,6 +213,7 @@ thr(void *arg)
     mywarmup = false;                                   \
     myiters = mypages = myunderflows = 0;               \
     tsc1 = rdtsc();                                     \
+    clock_gettime(CLOCK_REALTIME, &time_start);         \
     CHECK_STAGE_PMC();                                  \
   }
 
@@ -363,6 +366,9 @@ thr(void *arg)
   }
   stop_tscs[cpu] = rdtsc();
   start_tscs[cpu] = tsc1;
+  struct timespec time_end = {0,0};
+  clock_gettime(CLOCK_REALTIME, &time_end);
+  tscs_deltas[cpu] = time_end.tv_nsec - time_start.tv_nsec;
 #ifdef RECORD_PMC
   pmcs[cpu] = rdpmc(PMCNO) - pmc1;
 #endif
@@ -384,6 +390,16 @@ summarize_tsc(const char *label, uint64_t tscs[], unsigned count)
     total += tscs[i];
   }
   printf("%lu cycles %s skew\n", max - min, label);
+  return total/count;
+}
+
+uint64_t
+avg_nsecs(uint64_t deltas[], unsigned count)
+{
+  uint64_t total = 0;
+  for(unsigned i = 0; i < count; i++) {
+    total += deltas[i];
+  }
   return total/count;
 }
 
@@ -472,6 +488,7 @@ main(int argc, char **argv)
   // Summarize
   uint64_t start_avg = summarize_tsc("start", start_tscs, nthread);
   uint64_t stop_avg = summarize_tsc("stop", stop_tscs, nthread);
+  uint64_t avg_ntime = avg_nsecs(tscs_deltas, nthread); 
   uint64_t iter = sum(iters, nthread);
 
   printf("%lu cycles\n", stop_avg - start_avg);
@@ -484,7 +501,7 @@ main(int argc, char **argv)
 #endif
 
 #ifdef XV6_USER
-  double secs = (double)(stop_avg - start_avg) / cpuhz();
+  double secs = (double)(avg_ntime) / 1000000000;
   printf("%f secs\n", secs);
   printf("%f iterations/sec\n", iter / secs);
   printf("%f page touches/sec\n", sum(pages, nthread) / secs);

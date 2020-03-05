@@ -250,13 +250,6 @@ sys_reboot(void)
 }
 
 //SYSCALL
-long
-sys_cpuhz(void)
-{
-  return (mycpu()->tsc_period * 1000000000) / TSC_PERIOD_SCALE;
-}
-
-//SYSCALL
 int
 sys_setfs(u64 base)
 {

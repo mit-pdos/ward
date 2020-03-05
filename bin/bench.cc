@@ -7,19 +7,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 
 static u64
-time_this(const char *av[])
+get_cycles(const char *av[])
 {
   u64 t0 = rdtsc();
 
   int pid = fork();
   if (pid < 0)
-    die("time_this: fork failed %s", av[0]);
+    die("get_cycles: fork failed %s", av[0]);
 
   if (pid == 0) {
     execv(av[0], const_cast<char * const *>(av));
-    die("time_this: exec failed %s", av[0]);
+    die("get_cycles: exec failed %s", av[0]);
   }
 
   wait(NULL);
@@ -53,7 +54,7 @@ struct TimedExec : public Bench
     }
 
     printf("%s .. ", result_);
-    u64 r = time_this(argv_);
+    u64 r = get_cycles(argv_);
     snprintf(str, sizeof(result_)-(str-result_), ": %lu cycles", r);
     printf("%lu cycles\n", r);
   }
@@ -82,9 +83,13 @@ struct LoopsBench : public Bench
       snprintf(cores, sizeof(cores), "%u", ncore);
       argv[1] = cores;
       for (int i = 0; i < runs; i++) {
-        u64 r = time_this(argv);      
+        struct timespec start_time;
+        clock_gettime(CLOCK_REALTIME, &start_time);
+        u64 r = get_cycles(argv);      
+        struct timespec end_time;
+        clock_gettime(CLOCK_REALTIME, &end_time);
         // r in usecs
-        r = (r*(1000*1000)) / cpuhz();
+        r = (end_time.tv_nsec - start_time.tv_nsec) / 1000;
         min = MIN(r, min);
       }
       snprintf(res, n, "%u %lu %u\n", ncore, min, nloops_);
