@@ -66,7 +66,7 @@ bool  isFirstIteration = false;
 #define NEW_OUTPUT_FN	OUTPUT_FILE_PATH "new_output_file.csv"
 #undef DEBUG
 #define DEBUG false
-#define BASE_ITER 20 // Must be >= 20
+#define BASE_ITER 20000 // Must be >= 20
 
 #define PAGE_SIZE 4096
 

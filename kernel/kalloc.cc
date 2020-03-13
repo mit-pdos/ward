@@ -1246,11 +1246,28 @@ char* zalloc(const char* name) {
       } else {
         memset(page, 0, PGSIZE);
         mem->zero_pages[mem->nzero++] = page;
+        if (KERNEL_HEAP_PROFILE) {
+          alloc_debug_info *adi = alloc_debug_info::of(page, PGSIZE);
+          auto alloc_rip = adi->kalloc_rip();
+          if (alloc_rip)
+            heap_profile_update(HEAP_PROFILE_KALLOC, alloc_rip, -PGSIZE);
+        }
       }
     }
   }
 
-  return mem->nzero ? (char*)mem->zero_pages[--mem->nzero] : NULL;
+  char* page = mem->nzero ? (char*)mem->zero_pages[--mem->nzero] : NULL;
+
+  if (KERNEL_HEAP_PROFILE && page) {
+    alloc_debug_info *adi = alloc_debug_info::of(page, PGSIZE);
+    auto alloc_rip = __builtin_return_address(0);
+    if (heap_profile_update(HEAP_PROFILE_KALLOC, alloc_rip, PGSIZE))
+      adi->set_kalloc_rip(alloc_rip);
+    else
+      adi->set_kalloc_rip(nullptr);
+  }
+
+  return page;
 }
 
 // Free a page that is known to be zero
@@ -1259,6 +1276,12 @@ void zfree(void* page) {
   auto mem = mycpu()->mem;
   if (mem->nzero < KALLOC_ZERO_PAGES) {
     mem->zero_pages[mem->nzero++] = page;
+    if (KERNEL_HEAP_PROFILE) {
+      alloc_debug_info *adi = alloc_debug_info::of(page, PGSIZE);
+      auto alloc_rip = adi->kalloc_rip();
+      if (alloc_rip)
+        heap_profile_update(HEAP_PROFILE_KALLOC, alloc_rip, -PGSIZE);
+    }
   } else {
     kfree(page);
   }
