@@ -75,6 +75,7 @@ UPROGS_BIN= \
 	param \
 	smallfile \
 	lebench \
+  attack \
 
 # Binaries that are known to build on PLATFORM=native
 UPROGS_NATIVE := \

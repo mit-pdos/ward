@@ -19,6 +19,7 @@
 #include <uk/mman.h>
 #include <uk/utsname.h>
 #include <uk/unistd.h>
+#include <uk/asm.h>
 
 //SYSCALL
 pid_t
@@ -508,4 +509,77 @@ sig_tgkill(int pid, int tid, int sig)
 
   proc::deliver_signal(pid, sig);
   return 0;
+}
+
+__attribute__((noinline))
+void
+gadget(void)
+{
+  //__asm volatile();
+
+  // stall here until processor realizes indirect branch was mispredicted
+  int junk = 1;
+  while(true) { junk = 1 - junk; };
+}
+
+//SYSCALL
+u64
+sys_get_gadget_addr(void)
+{
+  return (u64)&gadget;
+}
+
+__attribute__((noinline))
+int
+safe_target(void)
+{
+  return 4;
+}
+
+u64 *safe_target_addr;
+
+//SYSCALL
+u64
+sys_get_dest_addr(void)
+{
+  return (u64)safe_target_addr;
+}
+
+//SYSCALL
+int
+sys_victim(void)
+{
+  // perform indirect branch
+  int result;
+  __asm volatile("callq *%1\n"
+                 "mov %%eax, %0\n"
+                 : "=r" (result)
+                 : "r" (*safe_target_addr));
+  result++;
+  return result;
+}
+
+//SYSCALL
+u64
+sys_get_victim_addr(void)
+{
+  return (u64)&sys_victim; // offset is number of bytes before callq instruction
+}
+
+//SYSCALL
+int
+sys_get_victim_offset(void)
+{
+  u8 *code = (u8*) &sys_victim;
+  int offset;
+  for (offset = 0; *(code + offset) != 0xff; offset++); // look for call instruction
+  return offset;
+}
+
+//SYSCALL
+void
+sys_flush_target(void)
+{
+  clflush((void*) safe_target_addr);
+>>>>>>> spectre v2 attack: initial code
 }
