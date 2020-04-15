@@ -32,19 +32,15 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Print
+    - name: Instal MacPorts
+      uses: keepitsimpletech/actions/setup-macports@setup-macports/releases/v1
+    - name: Install dependencies
       run: |
-        which gcc
-        gcc --version
-        which gcc-9
-        gcc-9 --version
-        which g++
-        g++ --version
-        which g++-9
-        g++-9 --version
-        ls /usr/local/bin/gcc*
+        brew install truncate
+        sudo port install x86_64-elf-binutils
+        sudo port install x86_64-elf-gcc
     - name: Build kernel.elf
-      run: make Q= CC=/usr/local/bin/gcc-9 CXX=/usr/local/bin/g++-9
+      run: make Q= TOOLPREFIX=x86_64-elf-
     - name: Upload kernel.elf
       uses: actions/upload-artifact@v1
       with:
