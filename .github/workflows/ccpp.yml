@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 jobs:
-  build-ubuntu:
+  build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -25,24 +25,5 @@ jobs:
     - name: Upload boot.img
       uses: actions/upload-artifact@v1
       with:
-        name: kernel.elf
-        path: o.qemu/kernel.elf
-
-  build-macos:
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Instal MacPorts
-      uses: keepitsimpletech/actions/setup-macports@setup-macports/releases/v1
-    - name: Install dependencies
-      run: |
-        brew install truncate
-        sudo port install x86_64-elf-binutils
-        sudo port install x86_64-elf-gcc
-    - name: Build kernel.elf
-      run: make Q= TOOLPREFIX=x86_64-elf-
-    - name: Upload kernel.elf
-      uses: actions/upload-artifact@v1
-      with:
-        name: kernel.elf
-        path: o.qemu/kernel.elf
+        name: boot.img
+        path: o.qemu/boot.img
