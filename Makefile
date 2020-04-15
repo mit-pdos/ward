@@ -371,7 +371,7 @@ $(O)/example.fat: $(O)/bin/ls README.md $(O)/writeok
 
 $(O)/boot.fat: $(O)/kernel.elf $(O)/bin/anon grub/grub.cfg grub/grub.efi $(O)/writeok
 	@echo "  GEN    $@"
-	$(Q)dd if=/dev/zero of=$@ bs=4069 count=66560 2> /dev/null
+	$(Q)dd if=/dev/zero of=$@ bs=4096 count=66560 2> /dev/null
 	$(Q)mkfs.fat -F 32 -s 8 -S 512 $@ > /dev/null
 	$(Q)mmd -i $@ ::EFI
 	$(Q)mmd -i $@ ::EFI/BOOT
