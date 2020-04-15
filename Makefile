@@ -79,7 +79,6 @@ INCLUDES  = --sysroot=$(O)/sysroot \
 COMFLAGS  = -static -DXV6_HW=$(HW) -DXV6 \
 	    -fno-builtin -fno-strict-aliasing -fno-omit-frame-pointer -fms-extensions \
 	    -mno-red-zone
-COMFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
 COMFLAGS  += -Wl,-m,elf_x86_64 -nostdlib -ffreestanding
 LDFLAGS   = -m elf_x86_64
 else
@@ -87,7 +86,10 @@ INCLUDES := -include param.h -iquote libutil/include -I$(MTRACESRC)
 COMFLAGS := -pthread -Wno-unused-result
 LDFLAGS := -pthread
 endif
-COMFLAGS += -g -MD -MP -O3 -Wall -DHW_$(HW) $(INCLUDES) -fno-stack-protector  -mindirect-branch=thunk
+
+COMFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
+COMFLAGS += $(shell $(CC) -fcf-protection=none -E -x c /dev/null >/dev/null 2>&1 && echo -fcf-protection=none)
+COMFLAGS += -g -MD -MP -O3 -Wall -DHW_$(HW) $(INCLUDES) -mindirect-branch=thunk
 CFLAGS   := $(COMFLAGS) -std=c99 $(CFLAGS)
 CXXFLAGS := $(COMFLAGS) -std=c++17 -Wno-sign-compare -faligned-new $(CXXFLAGS)
 ASFLAGS  := $(ASFLAGS) -Iinclude -I$(O)/include -m64 -gdwarf-2 -MD -MP -DHW_$(HW) -include param.h
