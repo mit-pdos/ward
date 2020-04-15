@@ -8,12 +8,12 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [ubuntu-latest, macos-latest]
     steps:
     - uses: actions/checkout@v2
     - name: make
       run: make -j
-	- uses: actions/upload-artifact@v1
-	  with:
-	    name: kernel.elf
-		path: o.qemu/kernel.elf
+    - uses: actions/upload-artifact@v1
+      with:
+        name: kernel.elf
+        path: o.qemu/kernel.elf
