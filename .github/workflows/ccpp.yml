@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+  build-ubuntu:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -28,8 +28,7 @@ jobs:
         name: kernel.elf
         path: o.qemu/kernel.elf
 
-jobs:
-  build:
+  build-macos:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
