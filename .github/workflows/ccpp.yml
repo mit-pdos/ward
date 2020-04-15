@@ -33,7 +33,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build kernel.elf
-      run: make Q= CC=gcc-9 CXX=g++-9
+      run: make Q= CC=/usr/local/bin/gcc-9 CXX=/usr/local/bin/g++-9
     - name: Upload kernel.elf
       uses: actions/upload-artifact@v1
       with:
