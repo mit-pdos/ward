@@ -60,7 +60,7 @@ CC  = $(TOOLPREFIX)gcc
 CXX = $(TOOLPREFIX)g++
 CXXFLAGS = -Wno-delete-non-virtual-dtor  -fno-pie -fno-pic
 CFLAGS   = -fno-pie -fno-pic
-ASFLAGS  = -Wa,--divide -fno-pie -fno-pic
+ASFLAGS  = -fno-pie -fno-pic
 endif
 
 AR = $(TOOLPREFIX)ar
