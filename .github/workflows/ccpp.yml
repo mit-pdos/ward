@@ -8,10 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: make
@@ -20,3 +17,7 @@ jobs:
       with:
         name: kernel.elf
         path: o.qemu/kernel.elf
+	- name: install dependencies
+	  run: sudo apt-get install -y mtools parted
+	- name: make boot.img
+	  run: make -j o.qemu/boot.img
