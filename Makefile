@@ -87,7 +87,7 @@ INCLUDES := -include param.h -iquote libutil/include -I$(MTRACESRC)
 COMFLAGS := -pthread -Wno-unused-result
 LDFLAGS := -pthread
 endif
-COMFLAGS += -g -MD -MP -O3 -Wall -DHW_$(HW) $(INCLUDES) -fno-stack-protector  -mindirect-branch=thunk -fcf-protection=none
+COMFLAGS += -g -MD -MP -O3 -Wall -DHW_$(HW) $(INCLUDES) -fno-stack-protector  -mindirect-branch=thunk
 CFLAGS   := $(COMFLAGS) -std=c99 $(CFLAGS)
 CXXFLAGS := $(COMFLAGS) -std=c++17 -Wno-sign-compare -faligned-new $(CXXFLAGS)
 ASFLAGS  := $(ASFLAGS) -Iinclude -I$(O)/include -m64 -gdwarf-2 -MD -MP -DHW_$(HW) -include param.h
@@ -369,7 +369,7 @@ $(O)/example.fat: $(O)/bin/ls README.md $(O)/writeok
 	mcopy -i $@ ./README.md ::
 	mcopy -i $@ $(O)/writeok ::
 
-$(O)/boot.fat: $(O)/kernel.elf $(O)/bin/anon grub/grub.cfg grub/grub.efi
+$(O)/boot.fat: $(O)/kernel.elf $(O)/bin/anon grub/grub.cfg grub/grub.efi $(O)/writeok
 	@echo "  GEN    $@"
 	$(Q)dd if=/dev/zero of=$@ bs=4069 count=66560 2> /dev/null
 	$(Q)mkfs.fat -F 32 -s 8 -S 512 $@ > /dev/null
@@ -378,6 +378,7 @@ $(O)/boot.fat: $(O)/kernel.elf $(O)/bin/anon grub/grub.cfg grub/grub.efi
 	$(Q)mcopy -i $@ grub/grub.efi ::EFI/BOOT/BOOTX64.EFI
 	$(Q)mcopy -i $@ grub/grub.cfg ::grub.cfg
 	$(Q)mcopy -i $@ $(O)/kernel.elf ::ward
+	$(Q)mcopy -i $@ $(O)/writeok ::writeok
 $(O)/boot.img: $(O)/boot.fat $(O)/fs.part grub/boot.img grub/core.img
 	@echo "  GEN    $@"
 	$(Q)truncate -s "101M" $@
