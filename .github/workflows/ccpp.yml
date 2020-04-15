@@ -11,13 +11,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: make
+    - name: Build kernel.elf
       run: make -j
-    - uses: actions/upload-artifact@v1
+    - name: Upload kernel.elf
+      uses: actions/upload-artifact@v1
       with:
         name: kernel.elf
         path: o.qemu/kernel.elf
-    - name: install dependencies
-      run: sudo apt-get install -y mtools parted
-    - name: make boot.img
+    - name: Install dependencies
+      run: sudo apt-get install -y mtools
+    - name: Build boot.img
       run: make -j o.qemu/boot.img
+    - name: Upload boot.img
+      uses: actions/upload-artifact@v1
+      with:
+        name: kernel.elf
+        path: o.qemu/kernel.elf
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build kernel.elf
+      run: make CC=gcc CXX=g++ -j
+    - name: Upload kernel.elf
+      uses: actions/upload-artifact@v1
+      with:
+        name: kernel.elf
+        path: o.qemu/kernel.elf
