@@ -34,16 +34,14 @@ jobs:
   macos:
     runs-on: macos-10.15
     steps:
+    - run: curl -O https://github.com/macports/macports-base/releases/download/v2.6.2/MacPorts-2.6.2-10.15-Catalina.pkg
+    - run: sudo /usr/sbin/installer -pkg MacPorts-2.6.2-10.15-Catalina.pkg -target /
+    - run: sudo port install x86_64-elf-binutils
+    - run: sudo port install x86_64-elf-gcc
+    - run: brew install truncate
     - uses: actions/checkout@v2
-    - name: Install dependencies
-      run: |
-        curl -o /Users/runner/temp/MacPorts-2.6.2-10.15-Catalina.pkg -O https://github.com/macports/macports-base/releases/download/v2.6.2/MacPorts-2.6.2-10.15-Catalina.pkg
-        sudo /usr/sbin/installer -pkg /Users/runner/temp/MacPorts-2.6.2-10.15-Catalina.pkg -target /
-        sudo port install x86_64-elf-binutils
-        sudo port install x86_64-elf-gcc
-        brew install qemu
-        brew install truncate
     - name: Build kernel.elf
       run: make TOOLPREFIX=x86_64-elf- -j
+    - run: brew install qemu
     - name: Unit tests
       run: make QEMUACCEL= qemu-test
