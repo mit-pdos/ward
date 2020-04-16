@@ -31,3 +31,26 @@ jobs:
       run: sudo apt-get install -y qemu-system-x86
     - name: Unit tests
       run: make QEMUACCEL= qemu-test
+
+  macos:
+    runs-on: macos-10.15
+    steps:
+    - run: pwd
+      working-directory: ${{ runner.temp }}
+    - run: curl -O https://github.com/macports/macports-base/releases/download/v2.6.2/MacPorts-2.6.2-10.15-Catalina.pkg
+      working-directory: ${{ runner.temp }}
+    - run: ls -l $(pwd)/MacPorts-2.6.2-10.15-Catalina.pkg
+      working-directory: ${{ runner.temp }}
+    - run: sudo ls -l $(pwd)/MacPorts-2.6.2-10.15-Catalina.pkg
+      working-directory: ${{ runner.temp }}
+    - run: sudo /usr/sbin/installer -pkg $(pwd)/MacPorts-2.6.2-10.15-Catalina.pkg -target /
+      working-directory: ${{ runner.temp }}
+    - run: sudo port install x86_64-elf-binutils
+    - run: sudo port install x86_64-elf-gcc
+    - run: brew install truncate
+    - uses: actions/checkout@v2
+    - name: Build kernel.elf
+      run: make TOOLPREFIX=x86_64-elf- -j
+    - run: brew install qemu
+    - name: Unit tests
+      run: make QEMUACCEL= qemu-test
