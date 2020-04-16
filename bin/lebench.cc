@@ -213,8 +213,8 @@ void forkTest(u64 *childTime, u64 *parentTime)
   } else if (forkId > 0) {
     timeC = end_timer();
     wait(&status);
-	childTime += *timeB - timeA;
-	parentTime += timeC - timeA;
+	*childTime += *timeB - timeA;
+	*parentTime += timeC - timeA;
   } else {
     printf("[error] fork failed.\n");
   }
@@ -234,8 +234,8 @@ void threadTest(u64 *childTime, u64 *parentTime) {
   u64 timeC = end_timer();
   pthread_join(newThrd,NULL);
 
-  parentTime += timeC - timeD;
-  childTime += *timeB - timeD;
+  *parentTime += timeC - timeD;
+  *childTime += *timeB - timeD;
 
   free(timeB);
   timeB = NULL;
@@ -458,15 +458,17 @@ u64 context_switch_test() {
 int main(int argc, char *argv[])
 {
   timespec startTime, endTime;
+  u64 startCycles, endCycles;
+  startCycles = start_timer();
   clock_gettime(CLOCK_MONOTONIC, &startTime);
 
   FILE *fp = stdout;
   FILE *copy = stdout;
 
 #ifdef HW_linux
-  fprintf(fp, "Benchmark (linux),           Best,      Average,\n");
+  fprintf(fp, "Benchmark (linux),          kBest,      Average,\n");
 #else
-  fprintf(fp, "Benchmark (ward),            Best,      Average,\n");
+  fprintf(fp, "Benchmark (ward),           kBest,      Average,\n");
 #endif
 
   int base_iter = 200;
@@ -571,8 +573,11 @@ int main(int argc, char *argv[])
   one_line_test(fp, copy, page_fault_test, base_iter * 5, "huge page fault");
 
   clock_gettime(CLOCK_MONOTONIC, &endTime);
+  endCycles = end_timer();
   struct timespec *diffTime = calc_diff(&startTime, &endTime);
   printf("Test took: %d.%09ld seconds\n", (int)diffTime->tv_sec, diffTime->tv_nsec);
+  printf("CPU frequency: %f cycles/ns\n", (double)(endCycles - startCycles)
+         / (1e9 * (double)diffTime->tv_sec + (double)diffTime->tv_nsec));
   free(diffTime);
   return(0);
 }
