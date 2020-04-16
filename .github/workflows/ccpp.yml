@@ -37,13 +37,12 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install dependencies
       run: |
-        brew install qemu
-        brew install truncate
-        curl -O https://github.com/macports/macports-base/releases/download/v2.6.2/MacPorts-2.6.2-10.15-Catalina.pkg
-        ls
-        sudo installer -pkg ./MacPorts-2.6.2-10.15-Catalina.pkg -target /
+        curl -o /Users/runner/temp/MacPorts-2.6.2-10.15-Catalina.pkg -O https://github.com/macports/macports-base/releases/download/v2.6.2/MacPorts-2.6.2-10.15-Catalina.pkg
+        sudo /usr/sbin/installer -pkg /Users/runner/temp/MacPorts-2.6.2-10.15-Catalina.pkg -target /
         sudo port install x86_64-elf-binutils
         sudo port install x86_64-elf-gcc
+        brew install qemu
+        brew install truncate
     - name: Build kernel.elf
       run: make TOOLPREFIX=x86_64-elf- -j
     - name: Unit tests
