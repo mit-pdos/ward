@@ -34,7 +34,7 @@ jobs:
   macos:
     runs-on: macos-10.15
     steps:
-	- run: pwd
+    - run: pwd
     - run: curl -O https://github.com/macports/macports-base/releases/download/v2.6.2/MacPorts-2.6.2-10.15-Catalina.pkg
     - run: sudo /usr/sbin/installer -pkg $(pwd)/MacPorts-2.6.2-10.15-Catalina.pkg -target /
     - run: sudo port install x86_64-elf-binutils
