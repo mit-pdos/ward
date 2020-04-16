@@ -19,7 +19,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#define BASE_ITER 200 // Must be >= 20
 #define PAGE_SIZE 4096
 
 #ifdef HW_linux
@@ -128,7 +127,7 @@ u64 calc_k_closest(u64* timeArray, int size)
     if (j == K) break;
     prev = curr;
   }
-  u64 result = *k_closest[0];
+  u64 result = k_closest[0] ? *k_closest[0] : timeArray[0];
   free(k_closest);
   return result;
 
@@ -470,10 +469,16 @@ int main(int argc, char *argv[])
   fprintf(fp, "Benchmark (ward),            Best,      Average,\n");
 #endif
 
+  int base_iter = 200;
+  if (argc >= 2) {
+    base_iter = atoi(argv[1]);
+    assert(base_iter >= 20);
+  }
+
   // one_line_test(fp, copy, cpu_test, 100, "cpu");
-  one_line_test(fp, copy, ref_test, BASE_ITER * 1000, "ref");
-  one_line_test(fp, copy, getpid_test, BASE_ITER * 500, "getpid");
-  one_line_test(fp, copy, context_switch_test, BASE_ITER, "context switch");
+  one_line_test(fp, copy, ref_test, base_iter * 1000, "ref");
+  one_line_test(fp, copy, getpid_test, base_iter * 500, "getpid");
+  one_line_test(fp, copy, context_switch_test, base_iter, "context switch");
 
   /*****************************************/
   /*             SEND & RECV               */
@@ -482,29 +487,29 @@ int main(int argc, char *argv[])
   // curr_iter_limit = 50;
   // printf("msg size: %d.\n", msg_size);
   // printf("curr iter limit: %d.\n", curr_iter_limit);
-  // one_line_test(fp, copy, send_test, BASE_ITER * 10, "send");
-  // one_line_test(fp, copy, recv_test, BASE_ITER * 10, "recv");
+  // one_line_test(fp, copy, send_test, base_iter * 10, "send");
+  // one_line_test(fp, copy, recv_test, base_iter * 10, "recv");
 
   // msg_size = 96000;	// This size 96000 would cause blocking on older kernels!
   // curr_iter_limit = 1;
   // printf("msg size: %d.\n", msg_size);
   // printf("curr iter limit: %d.\n", curr_iter_limit);
-  // one_line_test(fp, copy, send_test, BASE_ITER, "big send");
-  // one_line_test(fp, copy, recv_test, BASE_ITER, "big recv");
+  // one_line_test(fp, copy, send_test, base_iter, "big send");
+  // one_line_test(fp, copy, recv_test, base_iter, "big recv");
 
 
   /*****************************************/
   /*         FORK & THREAD CREATE          */
   /*****************************************/
-  two_line_test(fp, copy, forkTest, BASE_ITER * 2, "fork");
-  two_line_test(fp, copy, threadTest, BASE_ITER * 5, "thr create");
+  two_line_test(fp, copy, forkTest, base_iter * 2, "fork");
+  two_line_test(fp, copy, threadTest, base_iter * 5, "thr create");
 
   int page_count = 6000;
   void** pages = (void**)malloc(page_count * sizeof(void*));
   for (int i = 0; i < page_count; i++) {
     pages[i] = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
   }
-  two_line_test(fp, copy, forkTest, BASE_ITER / 2, "big fork");
+  two_line_test(fp, copy, forkTest, base_iter / 2, "big fork");
   for (int i = 0; i < page_count; i++) {
     munmap(pages[i], PAGE_SIZE);
   }
@@ -515,7 +520,7 @@ int main(int argc, char *argv[])
   for (int i = 0; i < page_count; i++) {
     pages1[i] = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
   }
-  two_line_test(fp, copy, forkTest, BASE_ITER / 2, "huge fork");
+  two_line_test(fp, copy, forkTest, base_iter / 2, "huge fork");
   for (int i = 0; i < page_count; i++) {
     munmap(pages1[i], PAGE_SIZE);
   }
@@ -529,41 +534,41 @@ int main(int argc, char *argv[])
   file_size = PAGE_SIZE;
   read_warmup();
 
-  one_line_test(fp, copy, write_test, BASE_ITER * 10, "small write");
-  one_line_test(fp, copy, read_test, BASE_ITER * 10, "small read");
-  one_line_test(fp, copy, mmap_test, BASE_ITER * 10, "small mmap");
-  one_line_test(fp, copy, munmap_test, BASE_ITER * 10, "small munmap");
-  one_line_test(fp, copy, page_fault_test, BASE_ITER * 5, "small page fault");
+  one_line_test(fp, copy, write_test, base_iter * 10, "small write");
+  one_line_test(fp, copy, read_test, base_iter * 10, "small read");
+  one_line_test(fp, copy, mmap_test, base_iter * 10, "small mmap");
+  one_line_test(fp, copy, munmap_test, base_iter * 10, "small munmap");
+  one_line_test(fp, copy, page_fault_test, base_iter * 5, "small page fault");
 
   /****** MID ******/
   file_size = PAGE_SIZE * 10;
   read_warmup();
 
-  one_line_test(fp, copy, read_test, BASE_ITER * 10, "mid read");
-  one_line_test(fp, copy, write_test, BASE_ITER * 10, "mid write");
-  one_line_test(fp, copy, mmap_test, BASE_ITER * 10, "mid mmap");
-  one_line_test(fp, copy, munmap_test, BASE_ITER * 10, "mid munmap");
-  one_line_test(fp, copy, page_fault_test, BASE_ITER * 5, "mid page fault");
+  one_line_test(fp, copy, read_test, base_iter * 10, "mid read");
+  one_line_test(fp, copy, write_test, base_iter * 10, "mid write");
+  one_line_test(fp, copy, mmap_test, base_iter * 10, "mid mmap");
+  one_line_test(fp, copy, munmap_test, base_iter * 10, "mid munmap");
+  one_line_test(fp, copy, page_fault_test, base_iter * 5, "mid page fault");
 
   /****** BIG ******/
   file_size = PAGE_SIZE * 1000;
   read_warmup();
 
-  one_line_test(fp, copy, read_test, BASE_ITER, "big read");
-  one_line_test(fp, copy, write_test, BASE_ITER / 2, "big write");
-  one_line_test(fp, copy, mmap_test, BASE_ITER * 10, "big mmap");
-  one_line_test(fp, copy, munmap_test, BASE_ITER / 4, "big munmap");
-  one_line_test(fp, copy, page_fault_test, BASE_ITER * 5, "big page fault");
+  one_line_test(fp, copy, read_test, base_iter, "big read");
+  one_line_test(fp, copy, write_test, base_iter / 2, "big write");
+  one_line_test(fp, copy, mmap_test, base_iter * 10, "big mmap");
+  one_line_test(fp, copy, munmap_test, base_iter / 4, "big munmap");
+  one_line_test(fp, copy, page_fault_test, base_iter * 5, "big page fault");
 
   /****** HUGE ******/
   file_size = PAGE_SIZE * 10000;
   read_warmup();
 
-  one_line_test(fp, copy, read_test, BASE_ITER, "huge read");
-  one_line_test(fp, copy, write_test, BASE_ITER / 4, "huge write");
-  one_line_test(fp, copy, mmap_test, BASE_ITER * 10, "huge mmap");
-  one_line_test(fp, copy, munmap_test, BASE_ITER / 4, "huge munmap");
-  one_line_test(fp, copy, page_fault_test, BASE_ITER * 5, "huge page fault");
+  one_line_test(fp, copy, read_test, base_iter, "huge read");
+  one_line_test(fp, copy, write_test, base_iter / 4, "huge write");
+  one_line_test(fp, copy, mmap_test, base_iter * 10, "huge mmap");
+  one_line_test(fp, copy, munmap_test, base_iter / 4, "huge munmap");
+  one_line_test(fp, copy, page_fault_test, base_iter * 5, "huge page fault");
 
   clock_gettime(CLOCK_MONOTONIC, &endTime);
   struct timespec *diffTime = calc_diff(&startTime, &endTime);

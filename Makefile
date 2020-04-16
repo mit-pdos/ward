@@ -211,7 +211,7 @@ codex: $(KERN)
 $(O)/writeok:
 	$(Q)echo >$@
 $(O)/fs.part: $(O)/tools/mkfs $(FSEXTRA) $(UPROGS) intel-ucode/*
-	@echo "  GEN   $@"
+	@echo "  GEN    $@"
 	$(Q)$(O)/tools/mkfs $@ $(FSEXTRA) $(UPROGS) intel-ucode/*
 $(O)/boot.fat: $(O)/kernel.elf $(O)/bin/anon grub/grub.cfg grub/grub.efi $(O)/writeok
 	@echo "  GEN    $@"

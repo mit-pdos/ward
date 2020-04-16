@@ -1,12 +1,12 @@
 #!/sh
 
 echo Running getpid...
-getpid
+getpid || (echo FAILED && halt 1)
 echo OK
 echo
 
 echo Running anon...
-anon || (echo FAILED && halt 1)
+anon 100000 || (echo FAILED && halt 1)
 echo OK
 echo
 
@@ -15,14 +15,13 @@ schedbench || (echo FAILED && halt 1)
 echo OK
 echo
 
-echo Running lebench...
-lebench || (echo FAILED && halt 1)
-echo OK
-echo
-
 echo Running usertests...
 usertests || (echo FAILED && halt 1)
 echo OK
 echo
+
+echo Running lebench...
+lebench 20 || (echo FAILED && halt 1)
+echo OK
 
 halt 0
