@@ -201,7 +201,7 @@ qemu-grub: $(O)/boot.img
 	$(QEMUCOMMAND) $<
 qemu-test: $(KERN)
 	$(eval QEMUAPPEND += %unittests.sh)
-	timeout --foreground 5m $(QEMUCOMMAND)
+	timeout --foreground 15m $(QEMUCOMMAND)
 
 codex: $(KERN)
 
