@@ -40,7 +40,8 @@ jobs:
         brew install qemu
         brew install truncate
         curl -O https://github.com/macports/macports-base/releases/download/v2.6.2/MacPorts-2.6.2-10.15-Catalina.pkg
-        sudo installer -pkg MacPorts-2.6.2-10.15-Catalina.pkg -target /
+        ls
+        sudo installer -pkg ./MacPorts-2.6.2-10.15-Catalina.pkg -target /
         sudo port install x86_64-elf-binutils
         sudo port install x86_64-elf-gcc
     - name: Build kernel.elf
