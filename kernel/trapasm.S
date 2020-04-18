@@ -162,6 +162,12 @@ OPTIONAL_OR_NOPS("lazy_barrier")
         movq    $0, %rcx
         movq    %r11, 0xa8(%rsp)  // eflags saved by syscall
         movq    $0, %r11
+        movq    %rdi, 0x80(%rsp)
+        movq    %rsi, 0x78(%rsp)
+        movq    %rdx, 0x70(%rsp)
+        movq    %r8, 0x58(%rsp)
+        movq    %r9, 0x50(%rsp)
+        movq    %r10, 0x48(%rsp)
         movq    %r10, %rcx
         movq    $0, %r10
 
@@ -189,7 +195,7 @@ OPTIONAL_OR_CALL("fsgsbase", emulate_wrfsbase)
         call    sysentry_c
         cli
 
-	addq    $8, %rsp
+        addq    $8, %rsp
         push    %rax
         movq    %gs:GS_PROC, %rax
         movq    PROC_USER_FS(%rax), %rax
@@ -202,6 +208,12 @@ OPTIONAL_OR_CALL("fsgsbase", emulate_wrfsbase)
         // return using SYSRET
         add     $(8*3), %rsp  // Discard syscall#, fake activation record
         movq    %rsp, %r11
+        movq    0x80(%r11), %rdi
+        movq    0x78(%r11), %rsi
+        movq    0x70(%r11), %rdx
+        movq    0x58(%r11), %r8
+        movq    0x50(%r11), %r9
+        movq    0x48(%r11), %r10
         movq    0x10(%r11), %r15
         movq    0x18(%r11), %r14
         movq    0x20(%r11), %r13
@@ -266,7 +278,7 @@ OPTIONAL("fsgsbase", "yes")
         wrfsbase %rax
 OPTIONAL_OR_CALL("fsgsbase", emulate_wrfsbase)
         subq $8, %rsp
-    	call trap_c
+        call trap_c
         addq $8, %rsp
         popq %rax
         // Fall through to trapret
