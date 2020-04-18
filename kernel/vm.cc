@@ -648,11 +648,12 @@ vmap::brk(uptr newaddr)
 
   scoped_acquire xlock(&brklock_);
 
-  sptr relative = newaddr - brk_;
-
-  // don't need to care about the return value; either it succeeded (and brk_ got
-  // changed) or it failed (and it didn't), which is all the caller cares about
-  (void) sbrk_update(relative);
+  if (newaddr != 0) {
+    sptr relative = newaddr - brk_;
+    // don't need to care about the return value; either it succeeded (and brk_ got
+    // changed) or it failed (and it didn't), which is all the caller cares about
+    (void) sbrk_update(relative);
+  }
 
   return brk_;
 }
