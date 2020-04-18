@@ -434,3 +434,23 @@ sys_cmdline_change_param(const char *name, const char *value)
 {
   return cmdline_change_param(name, value);
 }
+
+//SYSCALL
+int
+sys_arch_prctl(int code, userptr<u64> addr)
+{
+  if (code == 0x1001) {
+    cprintf("arch_prctl(ARCH_SET_GS) is unimplemented\n");
+    return -1;
+  } else if(code == 0x1002) {
+    myproc()->user_fs_ = (uptr)addr;
+    return 0;
+  } else if(code == 0x1003) {
+    cprintf("arch_prctl(ARCH_SET_GS) is unimplemented\n");
+    return -1;
+  } else if(code == 0x1004) {
+    addr.store(&myproc()->user_fs_);
+    return 0;
+  }
+  return -1;
+}
