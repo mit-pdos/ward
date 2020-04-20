@@ -109,9 +109,14 @@ dostack(vmap* vmp, const char* const * argv, const char* path)
   //     char argv[argc-2]
   //     ...
   //     char argv[0]
+  //   random data:
+  //     u8 random[16]
   //   stub auxv pointer:
   //     u32 auxv_union_ignored = 0
   //     u32 auxv_type = 0
+  //   auxv at_random:
+  //     u32 auxv_random_ptr
+  //     u32 auxv_type = AT_RANDOM
   //   stub env pointer:
   //     char *envp[1] = {NULL}
   //   argv pointers:
@@ -139,9 +144,15 @@ dostack(vmap* vmp, const char* const * argv, const char* path)
   }
   argstck[argc] = 0;
 
-  sp -= sizeof(u32) * 2;
-  u32 zero_auxv[2] = {0, 0};
-  if(vmp->copyout(sp, zero_auxv, sizeof(u32) * 2) < 0)
+  sp -= 16;
+  u64 random_data[] = {1, 2, 3, 4};
+  if(vmp->copyout(sp, random_data, 16) < 0)
+    return -1;
+  u64 random_ptr = sp;
+
+  sp -= sizeof(u64) * 4;
+  u64 auxv[] = {25, random_ptr, 0, 0};
+  if(vmp->copyout(sp, auxv, sizeof(u64) * 4) < 0)
     return -1;
 
   sp -= sizeof(u64);
