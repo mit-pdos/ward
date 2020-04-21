@@ -6,3 +6,8 @@
 #define T_DEV  3   // Special device
 #define T_SOCKET 4  // Named socket
 #define T_FIFO 5    // Pipe
+
+struct iovec {
+  void* base;
+  size_t len;
+};

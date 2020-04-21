@@ -16,6 +16,7 @@
 #include <vector>
 #include "kstream.hh"
 #include <uk/spawn.h>
+#include <uk/fs.h>
 #include "filetable.hh"
 
 sref<file>
@@ -227,6 +228,31 @@ sys_pwrite(int fd, const void *ubuf, size_t count, off_t offset)
   auto cleanup = scoped_cleanup([&](){kmfree(b, count);});
   fetchmem(b, ubuf, count);
   return f->pwrite(b, count, offset);
+}
+
+//SYSCALL
+ssize_t
+sys_writev(int fd, const void* iov, int count) {
+  sref<file> f = getfile(fd);
+  if (!f)
+    return -1;
+  char *b = kalloc("writebuf");
+  if (!b)
+    return -1;
+  auto cleanup = scoped_cleanup([b](){kfree(b);});
+
+  iovec v;
+  for(int i = 0; i < count; i++) {
+    ((userptr<iovec>)(iovec*)iov).load(&v);
+    if (v.len == 0)
+      continue;
+    if (v.len > PGSIZE)
+      v.len = PGSIZE;
+    fetchmem(b, v.base, v.len);
+    return f->write(b, v.len);
+
+  }
+  return 0;
 }
 
 //SYSCALL
