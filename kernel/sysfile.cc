@@ -306,6 +306,14 @@ sys_stat(userptr_str path, userptr<struct stat> st)
 
 //SYSCALL
 int
+sys_lstat(userptr_str path, userptr<struct stat> st)
+{
+  // We don't support symlinks
+  return sys_stat(path, st);
+}
+
+//SYSCALL
+int
 sys_access(userptr_str path, int mode)
 {
   char path_copy[PATH_MAX];

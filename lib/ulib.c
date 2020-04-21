@@ -85,13 +85,6 @@ mkdir(const char *path, mode_t mode)
   return mkdirat(AT_FDCWD, path, mode);
 }
 
-int
-lstat(const char *path, struct stat *buf)
-{
-  // xv6 has no symlinks
-  return stat(path, buf);
-}
-
 unsigned
 sleep(unsigned secs)
 {
