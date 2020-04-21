@@ -2,9 +2,9 @@
 
 struct utsname
 {
-  char sysname[64];
-  char nodename[64];
-  char release[64];
-  char version[64];
-  char machine[64];
+  char sysname[65];
+  char nodename[65];
+  char release[65];
+  char version[65];
+  char machine[65];
 };

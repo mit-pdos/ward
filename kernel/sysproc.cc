@@ -312,20 +312,20 @@ sys_uname(userptr<struct utsname> buf)
 {
   static struct utsname uts
   {
-    "xv6",
+    "ward",
 #define xstr(s) str(s)
 #define str(s) #s
       xstr(XV6_HW),
 #undef xstr
 #undef str
-      "",
-      "",
-      "x86_64"
+    "9: ", // binaries linked with glibc abort the first character isn't a large enough number.
+    "",
+    "x86_64"
   };
   static bool initialized;
   if (!initialized) {
     strncpy(uts.version, kmeta::version_string(), sizeof(uts.version) - 1);
-    strncpy(uts.release, kmeta::release_string(), sizeof(uts.release) - 1);
+    strncpy(uts.release+3, kmeta::release_string(), sizeof(uts.release) - 4);
     initialized = true;
   }
   if (!buf.store(&uts))
