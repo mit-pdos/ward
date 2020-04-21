@@ -130,8 +130,8 @@ UPROGS := $(UPROGS_BIN) \
 UPROGS := $(addprefix $(O)/bin/, $(UPROGS))
 
 # see README.git
-ifneq ($(shell ls git/git-static/bin/git),)
-UPROGS += git/git-static/bin/git
+ifneq ($(shell ls git/git),)
+UPROGS += git/git
 endif
 
 FSEXTRA += \
