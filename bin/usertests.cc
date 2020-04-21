@@ -1527,6 +1527,7 @@ sbrktest(void)
     }
     if(pid == 0){
       struct sigaction act;
+      memset(&act, 0, sizeof(act));
       act.sa_handler = &exit;
       sigaction(SIGSEGV, &act, NULL);
       printf("oops could read %p = %x\n", a, *a);
