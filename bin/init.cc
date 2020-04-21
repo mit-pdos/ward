@@ -112,6 +112,11 @@ main(void)
   for (auto &d : dev)
     if (mknod(d.name, d.major, 1) < 0)
       fprintf(stderr, "init: mknod %s failed\n", d.name);
+
+  mkdir("etc", 0777);
+  int fd = open("etc/gitconfig", O_RDWR | O_CREAT);
+  if(fd >= 0) close(fd);
+
 #else
   mkdir("/proc", 0555);
   int r = mount("x", "/proc", "proc", 0, "");
