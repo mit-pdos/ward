@@ -244,6 +244,56 @@ sys_fstatx(int fd, userptr<struct stat> st, enum stat_flags flags)
   return 0;
 }
 
+//SYSCALL
+int
+sys_fstat(int fd, userptr<struct stat> st)
+{
+  struct stat st_buf;
+  sref<file> f = getfile(fd);
+  if (!f)
+    return -1;
+  if (f->stat(&st_buf, STAT_NO_FLAGS) < 0)
+    return -1;
+  if (!st.store(&st_buf))
+    return -1;
+  return 0;
+}
+
+//SYSCALL
+int
+sys_stat(userptr_str path, userptr<struct stat> st)
+{
+  char path_copy[PATH_MAX];
+  if (!path.load(path_copy, sizeof path_copy))
+    return -1;
+
+  sref<vnode> m = vfs_root()->resolve(myproc()->cwd, path_copy);
+  if(!m)
+    return -2;
+
+  struct stat st_buf;
+  m->stat(&st_buf, STAT_NO_FLAGS);
+  if (!st.store(&st_buf))
+    return -1;
+  return 0;
+}
+
+//SYSCALL
+int
+sys_access(userptr_str path, int mode)
+{
+  char path_copy[PATH_MAX];
+  if (!path.load(path_copy, sizeof path_copy))
+    return -1;
+
+  sref<vnode> m = vfs_root()->resolve(myproc()->cwd, path_copy);
+  if(!m)
+    return -2;
+
+  return 0;
+}
+
+
 // Create the path new as a link to the same inode as old.
 //SYSCALL
 int

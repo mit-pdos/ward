@@ -28,20 +28,6 @@ gets(char *buf, int max)
 }
 
 int
-stat(const char *n, struct stat *st)
-{
-  int fd;
-  int r;
-
-  fd = open(n, O_RDONLY | O_ANYFD | O_CLOEXEC);
-  if(fd < 0)
-    return -1;
-  r = fstat(fd, st);
-  close(fd);
-  return r;
-}
-
-int
 fstatat(int dirfd, const char *n, struct stat *st)
 {
   int fd;
@@ -104,12 +90,6 @@ lstat(const char *path, struct stat *buf)
 {
   // xv6 has no symlinks
   return stat(path, buf);
-}
-
-int
-fstat(int fd, struct stat *st)
-{
-  return fstatx(fd, st, 0);
 }
 
 unsigned
