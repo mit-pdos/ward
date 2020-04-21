@@ -44,6 +44,7 @@ static struct {
   { "/dev/kmemstats",    MAJ_KMEMSTATS},
   { "/dev/mfsstats",    MAJ_MFSSTATS},
   { "/dev/qstats", MAJ_QSTATS},
+  { "/dev/null", MAJ_NULL},
 };
 #endif
 

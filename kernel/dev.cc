@@ -62,10 +62,19 @@ qstatsread(char *dst, u32 off, u32 n)
   return s.get_used();
 }
 
+static int nullread(char* dst, u32 off, u32 n) {
+  return 0;
+}
+static int nullwrite(const char* src, u32 off, u32 n) {
+  return n;
+}
+
 void
 initdev(void)
 {
   devsw[MAJ_KCONFIG].pread = kconfigread;
   devsw[MAJ_KSTATS].pread = kstatsread;
   devsw[MAJ_QSTATS].pread = qstatsread;
+  devsw[MAJ_NULL].pread = nullread;
+  devsw[MAJ_NULL].pwrite = nullwrite;
 }
