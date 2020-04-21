@@ -122,6 +122,8 @@ public:
   u8 exception_buf[256];
   u64 magic;
   sigaction sig[NSIG];
+  u32 blocked_signals;
+  u32 pending_signals;
 
   static proc* alloc();
   void         init_vmap();
@@ -138,6 +140,7 @@ public:
 
   static u64   hash(const u32& p);
 
+  static bool deliver_signal(int pid, int signo);
   bool deliver_signal(int signo);
 
   ~proc(void);

@@ -36,7 +36,8 @@ proc::proc(int npid) :
   unmapped_hint(0), cv(nullptr), yield_(false), oncv(0), cv_wakeup(0), curcycles(0),
   tsc(0), cpuid(0), cpu_pin(0), context(nullptr), on_qstack(false), state_(EMBRYO),
   parent(0), fpu_state(nullptr), unmap_tlbreq_(0), data_cpuid(-1), in_exec_(0),
-  upath(nullptr), uargv(nullptr), exception_inuse(0), magic(PROC_MAGIC)
+  upath(nullptr), uargv(nullptr), exception_inuse(0), magic(PROC_MAGIC),
+  blocked_signals(0)
 {
   snprintf(lockname, sizeof(lockname), "cv:proc:%d", pid);
   lock = spinlock(lockname+3, LOCKSTAT_PROC);
@@ -579,13 +580,41 @@ threadpin(void (*fn)(void*), void *arg, const char *name, int cpu)
 }
 
 bool
+proc::deliver_signal(int pid, int signo)
+{
+  struct proc *p;
+
+  // XXX The one use of lookup and it is wrong: it should return a locked
+  // proc structure, or be in an RCU epoch.  Now another process can delete
+  // p between lookup and kill.
+  p = xnspid->lookup(pid);
+  if (p == 0) {
+    panic("kill");
+    return false;
+  }
+  return p->deliver_signal(signo);
+}
+
+bool
 proc::deliver_signal(int signo)
 {
-  if (signo < 0 || signo >= NSIG)
+  if (signo < 0 || signo >= NSIG) {
     return false;
+  }
 
-  if (sig[signo].sa_handler == 0)
+  if (blocked_signals & (1 << signo)) {
+    pending_signals |= 1 << signo;
     return false;
+  }
+
+  pending_signals &= ~(1 << signo);
+  if (sig[signo].sa_handler == SIG_DFL) {
+    // TODO: not all default handlers should kill the process.
+    killed = 1;
+    return true;
+  } else if (sig[signo].sa_handler == SIG_IGN) {
+    return true;
+  }
 
   trapframe tf_save = *tf;
   tf->rsp -= 128;   // skip redzone

@@ -72,6 +72,13 @@ sys_getpid(void)
 }
 
 //SYSCALL
+int
+sys_gettid(void)
+{
+  return myproc()->pid;
+}
+
+//SYSCALL
 char*
 sys_sbrk(intptr_t n)
 {
@@ -453,4 +460,52 @@ sys_arch_prctl(int code, userptr<u64> addr)
     return 0;
   }
   return -1;
+}
+
+//SYSCALL
+int
+sys_sigprocmask(int how, userptr<u32> set, userptr<u32> oldset)
+{
+  if (oldset) {
+    oldset.store(&myproc()->blocked_signals);
+  }
+
+  if (set) {
+    u32 v;
+    set.load(&v);
+
+    if (how == 0) // SIG_BLOCK
+      myproc()->blocked_signals |= v & (~((1<<SIGKILL) | (1<<SIGSTOP)));
+    else if (how == 1) // SIG_UNBLOCK
+      myproc()->blocked_signals &= ~v;
+    else if (how == 2) // SIG_SETMASK
+      myproc()->blocked_signals = v & (~((1<<SIGKILL) | (1<<SIGSTOP)));
+    else
+      return -1;
+
+    u32 pending = myproc()->pending_signals;
+    u32 blocked = myproc()->blocked_signals;
+    u32 activated = pending & (~blocked);
+    if (activated != 0) {
+      for (int i = 0; i < NSIG; i++) {
+        if ((1<<i) & activated) {
+          myproc()->deliver_signal(i);
+          break;
+        }
+      }
+    }
+  }
+
+  return 0;
+}
+
+//SYSCALL
+int
+sig_tgkill(int pid, int tid, int sig)
+{
+  if (pid != tid)
+    return -1;
+
+  proc::deliver_signal(pid, sig);
+  return 0;
 }
