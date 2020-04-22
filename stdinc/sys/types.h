@@ -9,8 +9,8 @@ typedef ssize_t off_t;
 
 typedef uint64_t dev_t;
 typedef uint64_t ino_t;
-typedef short nlink_t;
-typedef short mode_t;
+typedef uint64_t nlink_t;
+typedef uint32_t mode_t;
 typedef int pid_t;
 
 typedef int time_t;

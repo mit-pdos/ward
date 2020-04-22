@@ -13,6 +13,7 @@ struct devsw __mpalign__ devsw[NDEV];
 int
 file_inode::stat(struct stat *st, enum stat_flags flags)
 {
+  memset(st, 0, sizeof(struct stat));
   ip->stat(st, flags);
   u16 major, minor;
   if (ip->as_device(&major, &minor) && major < NDEV && devsw[major].stat)
@@ -117,6 +118,7 @@ file_inode::pwrite(const char *addr, size_t n, off_t off)
 int
 file_pipe_reader::stat(struct stat *st, enum stat_flags flags)
 {
+  memset(st, 0, sizeof(struct stat));
   st->st_mode = (T_FIFO << __S_IFMT_SHIFT) | 0600;
   st->st_dev = 0;               // XXX ?
   st->st_ino = (uintptr_t)pipe;
@@ -142,6 +144,7 @@ file_pipe_reader::onzero(void)
 int
 file_pipe_writer::stat(struct stat *st, enum stat_flags flags)
 {
+  memset(st, 0, sizeof(struct stat));
   st->st_mode = (T_FIFO << __S_IFMT_SHIFT) | 0600;
   st->st_dev = 0;               // XXX ?
   st->st_ino = (uintptr_t)pipe;

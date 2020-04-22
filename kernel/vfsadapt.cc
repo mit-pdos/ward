@@ -100,6 +100,7 @@ vnode_mfs::stat(struct stat *st, enum stat_flags flags)
     default: panic("unknown inode type %d", node->type());
   }
 
+  memset(st, 0, sizeof(struct stat));
   st->st_mode = stattype << __S_IFMT_SHIFT;
   st->st_dev = (uintptr_t) node->fs_;
   st->st_ino = node->inum_;
@@ -108,6 +109,7 @@ vnode_mfs::stat(struct stat *st, enum stat_flags flags)
   st->st_size = 0;
   if (node->type() == mnode::types::file)
     st->st_size = *node->as_file()->read_size();
+  st->st_blksize = PGSIZE;
 }
 
 sref<class filesystem>

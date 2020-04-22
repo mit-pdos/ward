@@ -94,6 +94,7 @@ vnode_fat32::onzero()
 void
 vnode_fat32::stat(struct stat *st, enum stat_flags flags)
 {
+  memset(st, 0, sizeof(struct stat));
   st->st_mode = (directory ? T_DIR : T_FILE) << __S_IFMT_SHIFT;
 
   st->st_dev = cluster_cache->devno();
@@ -103,6 +104,7 @@ vnode_fat32::stat(struct stat *st, enum stat_flags flags)
   st->st_size = 0;
   if (!directory)
     st->st_size = file_size();
+  st->st_blksize = PGSIZE;
 }
 
 sref<filesystem>
