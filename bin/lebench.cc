@@ -477,10 +477,15 @@ int main(int argc, char *argv[])
     assert(base_iter >= 20);
   }
 
-  // one_line_test(fp, copy, cpu_test, 100, "cpu");
-  one_line_test(fp, copy, ref_test, base_iter * 1000, "ref");
-  one_line_test(fp, copy, getpid_test, base_iter * 500, "getpid");
-  one_line_test(fp, copy, context_switch_test, base_iter, "context switch");
+  u64 mask = ~0ull;
+  if (argc >= 3) {
+    mask = 1ull << atoi(argv[2]);
+  }
+
+  if(mask & (1ull<<0)) one_line_test(fp, copy, ref_test, base_iter * 1000, "ref");
+  if(mask & (1ull<<1)) one_line_test(fp, copy, getpid_test, base_iter * 500, "getpid");
+  if(mask & (1ull<<2)) one_line_test(fp, copy, context_switch_test, base_iter, "context switch");
+
 
   /*****************************************/
   /*             SEND & RECV               */
@@ -503,30 +508,34 @@ int main(int argc, char *argv[])
   /*****************************************/
   /*         FORK & THREAD CREATE          */
   /*****************************************/
-  two_line_test(fp, copy, forkTest, base_iter * 2, "fork");
-  two_line_test(fp, copy, threadTest, base_iter * 5, "thr create");
+  if(mask & (1ull<<3)) two_line_test(fp, copy, forkTest, base_iter * 2, "fork");
+  if(mask & (1ull<<4)) two_line_test(fp, copy, threadTest, base_iter * 5, "thr create");
 
-  int page_count = 6000;
-  void** pages = (void**)malloc(page_count * sizeof(void*));
-  for (int i = 0; i < page_count; i++) {
-    pages[i] = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+  if(mask & (1ull<<5)) {
+    int page_count = 6000;
+    void** pages = (void**)malloc(page_count * sizeof(void*));
+    for (int i = 0; i < page_count; i++) {
+      pages[i] = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    }
+    two_line_test(fp, copy, forkTest, base_iter / 2, "big fork");
+    for (int i = 0; i < page_count; i++) {
+      munmap(pages[i], PAGE_SIZE);
+    }
+    free(pages);
   }
-  two_line_test(fp, copy, forkTest, base_iter / 2, "big fork");
-  for (int i = 0; i < page_count; i++) {
-    munmap(pages[i], PAGE_SIZE);
-  }
-  free(pages);
 
-  page_count = 12000;
-  void** pages1 = (void**)malloc(page_count * sizeof(void*));
-  for (int i = 0; i < page_count; i++) {
-    pages1[i] = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+  if(mask & (1ull<<6)) {
+    int page_count = 12000;
+    void** pages = (void**)malloc(page_count * sizeof(void*));
+    for (int i = 0; i < page_count; i++) {
+      pages[i] = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    }
+    two_line_test(fp, copy, forkTest, base_iter / 2, "huge fork");
+    for (int i = 0; i < page_count; i++) {
+      munmap(pages[i], PAGE_SIZE);
+    }
+    free(pages);
   }
-  two_line_test(fp, copy, forkTest, base_iter / 2, "huge fork");
-  for (int i = 0; i < page_count; i++) {
-    munmap(pages1[i], PAGE_SIZE);
-  }
-  free(pages1);
 
   /*****************************************/
   /*     WRITE & READ & MMAP & MUNMAP      */
@@ -536,41 +545,41 @@ int main(int argc, char *argv[])
   file_size = PAGE_SIZE;
   read_warmup();
 
-  one_line_test(fp, copy, write_test, base_iter * 10, "small write");
-  one_line_test(fp, copy, read_test, base_iter * 10, "small read");
-  one_line_test(fp, copy, mmap_test, base_iter * 10, "small mmap");
-  one_line_test(fp, copy, munmap_test, base_iter * 10, "small munmap");
-  one_line_test(fp, copy, page_fault_test, base_iter * 5, "small page fault");
+  if(mask & (1ull<<7)) one_line_test(fp, copy, write_test, base_iter * 10, "small write");
+  if(mask & (1ull<<8)) one_line_test(fp, copy, read_test, base_iter * 10, "small read");
+  if(mask & (1ull<<9)) one_line_test(fp, copy, mmap_test, base_iter * 10, "small mmap");
+  if(mask & (1ull<<10)) one_line_test(fp, copy, munmap_test, base_iter * 10, "small munmap");
+  if(mask & (1ull<<11)) one_line_test(fp, copy, page_fault_test, base_iter * 5, "small page fault");
 
   /****** MID ******/
   file_size = PAGE_SIZE * 10;
   read_warmup();
 
-  one_line_test(fp, copy, read_test, base_iter * 10, "mid read");
-  one_line_test(fp, copy, write_test, base_iter * 10, "mid write");
-  one_line_test(fp, copy, mmap_test, base_iter * 10, "mid mmap");
-  one_line_test(fp, copy, munmap_test, base_iter * 10, "mid munmap");
-  one_line_test(fp, copy, page_fault_test, base_iter * 5, "mid page fault");
+  if(mask & (1ull<<12)) one_line_test(fp, copy, read_test, base_iter * 10, "mid read");
+  if(mask & (1ull<<13)) one_line_test(fp, copy, write_test, base_iter * 10, "mid write");
+  if(mask & (1ull<<14)) one_line_test(fp, copy, mmap_test, base_iter * 10, "mid mmap");
+  if(mask & (1ull<<15)) one_line_test(fp, copy, munmap_test, base_iter * 10, "mid munmap");
+  if(mask & (1ull<<16)) one_line_test(fp, copy, page_fault_test, base_iter * 5, "mid page fault");
 
   /****** BIG ******/
   file_size = PAGE_SIZE * 1000;
   read_warmup();
 
-  one_line_test(fp, copy, read_test, base_iter, "big read");
-  one_line_test(fp, copy, write_test, base_iter / 2, "big write");
-  one_line_test(fp, copy, mmap_test, base_iter * 10, "big mmap");
-  one_line_test(fp, copy, munmap_test, base_iter / 4, "big munmap");
-  one_line_test(fp, copy, page_fault_test, base_iter * 5, "big page fault");
+  if(mask & (1ull<<17)) one_line_test(fp, copy, read_test, base_iter, "big read");
+  if(mask & (1ull<<18)) one_line_test(fp, copy, write_test, base_iter / 2, "big write");
+  if(mask & (1ull<<19)) one_line_test(fp, copy, mmap_test, base_iter * 10, "big mmap");
+  if(mask & (1ull<<20)) one_line_test(fp, copy, munmap_test, base_iter / 4, "big munmap");
+  if(mask & (1ull<<21)) one_line_test(fp, copy, page_fault_test, base_iter * 5, "big page fault");
 
   /****** HUGE ******/
   file_size = PAGE_SIZE * 10000;
   read_warmup();
 
-  one_line_test(fp, copy, read_test, base_iter, "huge read");
-  one_line_test(fp, copy, write_test, base_iter / 4, "huge write");
-  one_line_test(fp, copy, mmap_test, base_iter * 10, "huge mmap");
-  one_line_test(fp, copy, munmap_test, base_iter / 4, "huge munmap");
-  one_line_test(fp, copy, page_fault_test, base_iter * 5, "huge page fault");
+  if(mask & (1ull<<22)) one_line_test(fp, copy, read_test, base_iter, "huge read");
+  if(mask & (1ull<<23)) one_line_test(fp, copy, write_test, base_iter / 4, "huge write");
+  if(mask & (1ull<<24)) one_line_test(fp, copy, mmap_test, base_iter * 10, "huge mmap");
+  if(mask & (1ull<<25)) one_line_test(fp, copy, munmap_test, base_iter / 4, "huge munmap");
+  if(mask & (1ull<<26)) one_line_test(fp, copy, page_fault_test, base_iter * 5, "huge page fault");
 
   clock_gettime(CLOCK_MONOTONIC, &endTime);
   endCycles = end_timer();
