@@ -169,6 +169,8 @@ vmap::vmap() :
 
 vmap::~vmap()
 {
+  vpfs_ = vpf_array(nullptr);
+
   while (!qpage_pool_.empty()) {
     auto p = qpage_pool_.back();
     qpage_pool_.pop_back();

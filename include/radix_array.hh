@@ -278,8 +278,9 @@ public:
   radix_array &operator=(radix_array &&o) noexcept
   {
     node_ptr(root_).free(this);
-    root_ = o.root_;
+    root_ = o.root_.load();
     o.root_ = 0;
+    return *this;
   }
 
   /**
