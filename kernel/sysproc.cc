@@ -512,21 +512,19 @@ sig_tgkill(int pid, int tid, int sig)
 }
 
 __attribute__((noinline))
-void
-gadget(void)
+u8
+sys_gadget(u8 *channel, u8 *addr)
 {
-  //__asm volatile();
-
-  // stall here until processor realizes indirect branch was mispredicted
-  int junk = 1;
-  while(true) { junk = 1 - junk; };
+  // maybe stores are faster than loads
+  channel[*addr * 1024] = 5; // should match GAP size in bin/attack.cc
+  return 5;
 }
 
 //SYSCALL
 u64
 sys_get_gadget_addr(void)
 {
-  return (u64)&gadget;
+  return (u64)&sys_gadget;
 }
 
 __attribute__((noinline))
@@ -539,31 +537,34 @@ safe_target(void)
 u64 *safe_target_addr;
 
 //SYSCALL
-u64
-sys_get_dest_addr(void)
-{
-  return (u64)safe_target_addr;
-}
-
-//SYSCALL
 int
-sys_victim(void)
+sys_victim(u8 *channel, u8 *addr, int input) // channel and addr will be passed to gadget
 {
+  int junk = 0;
+  // set up bhb by performing >29 taken branches
+  for (int i = 1; i <= 100; i++) {
+    input += i;
+    junk += input & i;
+  }
+
   // perform indirect branch
   int result;
   __asm volatile("callq *%1\n"
                  "mov %%eax, %0\n"
                  : "=r" (result)
                  : "r" (*safe_target_addr));
-  result++;
-  return result;
+
+  // prevent compiler from optimizing out inputs
+  result &= (u64)channel;
+  result &= (u64)addr;
+  return result & junk;
 }
 
 //SYSCALL
 u64
 sys_get_victim_addr(void)
 {
-  return (u64)&sys_victim; // offset is number of bytes before callq instruction
+  return (u64)&sys_victim;
 }
 
 //SYSCALL
@@ -581,5 +582,4 @@ void
 sys_flush_target(void)
 {
   clflush((void*) safe_target_addr);
->>>>>>> spectre v2 attack: initial code
 }

