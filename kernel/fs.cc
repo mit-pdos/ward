@@ -1070,7 +1070,7 @@ skipelem(const char **rpath, char *name)
 // If parent != 0, return the inode for the parent and copy the final
 // path element into name, which must have room for DIRSIZ bytes.
 static sref<inode>
-namex(sref<inode> cwd, const char *path, int nameiparent, char *name)
+namex(sref<inode> cwd, const char *path, bool nameiparent, char *name)
 {
   // Assumes caller is holding a gc_epoch
 
@@ -1119,12 +1119,12 @@ namei(sref<inode> cwd, const char *path)
 {
   // Assumes caller is holding a gc_epoch
   char name[DIRSIZ];
-  return namex(cwd, path, 0, name);
+  return namex(cwd, path, false, name);
 }
 
 sref<inode>
 nameiparent(sref<inode> cwd, const char *path, char *name)
 {
   // Assumes caller is holding a gc_epoch
-  return namex(cwd, path, 1, name);
+  return namex(cwd, path, true, name);
 }
