@@ -191,23 +191,6 @@ kmfree(void *ap, u64 nbytes)
   }
 }
 
-int
-kmalign(void **p, int align, u64 size, const char *name)
-{
-  void *mem = kmalloc(size + (align-1) + sizeof(void*), name);
-  char *amem = ((char*)mem) + sizeof(void*);
-  amem += align - ((uptr)amem & (align - 1));
-  ((void**)amem)[-1] = mem;
-  *p = amem;
-  return 0;
-}
-
-void kmalignfree(void *mem, int align, u64 size)
-{
-  u64 msz = size + (align-1) + sizeof(void*);
-  kmfree(((void**)mem)[-1], msz);
-}
-
 // Expand an allocation size to include its alloc_debug_info
 size_t
 alloc_debug_info::expand_size(size_t size)

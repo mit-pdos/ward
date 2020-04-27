@@ -160,8 +160,6 @@ void            ksfree(int slabtype, void*);
 void*           early_kalloc(size_t size, size_t align);
 void*           kmalloc(u64 nbytes, const char *name);
 void            kmfree(void*, u64 nbytes);
-int             kmalign(void **p, int align, u64 size, const char *name);
-void            kmalignfree(void *, int align, u64 size);
 void            verifyfree(char *ptr, u64 nbytes);
 void            kminit(void);
 void            kmemprint(print_stream *s);
