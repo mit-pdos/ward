@@ -5,7 +5,7 @@
 #include <uk/mman.h>
 #include <uk/asm.h>
 #include <cstring>
-#include <cstdlib>
+#include <stdlib.h>
 #include "amd64.h"
 
 #define USER_MASK ((1ull << 47) - 1) // 4 level paging => 48 bit va, top bit is kernel/user
