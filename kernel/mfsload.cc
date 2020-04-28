@@ -8,12 +8,10 @@
 #include "cmdline.hh"
 #include "disk.hh"
 
-static linearhash<u64, sref<mnode>> *inum_to_mnode;
-
-static sref<mnode> load_inum(u32 dev, u64 inum);
+static sref<mnode> load_inum(linearhash<u64, sref<mnode>> *inum_to_mnode, u32 dev, u64 inum);
 
 static void
-load_dir(sref<inode> i, sref<mnode> m)
+load_dir(linearhash<u64, sref<mnode>> *inum_to_mnode, sref<inode> i, sref<mnode> m)
 {
   dirent de;
   for (size_t pos = 0; pos < i->size; pos += sizeof(de)) {
@@ -21,7 +19,7 @@ load_dir(sref<inode> i, sref<mnode> m)
     if (!de.inum)
       continue;
 
-    sref<mnode> mf = load_inum(i->dev, de.inum);
+    sref<mnode> mf = load_inum(inum_to_mnode, i->dev, de.inum);
     strbuf<DIRSIZ> name(de.name);
     if (name == ".")
       continue;
@@ -33,7 +31,7 @@ load_dir(sref<inode> i, sref<mnode> m)
 }
 
 static void
-load_file(sref<inode> i, sref<mnode> m)
+load_file(linearhash<u64, sref<mnode>> *inum_to_mnode, sref<inode> i, sref<mnode> m)
 {
   for (size_t pos = 0; pos < i->size; pos += PGSIZE) {
     char* p = zalloc("load_file");
@@ -52,7 +50,7 @@ load_file(sref<inode> i, sref<mnode> m)
 }
 
 static sref<mnode>
-mnode_alloc(u64 inum, u8 mtype)
+mnode_alloc(linearhash<u64, sref<mnode>> *inum_to_mnode, u64 inum, u8 mtype)
 {
   auto m = root_fs->alloc(mtype);
   inum_to_mnode->insert(inum, m.mn());
@@ -60,7 +58,7 @@ mnode_alloc(u64 inum, u8 mtype)
 }
 
 static sref<mnode>
-load_inum(u32 dev, u64 inum)
+load_inum(linearhash<u64, sref<mnode>> *inum_to_mnode, u32 dev, u64 inum)
 {
   sref<mnode> m;
   if (inum_to_mnode->lookup(inum, &m))
@@ -69,13 +67,13 @@ load_inum(u32 dev, u64 inum)
   sref<inode> i = iget(dev, inum);
   switch (i->type.load()) {
   case T_DIR:
-    m = mnode_alloc(inum, mnode::types::dir);
-    load_dir(i, m);
+    m = mnode_alloc(inum_to_mnode, inum, mnode::types::dir);
+    load_dir(inum_to_mnode, i, m);
     break;
 
   case T_FILE:
-    m = mnode_alloc(inum, mnode::types::file);
-    load_file(i, m);
+    m = mnode_alloc(inum_to_mnode, inum, mnode::types::file);
+    load_file(inum_to_mnode, i, m);
     break;
 
   default:
@@ -90,8 +88,8 @@ mfsload()
 {
   root_fs = new mfs();
 
-  inum_to_mnode = new linearhash<u64, sref<mnode>>(4099);
-  root_inum = load_inum(disk_find_root(), 1)->inum_;
+  auto inum_to_mnode = new linearhash<u64, sref<mnode>>(4099);
+  root_inum = load_inum(inum_to_mnode, disk_find_root(), 1)->inum_;
   /* the root inode gets an extra reference because of its own ".." */
   delete inum_to_mnode;
 }
