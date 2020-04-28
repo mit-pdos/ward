@@ -1,5 +1,6 @@
 #pragma once
 
+#include "log2.hh"
 #include "percpu.hh"
 #include "atomic_util.hh"
 
@@ -101,24 +102,17 @@ public:
   T*
   allocate(std::size_t n, const void *hint = 0)
   {
-    if (n * sizeof(T) != PGSIZE)
+    if (n * sizeof(T) < PGSIZE)
       panic("%s cannot allocate %zu bytes", __PRETTY_FUNCTION__, n * sizeof(T));
-    return (T*)kalloc(typeid(T).name());
+    return (T*)kalloc(typeid(T).name(), round_up_to_pow2(n * sizeof(T)));
   }
 
   void
   deallocate(T* p, std::size_t n)
   {
-    if (n * sizeof(T) != PGSIZE)
-      panic("%s cannot deallocate %zu bytes", __PRETTY_FUNCTION__,
-            n * sizeof(T));
-    kfree(p);
-  }
-
-  std::size_t
-  max_size() const noexcept
-  {
-    return PGSIZE;
+    if (n * sizeof(T) < PGSIZE)
+      panic("%s cannot deallocate %zu bytes", __PRETTY_FUNCTION__, n * sizeof(T));
+    kfree(p, round_up_to_pow2(n * sizeof(T)));
   }
 
   // ZAllocator methods
@@ -246,20 +240,11 @@ public:
     pfree(p);
   }
 
-  std::size_t
-  max_size() const noexcept
-  {
-    return PGSIZE;
-  }
-
   // ZAllocator methods
 
   T*
   default_allocate()
   {
-    if (sizeof(T) != PGSIZE)
-      panic("%s cannot allocate %zu bytes", __PRETTY_FUNCTION__, sizeof(T));
-
     T *p = allocate(1);
     try {
       // Unqualified lookup doesn't find declarations in dependent

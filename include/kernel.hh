@@ -167,6 +167,8 @@ char*           zalloc(const char* name);
 void            zfree(void* p);
 char*           palloc(const char* name);
 void            pfree(void* p);
+char*           pmalloc(u64 nbytes, const char *name);
+void            pmfree(void*, u64 nbytes);
 
 // kbd.c
 void            kbdintr(void);
