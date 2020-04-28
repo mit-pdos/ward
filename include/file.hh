@@ -270,8 +270,6 @@ protected:
 
 // device implementations
 
-class mdev;
-
 struct devsw {
   int (*read)(char*, u32);
   int (*pread)(char*, u32, u32);
