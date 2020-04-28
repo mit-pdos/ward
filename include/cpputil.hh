@@ -170,6 +170,47 @@ extern void *__dso_handle;
     classname::operator delete(p, std::nothrow);                    \
   }
 
+#define PUBLIC_NEW_DELETE_OPS(classname)                            \
+  static void* operator new(unsigned long nbytes,                   \
+                            const std::nothrow_t&) noexcept {       \
+    assert(nbytes == sizeof(classname));                            \
+    return pmalloc(sizeof(classname), #classname);                  \
+  }                                                                 \
+                                                                    \
+  static void* operator new(unsigned long nbytes,                   \
+                            std::align_val_t al,                    \
+                            const std::nothrow_t&) noexcept {       \
+    assert(nbytes == sizeof(classname));                            \
+    return classname::operator new(nbytes, std::nothrow);           \
+  }                                                                 \
+                                                                    \
+  static void* operator new(unsigned long nbytes) {                 \
+    void *p = classname::operator new(nbytes, std::nothrow);        \
+    if (p == nullptr)                                               \
+      throw_bad_alloc();                                            \
+    return p;                                                       \
+  }                                                                 \
+                                                                    \
+  static void* operator new(unsigned long nbytes,                   \
+                            std::align_val_t al) noexcept {         \
+    assert((size_t)al == alignof(classname));                       \
+    return classname::operator new(nbytes);                         \
+  }                                                                 \
+                                                                    \
+  static void* operator new(unsigned long nbytes, classname *buf) { \
+    assert(nbytes == sizeof(classname));                            \
+    return buf;                                                     \
+  }                                                                 \
+                                                                    \
+  static void operator delete(void *p,                              \
+                              const std::nothrow_t&) noexcept {     \
+    pmfree(p, sizeof(classname));                                   \
+  }                                                                 \
+                                                                    \
+  static void operator delete(void *p) {                            \
+    classname::operator delete(p, std::nothrow);                    \
+  }
+
 template<class T>
 class scoped_cleanup_obj {
  private:
