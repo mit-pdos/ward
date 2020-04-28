@@ -171,12 +171,7 @@ else
 QEMUNUMA := -numa node -numa node
 endif
 
-ifeq ($(shell uname), Darwin)
-QEMUACCEL ?= -accel hvf
-else
-QEMUACCEL ?= -enable-kvm
-endif
-
+QEMUACCEL ?= -accel kvm:hvf:tcg
 QEMUAPPEND += root_disk=ahci0.0
 QEMUNET := -net user,hostfwd=tcp::2323-:23,hostfwd=tcp::8080-:80 -net nic,model=e1000
 QEMUSERIAL := $(if $(QEMUOUTPUT),-serial file:$(QEMUOUTPUT),-serial mon:stdio)
