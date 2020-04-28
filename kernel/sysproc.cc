@@ -443,6 +443,8 @@ sys_cmdline_change_param(const char *name, const char *value)
   return cmdline_change_param(name, value);
 }
 
+volatile u64 done;
+
 //SYSCALL
 long
 sys_arch_prctl(int code, userptr<u64> addr)
@@ -513,10 +515,11 @@ sig_tgkill(int pid, int tid, int sig)
 
 __attribute__((noinline))
 u8
-sys_gadget(u8 *channel, u8 *addr)
+sys_gadget(u8 *channel, u8 addr)
 {
+  //done = end_timer();
   // maybe stores are faster than loads
-  channel[*addr * 1024] = 5; // should match GAP size in bin/attack.cc
+  channel[addr * 1024] = 5; // should match GAP size in bin/attack.cc
   return 5;
 }
 
@@ -531,14 +534,29 @@ __attribute__((noinline))
 int
 safe_target(void)
 {
+  //done = end_timer();
   return 4;
+}
+
+//SYSCALL
+u64
+sys_get_safe_addr(void)
+{
+  return (u64)&safe_target;
 }
 
 u64 *safe_target_addr;
 
 //SYSCALL
+void
+sys_set_safe_addr(u64 addr)
+{
+  *safe_target_addr = addr;
+}
+
+//SYSCALL
 int
-sys_victim(u8 *channel, u8 *addr, int input) // channel and addr will be passed to gadget
+sys_victim(u8 *channel, u8 addr, int input, u64 *elapsed) // channel and addr will be passed to gadget
 {
   int junk = 0;
   // set up bhb by performing >29 taken branches
@@ -547,12 +565,16 @@ sys_victim(u8 *channel, u8 *addr, int input) // channel and addr will be passed 
     junk += input & i;
   }
 
+  u64 target = *safe_target_addr;
+  u64 start = start_timer();
   // perform indirect branch
   int result;
   __asm volatile("callq *%1\n"
                  "mov %%eax, %0\n"
                  : "=r" (result)
-                 : "r" (*safe_target_addr));
+                 //: "r" (*safe_target_addr));
+                 : "r" (target));
+  *elapsed = end_timer() - start;
 
   // prevent compiler from optimizing out inputs
   result &= (u64)channel;
