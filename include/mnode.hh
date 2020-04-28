@@ -321,7 +321,7 @@ mnode::as_dir() const
 class mfile : public mnode {
 private:
   mfile(mfs* fs, u64 inum) : mnode(fs, inum), size_(0) {}
-  NEW_DELETE_OPS(mfile);
+  PUBLIC_NEW_DELETE_OPS(mfile);
   friend class mnode;
   friend class mfs;
 
@@ -415,7 +415,7 @@ public:
 private:
   enum { maxidx = ULONG_MAX / PGSIZE + 1 };
   radix_array<page_state, maxidx, PGSIZE,
-              kalloc_allocator<page_state>> pages_;
+              palloc_allocator<page_state>> pages_;
 
   spinlock resize_lock_;
   seqcount<u32> size_seq_;

@@ -55,7 +55,7 @@ public:
       return sref<vnode_mfs>();
   }
 
-  NEW_DELETE_OPS(vnode_mfs);
+  PUBLIC_NEW_DELETE_OPS(vnode_mfs);
 private:
   sref<mnode> node;
 

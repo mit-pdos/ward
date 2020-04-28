@@ -67,7 +67,7 @@ struct file_inode : public refcache::referenced, public file {
 public:
   file_inode(sref<vnode> i, bool r, bool w, bool a)
     : ip(i), readable(r), writable(w), append(a), off(0) {}
-  NEW_DELETE_OPS(file_inode);
+  PUBLIC_NEW_DELETE_OPS(file_inode);
 
   void inc() override { refcache::referenced::inc(); }
   void dec() override { refcache::referenced::dec(); }
@@ -95,7 +95,7 @@ public:
 struct file_pipe_reader : public refcache::referenced, public file {
 public:
   file_pipe_reader(struct pipe* p) : pipe(p) {}
-  NEW_DELETE_OPS(file_pipe_reader);
+  PUBLIC_NEW_DELETE_OPS(file_pipe_reader);
 
   void inc() override { refcache::referenced::inc(); }
   void dec() override { refcache::referenced::dec(); }
@@ -140,7 +140,7 @@ private:
 struct file_pipe_writer_wrapper : public eager_refcache::referenced, public file {
 public:
   file_pipe_writer_wrapper(file* f) : inner(f) {}
-  NEW_DELETE_OPS(file_pipe_writer_wrapper);
+  PUBLIC_NEW_DELETE_OPS(file_pipe_writer_wrapper);
 
   void inc() override { referenced::inc(); }
   void dec() override { referenced::dec(); }
@@ -189,7 +189,7 @@ private:
 struct file_pipe_writer : public referenced, public file {
 public:
   file_pipe_writer(struct pipe* p) : pipe(p) {}
-  NEW_DELETE_OPS(file_pipe_writer);
+  PUBLIC_NEW_DELETE_OPS(file_pipe_writer);
 
   void inc() override { referenced::inc(); }
   void dec() override { referenced::dec(); }
@@ -257,7 +257,7 @@ struct inode : public referenced, public rcu_freed
 private:
   inode(u32 dev, u32 inum);
   ~inode();
-  NEW_DELETE_OPS(inode)
+  PUBLIC_NEW_DELETE_OPS(inode)
 
   static sref<inode> alloc(u32 dev, u32 inum);
   friend void initinode();
