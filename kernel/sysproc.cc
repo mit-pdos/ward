@@ -545,7 +545,7 @@ sys_get_safe_addr(void)
   return (u64)&safe_target;
 }
 
-u64 *safe_target_addr;
+u64 *safe_target_addr __attribute__((section (".qdata")));
 
 //SYSCALL
 void
