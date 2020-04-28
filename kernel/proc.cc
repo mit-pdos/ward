@@ -427,6 +427,9 @@ doclone(clone_flags flags)
     np->ftable = myproc()->ftable->copy();
   }
 
+  static_assert(sizeof(filetable) >= PGSIZE);
+  np->vmap->qinsert(np->ftable.get(), np->ftable.get(), PGROUNDUP(sizeof(filetable)));
+
   np->cwd = myproc()->cwd;
   safestrcpy(np->name, myproc()->name, sizeof(myproc()->name));
   acquire(&myproc()->lock);
