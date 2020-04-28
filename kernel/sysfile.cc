@@ -157,10 +157,7 @@ sys_read(int fd, userptr<void> p, size_t n)
   if (!f)
     return -1;
 
-  char *b = kalloc("readbuf");
-  if (!b)
-    return -1;
-  auto cleanup = scoped_cleanup([b](){kfree(b);});
+  char b[PGSIZE];
   // XXX(Austin) Too bad
   if (n > PGSIZE)
     n = PGSIZE;
@@ -201,10 +198,7 @@ sys_write(int fd, const userptr<void> p, size_t n)
   sref<file> f = getfile(fd);
   if (!f)
     return -1;
-  char *b = kalloc("writebuf");
-  if (!b)
-    return -1;
-  auto cleanup = scoped_cleanup([b](){kfree(b);});
+  char b[PGSIZE];
   // XXX(Austin) Too bad
   if (n > PGSIZE)
     n = PGSIZE;
