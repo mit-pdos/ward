@@ -19,7 +19,7 @@ enum { SDEBUG = false };
 static console_stream sdebug(SDEBUG);
 
 namespace refcache {
-  DEFINE_PERCPU(cache, mycache);
+  DEFINE_QPERCPU(cache, mycache);
 
   // The current global epoch.  All local epochs are <= the global
   // epoch at all times.  Specifically, because we wait until all
@@ -27,12 +27,12 @@ namespace refcache {
   // epochs are either global_epoch or global_epoch - 1, a fact we
   // exploit during eviction to approximate global_epoch without
   // having to read it.
-  static std::atomic<uint64_t> global_epoch __mpalign__;
+  static std::atomic<uint64_t> global_epoch __mpalign__ __attribute__((section (".qdata")));
 
   // The number of cores where the local epoch is < global_epoch.
   // Once this reaches zero, it is reset to ncpus and the global_epoch
   // incremented.
-  static std::atomic<size_t> global_epoch_left __mpalign__;
+  static std::atomic<size_t> global_epoch_left __mpalign__ __attribute__((section (".qdata")));
 
   static __padout__ __attribute__((unused));
 }
