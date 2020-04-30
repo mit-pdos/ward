@@ -93,7 +93,8 @@ public:
 
   paddr pa() const
   {
-    paddr info_pa = (paddr)this - KBASE;
+    assert((u64)this > KPUBLIC && (u64)this < KPUBLICEND);
+    paddr info_pa = (paddr)this - KPUBLIC;
     page_info_map_entry *entry =
       &page_info_map[(info_pa + page_info_map_add) >> page_info_map_shift];
     return entry->phys_base + (this - entry->array) * PGSIZE;

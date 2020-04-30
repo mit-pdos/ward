@@ -952,7 +952,8 @@ initpageinfo(void)
          i <= (area.end + additive - 1) >> shift; ++i) {
       assert(!page_info_map[i].array);
       page_info_map[i].phys_base = area.phys_base;
-      page_info_map[i].array = (page_info*)p2v(area.base);
+      page_info_map[i].array = (page_info*)((char*)p2v(area.base) - KBASE + KPUBLIC);
+      register_public_range(page_info_map[i].array, (area.end - area.base) / PGSIZE);
     }
   }
   page_info_map_add = additive;
