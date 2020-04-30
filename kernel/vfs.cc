@@ -3,7 +3,7 @@
 #include "vfs.hh"
 #include "cmdline.hh"
 
-static sref<virtual_filesystem> mounts;
+static sref<virtual_filesystem> mounts __attribute__((section (".qdata")));
 
 void
 vfs_mount(const sref<filesystem> &fs, const char *path)
