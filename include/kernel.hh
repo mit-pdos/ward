@@ -141,6 +141,8 @@ void            apply_hotpatches(void);
 void            refresh_pcid_mask(void);
 void            register_public_pages(void** pages, size_t count);
 void            unregister_public_pages(void** pages, size_t count);
+void            register_public_range(void* start, size_t npages);
+void            unregister_public_range(void* start, size_t npages);
 
 // ide.c
 void            ideintr(void);

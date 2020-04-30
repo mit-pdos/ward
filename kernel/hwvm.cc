@@ -686,6 +686,35 @@ unregister_public_pages(void** pages, size_t count)
 }
 
 void
+register_public_range(void* start, size_t npages)
+{
+  for (size_t i = 0; i < npages; i++) {
+    *kpml4.find((uintptr_t)start + i * PGSIZE, pgmap::L_4K).create(0) =
+      ((u64)start + i * PGSIZE - KPUBLIC) | PTE_W | PTE_P | PTE_NX;
+  }
+}
+
+void
+unregister_public_range(void* start, size_t npages)
+{
+  for (size_t i = 0; i < npages; i++) {
+    *kpml4.find((uintptr_t)start + i * PGSIZE, pgmap::L_4K).create(0) = 0;
+  }
+
+  run_on_all_cpus([]()
+  {
+    if (pcids_enabled()) {
+      for (int i = 0; i < NUM_TLB_CONTEXTS; i++)
+        tlb_states->contexts[i].asid = 0;
+      if((flush_tlb_context() & 0xfff) != 0)
+        tlb_states->flush_pcid0 = true;
+    } else {
+      reload_cr3();
+    }
+  });
+}
+
+void
 core_tracking_shootdown::on_ipi()
 {
   if (pcids_enabled())
