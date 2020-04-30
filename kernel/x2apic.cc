@@ -215,6 +215,10 @@ x2apic_lapic::cpu_init()
 
   verbose.println("x2apic: Initializing LAPIC (CPU ", myid(), ")");
 
+  u64 apic_bar = readmsr(MSR_APIC_BAR);
+  if (!(apic_bar & APIC_BAR_X2APIC_EN))
+    writemsr(MSR_APIC_BAR, apic_bar | APIC_BAR_X2APIC_EN);
+
   // Enable interrupts on the APIC (but not on the processor).
   value = readmsr(TPR);
   value &= ~0xffU;
@@ -333,12 +337,15 @@ initlapic_x2apic(void)
   if (!cpuid::features().x2apic)
     return false;
 
-  // According to [Intel SDM 3A 10.12.8.1], if the BIOS initializes
-  // logical processors with APIC IDs greater than 255, then it should
-  // enable the x2APIC.
+  const u64 X2APIC_ENABLED = APIC_BAR_X2APIC_EN | APIC_BAR_XAPIC_EN;
+
   u64 apic_bar = readmsr(MSR_APIC_BAR);
-  if (!(apic_bar & APIC_BAR_X2APIC_EN) || !(apic_bar & APIC_BAR_XAPIC_EN))
-    return false;
+  if (!(apic_bar & X2APIC_ENABLED)) {
+    writemsr(MSR_APIC_BAR, apic_bar | X2APIC_ENABLED);
+    apic_bar = readmsr(MSR_APIC_BAR);
+    if (!(apic_bar & X2APIC_ENABLED))
+      return false;
+  }
 
   verbose.println("x2apic: Using x2APIC LAPIC");
   static x2apic_lapic apic;
