@@ -128,6 +128,7 @@ void *
 sys_mmap(userptr<void> addr, size_t len, int prot, int flags, int fd,
          off_t offset)
 {
+  ensure_secrets();
   sref<pageable> m;
 
   if (!(prot & (PROT_READ | PROT_WRITE))) {
@@ -172,6 +173,7 @@ sys_mmap(userptr<void> addr, size_t len, int prot, int flags, int fd,
   if (m && (flags & MAP_PRIVATE))
     desc.flags |= vmdesc::FLAG_COW;
   uptr r = myproc()->vmap->insert(std::move(desc), start, end - start);
+
   return (void*)r;
 }
 
@@ -179,6 +181,7 @@ sys_mmap(userptr<void> addr, size_t len, int prot, int flags, int fd,
 int
 sys_munmap(userptr<void> addr, size_t len)
 {
+  ensure_secrets();
   uptr align_addr = PGROUNDDOWN((uptr)addr);
   uptr align_len = PGROUNDUP((uptr)addr + len) - align_addr;
   if (myproc()->vmap->remove(align_addr, align_len) < 0)

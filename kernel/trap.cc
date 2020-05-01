@@ -97,11 +97,11 @@ do_pagefault(struct trapframe *tf, bool had_secrets)
     tf->rip = (u64)__uaccess_end;
     return 0;
   } else if (tf->err & FEC_U) {
-      sti();
+      // sti();
       if(addr < USERTOP && pagefault(myproc()->vmap.get(), addr, tf->err) >= 0){
         return 0;
       }
-      cli();
+      // cli();
   }
   return -1;
 }
@@ -376,6 +376,7 @@ trap(struct trapframe *tf, bool had_secrets)
                  " on cpu ", myid(), " rip ", shex(tf->rip),
                  " rsp ", shex(tf->rsp), " addr ", shex(rcr2()),
                  "--kill proc");
+    kerneltrap(tf);
     myproc()->killed = 1;
   }
 
@@ -599,6 +600,74 @@ getcallerpcs(void *v, uptr pcs[], int n)
   for(; i < n; i++)
     pcs[i] = 0;
 }
+
+// struct _Unwind_Context;
+// typedef u64 _Unwind_Reason_Code;
+// typedef _Unwind_Reason_Code(* _Unwind_Trace_Fn) (_Unwind_Context*, void*);
+// extern "C" u64 _Unwind_GetIP(_Unwind_Context*);
+// extern "C" void _Unwind_SetGR(struct _Unwind_Context * context, int index, u64 value);
+// extern "C" void _Unwind_SetIP(struct _Unwind_Context * context, u64 value);
+// extern "C" _Unwind_Reason_Code _Unwind_Backtrace(_Unwind_Trace_Fn, void*);
+
+// extern "C"
+// _Unwind_Reason_Code
+// __gnu_Unwind_Backtrace(_Unwind_Trace_Fn trace, void * trace_argument,
+//                void * entry_vrs);
+
+// struct trace_state {
+//   int n;
+//   trapframe *tf;
+//   u64* pcs;
+// };
+// static _Unwind_Reason_Code trace(_Unwind_Context* ctx, void* arg) {
+//   auto s = (trace_state*)arg;
+//   if (s->tf) {
+//     cprintf("A %lx\n", s->tf->rax);
+//     _Unwind_SetGR(ctx, 0, s->tf->rax);
+//     cprintf("B\n");
+//     // _Unwind_SetGR(ctx, 1, s->tf->rdx);
+//     cprintf("Z\n");
+//     // _Unwind_SetGR(ctx, 2, s->tf->rcx);
+//     // _Unwind_SetGR(ctx, 3, s->tf->rbx);
+//     // _Unwind_SetGR(ctx, 4, s->tf->rsi);
+//     _Unwind_SetGR(ctx, 5, s->tf->rdi);
+//     // _Unwind_SetGR(ctx, 6, s->tf->rbp);
+//     cprintf("C\n");
+//     _Unwind_SetGR(ctx, 7, s->tf->rsp);
+//     _Unwind_SetGR(ctx, 8, s->tf->r8);
+//     _Unwind_SetGR(ctx, 9, s->tf->r9);
+//     _Unwind_SetGR(ctx, 10, s->tf->r10);
+//     _Unwind_SetGR(ctx, 11, s->tf->r11);
+//     _Unwind_SetGR(ctx, 12, s->tf->r12);
+//     _Unwind_SetGR(ctx, 13, s->tf->r13);
+//     _Unwind_SetGR(ctx, 14, s->tf->r14);
+//     _Unwind_SetGR(ctx, 15, s->tf->r15);
+//     _Unwind_SetIP(ctx, s->tf->rip);
+//     s->tf = nullptr;
+//     cprintf("D\n");
+//     return 0;
+//   }
+
+//   u64 ip = _Unwind_GetIP(ctx);
+//   cprintf("frame%d %lx\n", s->n, ip);
+
+//   if (s->n > 0) {
+//     s->pcs[--s->n] = ip;
+//   }
+
+//   return 0;
+//   // return s->n ? 0 : 4; // _URC_NORMAL_STOP
+// }
+// void
+// getcallerpcsunwinder(trapframe *tf, u64* pcs, int n)
+// {
+//   trace_state t{n, tf, pcs};
+//   for (int i = 0; i < n; i++)
+//     t.pcs[i] = 0;
+
+//   _Unwind_Backtrace(trace, &t);
+// }
+
 
 bool
 irq::reserve(const int *accept_gsi, size_t num_accept)

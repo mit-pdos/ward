@@ -59,7 +59,7 @@ DEFINE_PERCPU(const MMU_SCHEME::page_map_cache*, cur_page_map_cache);
 
 static bool use_invpcid __attribute__((section (".qdata"))) = true;
 
-static const char *levelnames[] = {
+static const char *levelnames[] __attribute__((section (".qdata"))) = {
   "PT", "PD", "PDP", "PML4"
 };
 
@@ -739,12 +739,12 @@ core_tracking_shootdown::perform() const
     if (targets[myid()]) {
       if (!pcids_enabled()) {
         reload_cr3();
-      } else if (end_ > start_ && end_ - start_ <= 4 * PGSIZE && use_invpcid) {
-        u64 pcid = rcr3() & 0xfff;
-        for (uintptr_t va = start_; va < end_; va += PGSIZE) {
-          invpcid(pcid, va, INVPCID_ONE_ADDR);
-          invpcid(pcid ^ 0x1, va, INVPCID_ONE_ADDR);
-        }
+      // } else if (end_ > start_ && end_ - start_ <= 4 * PGSIZE && use_invpcid) {
+      //   u64 pcid = rcr3() & 0xfff;
+      //   for (uintptr_t va = start_; va < end_; va += PGSIZE) {
+      //     invlpg((void*)va);
+      //     invpcid(pcid ^ 0x1, va, INVPCID_ONE_ADDR);
+      //   }
       } else {
         flush_tlb_context();
       }
@@ -800,7 +800,20 @@ namespace mmu_shared_page_table {
   {
     pml4s.user->find(va).create(PTE_U & pte, parent_, pml4s.user)->store(pte, memory_order_relaxed);
     if (va < USERTOP) {
-      pml4s.kernel->find(va).create(PTE_U & pte, parent_, pml4s.user)->store(pte, memory_order_relaxed);
+      auto&& aa = pml4s.kernel->find(va);
+      auto&& bb = aa.create(PTE_U & pte, parent_, pml4s.user);
+      atomic<pme_t>* cc = &*bb;
+      bool old = secrets_mapped;
+      volatile u64 v = pte;
+      kstats::timer timer(&kstats::pt_insert_cycles);
+      u64 start = serialize_and_rdtsc();
+      *(volatile u64*)cc = v;
+      // cc->store(pte);
+      u64 end = rdtscp_and_serialize();
+      timer.end();
+      if(secrets_mapped != old)
+        cprintf(".");
+      cprintf("(%ld)", end - start);
     }
   }
 

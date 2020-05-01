@@ -131,7 +131,7 @@ readi(sref<mnode> m, char* buf, u64 start, u64 nbytes)
       pgend = PGSIZE;
 
     // TODO: avoid using secrets here
-    ensure_secrets();
+    // ensure_secrets();
     memmove(buf + off, (const char*) pi->va() + pgoff, pgend - pgoff);
     off += (pgend - pgoff);
   }
@@ -180,7 +180,7 @@ writei(sref<mnode> m, const char* buf, u64 start, u64 nbytes,
        */
 
       // TODO: avoid using secrets here
-      ensure_secrets();
+      // ensure_secrets();
       memmove((char*) pi->va() + pgoff, buf + off, pgend - pgoff);
       if (resize && *resize)
         resize->resize_nogrow(pos + pgend - pgoff);
@@ -218,7 +218,7 @@ writei(sref<mnode> m, const char* buf, u64 start, u64 nbytes,
         break;
 
       // TODO: avoid using secrets here
-      ensure_secrets();
+      // ensure_secrets();
       memmove(p + pgoff, buf + off, pgend - pgoff);
       pi = sref<page_info>::transfer(new (page_info::of(p)) page_info());
       resize->resize_append(pos + pgend - pgoff, pi);

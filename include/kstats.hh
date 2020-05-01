@@ -38,6 +38,7 @@
                                                 \
   X(uint64_t, munmap_count)                     \
   X(uint64_t, munmap_cycles)                    \
+  X(uint64_t, pt_insert_cycles)                 \
 
 #define KSTATS_KALLOC(X)                        \
   X(uint64_t, kalloc_page_alloc_count)          \
@@ -123,6 +124,8 @@ struct kstats
     {
       end();
     }
+
+    void restart() { start = rdtsc(); }
 
     void end()
     {

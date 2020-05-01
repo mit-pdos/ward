@@ -391,6 +391,7 @@ consoleintr(int (*getc)(void))
       kmemprint(&console);
       break;
     case C('Y'):  // scopedperf stats
+      console.println("pt_insert_cycles: ", mykstats->pt_insert_cycles, " (count=", mykstats->page_fault_count, ")");
       // scopedperf::perfsum_base::printall();
       // scopedperf::perfsum_base::resetall();
       break;

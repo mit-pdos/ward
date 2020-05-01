@@ -18,6 +18,7 @@
 #include <uk/spawn.h>
 #include <uk/fs.h>
 #include "filetable.hh"
+#include "errno.h"
 
 sref<file>
 getfile(int fd)
@@ -126,6 +127,7 @@ sys_lseek(int fd, off_t offset, int whence)
 int
 sys_close(int fd)
 {
+  ensure_secrets();
   sref<file> f = getfile(fd);
   if (!f)
     return -1;
@@ -302,8 +304,14 @@ sys_stat(userptr_str path, userptr<struct stat> st)
 int
 sys_lstat(userptr_str path, userptr<struct stat> st)
 {
+  char path_copy[PATH_MAX];
+  if (!path.load(path_copy, sizeof path_copy))
+    return -1;
+  cprintf("lstat(%s)\n", path_copy);
   // We don't support symlinks
-  return sys_stat(path, st);
+  if(!sys_stat(path, st))
+    return 0;
+  return -ENOENT;
 }
 
 //SYSCALL
@@ -316,7 +324,7 @@ sys_access(userptr_str path, int mode)
 
   sref<vnode> m = vfs_root()->resolve(myproc()->cwd, path_copy);
   if(!m)
-    return -2;
+    return -7;
 
   return 0;
 }
@@ -360,6 +368,7 @@ sys_unlink(userptr_str path)
 int
 sys_openat(int dirfd, userptr_str path, int omode, ...)
 {
+  ensure_secrets();
   sref<vnode> cwd;
   if (dirfd == AT_FDCWD) {
     cwd = myproc()->cwd;
@@ -457,6 +466,18 @@ sys_chdir(userptr_str path)
   myproc()->cwd = m;
   return 0;
 }
+
+//SYSCALL
+int
+sys_getcwd(userptr<void> path, size_t len) {
+  cprintf("getcwd(..., %d)\n", (int)len);
+  if (len < 2)
+    return -1;
+
+  path.store_bytes("/./", 2);
+  return 0;
+}
+
 
 // Load NULL-terminated char** list, such as the argv argument to
 // exec.

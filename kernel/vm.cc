@@ -454,9 +454,11 @@ vmap::dup_page(uptr dest, uptr src)
 int
 vmap::pagefault(uptr va, u32 err)
 {
+  bool old = secrets_mapped;
   access_type type = (err & FEC_WR) ? access_type::WRITE : access_type::READ;
   mmu::shootdown shootdown;
 
+  // ensure_secrets();
   kstats::inc(&kstats::page_fault_count);
   kstats::timer timer(&kstats::page_fault_cycles);
   kstats::timer timer_alloc(&kstats::page_fault_alloc_cycles);
@@ -477,7 +479,6 @@ vmap::pagefault(uptr va, u32 err)
     if (SDEBUG)
       sdebug.println("vm: pagefault err ", shex(err), " va ", shex(va),
                      " desc ", *it, " pid ", myproc()->pid);
-
     auto &desc = *it;
     // Check for write protection violation
     if (type == access_type::WRITE && !(desc.flags & vmdesc::FLAG_WRITE)) {
@@ -495,6 +496,7 @@ vmap::pagefault(uptr va, u32 err)
     // Ensure we have a backing page and copy COW pages
     bool allocated;
     paddr pa = ensure_page(it, type, &allocated);
+
     if (allocated) {
       kstats::inc(&kstats::page_fault_alloc_count);
       timer_fill.abort();
@@ -504,6 +506,7 @@ vmap::pagefault(uptr va, u32 err)
     }
     if (!pa)
       return -1;
+    timer.restart();
 
     // If this is a read COW fault, we can reuse the COW page, but
     // don't mark it writable!
@@ -747,7 +750,7 @@ vmap::ensure_page(const vmap::vpf_array::iterator &it, vmap::access_type type,
   if (allocated)
     *allocated = false;
 
-  auto &desc = *it;
+  vmdesc& desc = *it;
   bool need_copy = (type == access_type::WRITE &&
                     (desc.flags & vmdesc::FLAG_COW));
   if (desc.page && !need_copy)
@@ -755,7 +758,8 @@ vmap::ensure_page(const vmap::vpf_array::iterator &it, vmap::access_type type,
 
   page_info_ref page(desc.page);
   if (!page) {
-    if (desc.flags & vmdesc::FLAG_ANON) {
+    auto flags = desc.flags;
+    if (flags & vmdesc::FLAG_ANON) {
       assert(!(desc.flags & vmdesc::FLAG_COW));
       if (allocated)
         *allocated = true;
@@ -764,7 +768,9 @@ vmap::ensure_page(const vmap::vpf_array::iterator &it, vmap::access_type type,
         throw_bad_alloc();
       page = page_info_ref(page_info::of(p));
     } else {
-      u64 page_idx = (it.index() * PGSIZE - desc.start) / PGSIZE;
+      u64 idx = it.index();
+      u64 start = *(volatile intptr_t*)&desc.start;
+      u64 page_idx = (idx * PGSIZE - start) / PGSIZE;
       page = page_info_ref(std::move(desc.inode->get_page_info(page_idx)));
       if (!page)
         return 0;
@@ -798,8 +804,6 @@ vmap::ensure_page(const vmap::vpf_array::iterator &it, vmap::access_type type,
     n.page = std::move(page);
     if (need_copy)
       n.flags &= ~vmdesc::FLAG_COW;
-    // XXX(austin) Fill could do a move in this case, which would
-    // save extraneous reference counting
     vpfs_.fill(it, std::move(n));
   }
   return pa;

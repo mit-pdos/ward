@@ -25,7 +25,7 @@ struct patch {
 #define PATCH_OPCODE_OR_STRING 6
 
 char* qtext, *original_text;
-u8 secrets_mapped __attribute__((section (".sflag"))) = 1;
+volatile u8 secrets_mapped __attribute__((section (".sflag"))) = 1;
 extern u64 __hotpatch_start, __hotpatch_end;
 
 const char* INDIRECT_CALL[] = {

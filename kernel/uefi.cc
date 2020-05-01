@@ -31,7 +31,7 @@ extern "C" u64 efi_cmain (u64 mbmagic, u64 mbaddr, void* boot_system_table, void
   EFI_GET_MEMORY_MAP get_memory_map = boot_services->get_memory_map;
   EFI_EXIT_BOOT_SERVICES exit_boot_services = boot_services->exit_boot_services;
 
-  u64 key, ret;
+  u64 key, ret=1;
   u64 map = v2p(multiboot.efi_mmap);
   u64 map_size = sizeof(multiboot.efi_mmap);
   while (ret) {

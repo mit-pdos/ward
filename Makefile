@@ -79,7 +79,7 @@ endif
 
 COMFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
 COMFLAGS += $(shell $(CC) -fcf-protection=none -E -x c /dev/null >/dev/null 2>&1 && echo -fcf-protection=none)
-COMFLAGS += -g -MD -MP -O3 -Wall -DHW_$(HW) $(INCLUDES) -mindirect-branch=thunk
+COMFLAGS += -g -MD -MP -O1 -Wall -DHW_$(HW) $(INCLUDES) -mindirect-branch=thunk
 CFLAGS   := $(COMFLAGS) -std=c99 $(CFLAGS)
 CXXFLAGS := $(COMFLAGS) -std=c++17 -Wno-sign-compare -faligned-new $(CXXFLAGS)
 ASFLAGS  := $(ASFLAGS) -Iinclude -I$(O)/include -m64 -gdwarf-2 -MD -MP -DHW_$(HW) -include param.h
@@ -171,13 +171,13 @@ else
 QEMUNUMA := -numa node -numa node
 endif
 
-QEMUACCEL ?= -accel kvm:hvf:tcg
+QEMUACCEL ?= -accel tcg
 QEMUAPPEND += root_disk=ahci0.0
 QEMUNET := -net user,hostfwd=tcp::2323-:23,hostfwd=tcp::8080-:80 -net nic,model=e1000
 QEMUSERIAL := $(if $(QEMUOUTPUT),-serial file:$(QEMUOUTPUT),-serial mon:stdio)
 QEMUDISK := -drive if=none,file=$(O)/fs.part,format=raw,id=drive-sata0 -device ahci,id=ahci0 \
 		   	-device ide-hd,bus=ahci0.0,drive=drive-sata0,id=sata0
-QEMUCOMMAND = $(QEMU) -cpu Haswell,+pcid,+fsgsbase,+md-clear,+spec-ctrl -nographic -device sga \
+QEMUCOMMAND = $(Q)$(QEMU) -cpu Haswell,+pcid,+fsgsbase,+md-clear,+spec-ctrl -nographic -device sga \
 		  	  -smp $(QEMUSMP) -m $(QEMUMEM) $(QEMUACCEL) $(QEMUNUMA) $(QEMUNET) $(QEMUSERIAL) \
 		      $(QEMUDISK) $(QEMUEXTRA) $(QEMUKERNEL) -no-reboot
 
