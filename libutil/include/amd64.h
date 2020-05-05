@@ -423,6 +423,28 @@ clts()
   __asm volatile("clts");
 }
 
+static inline uint64_t serialize_and_rdtsc() {
+  uint32_t cycles_low, cycles_high;
+  __asm volatile ("CPUID\n\t"
+                  "RDTSC\n\t"
+                  "mov %%edx, %0\n\t"
+                  "mov %%eax, %1\n\t"
+                  : "=r" (cycles_high), "=r" (cycles_low)
+                  :: "%rax", "%rbx", "%rcx", "%rdx");
+  return ((uint64_t)cycles_high << 32) | (uint64_t)cycles_low;
+}
+
+static inline uint64_t rdtscp_and_serialize() {
+  uint32_t cycles_low, cycles_high;
+  __asm volatile("RDTSCP\n\t"
+                 "mov %%edx, %0\n\t"
+                 "mov %%eax, %1\n\t"
+                 "CPUID\n\t"
+                 : "=r" (cycles_high), "=r" (cycles_low)
+                 :: "%rax", "%rbx", "%rcx", "%rdx");
+  return ((uint64_t)cycles_high << 32) | (uint64_t)cycles_low;
+}
+
 // Layout of the trap frame built on the stack by the
 // hardware and by trapasm.S, and passed to trap().
 // Also used by sysentry (but sparsely populated).
