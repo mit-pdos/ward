@@ -327,6 +327,9 @@ vmap::remove(uptr start, uptr len)
   }
   shootdown.perform();
 
+  if (myproc()->unmapped_hint * PGSIZE == start + len)
+    myproc()->unmapped_hint = start / PGSIZE;
+
   return 0;
 }
 
@@ -798,8 +801,6 @@ vmap::ensure_page(const vmap::vpf_array::iterator &it, vmap::access_type type,
     n.page = std::move(page);
     if (need_copy)
       n.flags &= ~vmdesc::FLAG_COW;
-    // XXX(austin) Fill could do a move in this case, which would
-    // save extraneous reference counting
     vpfs_.fill(it, std::move(n));
   }
   return pa;
