@@ -133,7 +133,7 @@ long            futexwake(futexkey_t key, u64 nwake);
 
 // hotpatch.cc
 extern char*    qtext;
-extern u8       secrets_mapped;
+extern volatile u8 secrets_mapped;
 void            remove_fsgsbase(void);
 void            apply_hotpatches(void);
 
