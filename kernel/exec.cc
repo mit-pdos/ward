@@ -192,6 +192,9 @@ exec(const char *path, const char * const *argv)
     myproc()->ftable = std::move(newftable);
   }
 
+  static_assert(sizeof(filetable) >= PGSIZE);
+  myproc()->vmap->qinsert(myproc()->ftable.get(), myproc()->ftable.get(), PGROUNDUP(sizeof(filetable)));
+
   // Switch to the new address space
   switchvm(oldvmap.get(), myproc()->vmap.get());
 
