@@ -59,7 +59,7 @@ DEFINE_PERCPU(const MMU_SCHEME::page_map_cache*, cur_page_map_cache);
 
 static bool use_invpcid __attribute__((section (".qdata"))) = true;
 
-static const char *levelnames[] = {
+static const char *levelnames[] __attribute__((section (".qdata"))) = {
   "PT", "PD", "PDP", "PML4"
 };
 
