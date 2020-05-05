@@ -166,6 +166,7 @@ private:
   struct node_ptr;
   struct upper_node;
   struct leaf_node;
+  struct external_node;
 
   static constexpr std::size_t
   log2_exact(std::size_t x, std::size_t accum = 0)
@@ -253,7 +254,8 @@ public:
    * Construct an empty radix array with a dedicated allocator.
    */
   template<class U> radix_array(U alloc_arg) noexcept :
-    upper_node_alloc_(alloc_arg), leaf_node_alloc_(alloc_arg), root_(0) { }
+    upper_node_alloc_(alloc_arg), leaf_node_alloc_(alloc_arg), external_node_alloc_(alloc_arg),
+    root_(0) { }
 
   /**
    * Destruct all set elements and free backing memory.
@@ -435,7 +437,7 @@ public:
           // Free the old node if it was an external
           if (orig_child.is_external())
             // XXX This isn't safe without RCU
-            delete orig_child.as_external();
+            orig_child.as_external()->free(r_);
         } else {
           // CAS failed.  Free new node and try again.
           if (node_level_ > 1) {
@@ -462,8 +464,8 @@ public:
      * in node to the value x.  If @c unset is true, then this should
      * unset the values.
      */
-    static void set_recursive(node_ptr node, unsigned level, std::size_t idx,
-                              std::size_t len, value_type *x, bool unset)
+    void set_recursive(node_ptr node, unsigned level, std::size_t idx,
+                       std::size_t len, value_type *x, bool unset) const
     {
       // We require some form of mutual exclusion for overlapping
       // modification operations; since set_recursive is called
@@ -496,20 +498,20 @@ public:
             // there's nothing to do.
             if (!unset)
               // XXX Use allocator?
-              upper->child[i] = node_ptr(new value_type(*x),
+              upper->child[i] = node_ptr(external_node::create(r_, *x),
                                          child.get_lock().is_locked());
           } else if (child.is_external()) {
             // Assign to the existing external.  If we're removing,
             // then delete the external
-            value_type *ext = child.as_external();
+            external_node *ext = child.as_external();
             if (!unset) {
               // The lock bit is maintained on the pointer, so we
               // don't have to worry about maintaining it here.
-              *ext = *x;
+              ext->value = *x;
             } else {
               upper->child[i] = node_ptr(nullptr, child.get_lock().is_locked());
               // XXX This isn't safe without RCU
-              delete ext;
+              ext->free(r_);
             }
           } else {
             // Recurse into the pointed-to node
@@ -609,7 +611,7 @@ public:
         // reach a terminal child.
         node_ptr c(node_.as_upper_node()->child[subkey(k_, node_level_)]);
         if (c.is_external())
-          return *c.as_external();
+          return c.as_external()->value;
         else if (c.is_null())
           throw std::out_of_range("value is not set");
         else
@@ -1093,6 +1095,7 @@ public:
 private:
   typename ZAllocator::template rebind<upper_node>::other upper_node_alloc_;
   typename ZAllocator::template rebind<leaf_node>::other leaf_node_alloc_;
+  typename ZAllocator::template rebind<external_node>::other external_node_alloc_;
 
   /**
    * A discriminated union of a null pointer, an upper node pointer, a
@@ -1138,7 +1141,7 @@ private:
       }
     }
 
-    node_ptr(value_type *ext, bool locked)
+    node_ptr(external_node *ext, bool locked)
       : v(reinterpret_cast<uintptr_t>(ext) | EXTERNAL |
           (locked ? lock_mask : 0))
     {
@@ -1189,11 +1192,11 @@ private:
       return reinterpret_cast<leaf_node*>(v & ~mask);
     }
 
-    value_type *as_external() const
+    external_node *as_external() const
     {
       if (RADIX_DEBUG)
         assert(get_type() == EXTERNAL);
-      return reinterpret_cast<value_type*>(v & ~mask);
+      return reinterpret_cast<external_node*>(v & ~mask);
     }
 
     void free(radix_array *r)
@@ -1202,7 +1205,7 @@ private:
         assert(!get_lock().is_locked());
       switch (get_type()) {
       case EXTERNAL:
-        delete as_external();
+        as_external()->free(r);
         break;
       case UPPER:
         as_upper_node()->free(r);
@@ -1254,13 +1257,13 @@ private:
         size_t i = 0;
         if (src.is_external()) {
           // Copy to new externals for each child node
-          value_type *orig = src.as_external();
+          value_type *orig = &src.as_external()->value;
           for (; i < fanout; ++i)
             // XXX Use allocator?
             // Relaxed stores are safe because this upper_node will be
             // installed with an atomic operation that will act as a
             // barrier for these writes.
-            child[i].store(node_ptr(new value_type(*orig), is_locked),
+            child[i].store(node_ptr(external_node::create(r, *orig), is_locked),
                            std::memory_order_relaxed);
         } else if (is_locked) {
           // Propagate lock
@@ -1378,7 +1381,7 @@ private:
         try {
           // Copy-construct each child node from the external we're
           // replacing
-          value_type *orig = src.as_external();
+          value_type *orig = &src.as_external()->value;
           for (auto &c : node->child) {
             new (&c) value_type(*orig);
             if (is_locked)
@@ -1405,6 +1408,50 @@ private:
 
   private:
     ~leaf_node() = default;
+  };
+
+  struct external_node
+  {
+    T value;
+
+    // Make sure external_node is NodeBytes big, even if sizeof(T) doesn't
+    // divide NodeBytes.
+    char _pad[0] __attribute__((aligned(NodeBytes)));
+
+    /**
+     * Call #create() instead.  If T's default constructor is trivial,
+     * this will also be trivial, allowing the zero-allocator to
+     * optimize it.
+     */
+    external_node() = default;
+    external_node(const external_node &o) = default;
+    external_node(T& v): value(v) { }
+
+    external_node(external_node &&o) = delete;
+
+    /**
+     * Create a external node using r's allocator.  The node will be
+     * initialized to replace @c src from the parent node.  @c src
+     * must be a null or external pointer.
+     */
+    static external_node *create(radix_array *r, T& orig)
+    {
+      external_node* node = r->external_node_alloc_.allocate(1);
+      r->external_node_alloc_.construct(node, orig);
+      return node;
+    }
+
+    /**
+     * Free a external node allocated with #create().
+     */
+    void free(radix_array *r)
+    {
+      this->~external_node();
+      r->external_node_alloc_.deallocate(this, 1);
+    }
+
+  private:
+    ~external_node() = default;
   };
 
   /**
