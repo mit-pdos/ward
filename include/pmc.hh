@@ -16,12 +16,7 @@ struct pmc_count {
     for (int i = 0; i < NCPU; i++) {
       if (map == nullptr || map[i]) {
         setaffinity(i);
-        // XXX(sbw) qemu doesn't seem to support CR4_PCE
-#if defined(HW_qemu)
-        n.count_[i] = 0;
-#else
         n.count_[i] = rdpmc(ctr);
-#endif
       }
     }
     setaffinity(-1);
