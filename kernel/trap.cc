@@ -76,32 +76,24 @@ do_pagefault(struct trapframe *tf, bool had_secrets)
     getcallerpcs((void *) tf->rbp, pc, NELEM(pc));
     u64 bt = (tf->rip & 0x1fffff) | ((pc[0] & 0x1fffff) << 21) | ((pc[1] & 0x1fffff) << 42);
     wm_rips.increment(bt);
-
     return 0;
-  } else if (myproc()->uaccess_) {
-    if (addr >= USERTOP)
-      panic("do_pagefault: %lx", addr);
+  } else if (addr < USERTOP && (tf->err & FEC_U || (myproc()->uaccess_ && mycpu()->ncli == 0))) {
+    sti();
+    int r = pagefault(myproc()->vmap.get(), addr, tf->err);
+    cli();
 
+    // XXX distinguish between SIGSEGV and SIGBUS?
+    if(r >= 0 || myproc()->deliver_signal(SIGSEGV)){
+      return 0;
+    }
+  } else if (addr < USERTOP && myproc()->uaccess_) {
     // Normally __uaccess_* functions must be called with interrupts disabled so
     // that we can process page faults caused by unmapped pages. However, futex
     // critical sections need to hold a lock while checking user memory, so we
     // offer an escape hatch.
-    if (mycpu()->ncli == 0) {
-      sti();
-      if(pagefault(myproc()->vmap.get(), addr, tf->err) >= 0){
-        return 0;
-      }
-    }
-
     tf->rax = -1;
     tf->rip = (u64)__uaccess_end;
     return 0;
-  } else if (tf->err & FEC_U) {
-      sti();
-      if(addr < USERTOP && pagefault(myproc()->vmap.get(), addr, tf->err) >= 0){
-        return 0;
-      }
-      cli();
   }
   return -1;
 }
@@ -320,8 +312,8 @@ trap(struct trapframe *tf, bool had_secrets)
     mycpu()->fpu_owner = myproc();
     break;
   }
-  case T_ILLOP: {
-    if((tf->cs&3) == 0 && tf->rip >= KTEXT && tf->rip < KTEXTEND) {
+  default:
+    if (tf->trapno == T_ILLOP && (tf->cs&3) == 0 && tf->rip >= KTEXT && tf->rip < KTEXTEND) {
       u64 instr = *(u64*)tf->rip;
       u64* regs[16] = {
         &tf->rax, &tf->rcx, &tf->rdx, &tf->rbx, &tf->rsp, &tf->rbp, &tf->rsi, &tf->rdi,
@@ -344,39 +336,29 @@ trap(struct trapframe *tf, bool had_secrets)
             regs[rm]++;
 
         tf->rip += 5;
-        break;
+        return;
       }
-    }
-    // fallthrough
-  }
-  default:
-    if (tf->trapno >= T_IRQ0 && irq_info[tf->trapno - T_IRQ0].handlers) {
+    } else if (tf->trapno >= T_IRQ0 && irq_info[tf->trapno - T_IRQ0].handlers) {
       for (auto h = irq_info[tf->trapno - T_IRQ0].handlers; h; h = h->next)
         h->handle_irq();
       lapiceoi();
       piceoi();
       return;
+    } else if (tf->trapno == T_PGFLT && do_pagefault(tf, had_secrets) == 0) {
+      return;
     }
 
-    if (tf->trapno == T_PGFLT) {
-      if (do_pagefault(tf, had_secrets) == 0)
-        return;
-
-      // XXX distinguish between SIGSEGV and SIGBUS?
-      if (myproc()->deliver_signal(SIGSEGV))
-        return;
-    }
-
-    if (myproc() == 0 || (tf->cs&3) == 0)
+    if (myproc() == 0 || (tf->cs&3) == 0) {
       kerneltrap(tf);
-
-    // In user space, assume process misbehaved.
-    uerr.println("pid ", myproc()->pid, ' ', myproc()->name,
-                 ": trap ", (u64)tf->trapno, " err ", (u32)tf->err,
-                 " on cpu ", myid(), " rip ", shex(tf->rip),
-                 " rsp ", shex(tf->rsp), " addr ", shex(rcr2()),
-                 "--kill proc");
-    myproc()->killed = 1;
+    } else {
+      // In user space, assume process misbehaved.
+      uerr.println("pid ", myproc()->pid, ' ', myproc()->name,
+                   ": trap ", (u64)tf->trapno, " err ", (u32)tf->err,
+                   " on cpu ", myid(), " rip ", shex(tf->rip),
+                   " rsp ", shex(tf->rsp), " addr ", shex(rcr2()),
+                   "--kill proc");
+      myproc()->killed = 1;
+    }
   }
 
   // Force process exit if it has been killed and is in user space.
