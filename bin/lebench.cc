@@ -339,9 +339,8 @@ u64 page_fault_test() {
 
   u64 startTime = start_timer();
   char a = *((volatile char *)addr);
-  u64 endTime = end_timer();
-
   (void)a;
+  u64 endTime = end_timer();
 
   syscall(SYS_munmap, addr, file_size);
   close(fd);
@@ -543,7 +542,7 @@ int main(int argc, char *argv[])
 
   /****** SMALL ******/
   file_size = PAGE_SIZE;
-  read_warmup();
+  if(mask & (0x1f<<7)) read_warmup();
 
   if(mask & (1ull<<7)) one_line_test(fp, copy, write_test, base_iter * 10, "small write");
   if(mask & (1ull<<8)) one_line_test(fp, copy, read_test, base_iter * 10, "small read");
@@ -553,7 +552,7 @@ int main(int argc, char *argv[])
 
   /****** MID ******/
   file_size = PAGE_SIZE * 10;
-  read_warmup();
+  if(mask & (0x1f<<12)) read_warmup();
 
   if(mask & (1ull<<12)) one_line_test(fp, copy, read_test, base_iter * 10, "mid read");
   if(mask & (1ull<<13)) one_line_test(fp, copy, write_test, base_iter * 10, "mid write");
@@ -563,7 +562,7 @@ int main(int argc, char *argv[])
 
   /****** BIG ******/
   file_size = PAGE_SIZE * 1000;
-  read_warmup();
+  if(mask & (0x1f<<17)) read_warmup();
 
   if(mask & (1ull<<17)) one_line_test(fp, copy, read_test, base_iter, "big read");
   if(mask & (1ull<<18)) one_line_test(fp, copy, write_test, base_iter / 2, "big write");
@@ -573,7 +572,7 @@ int main(int argc, char *argv[])
 
   /****** HUGE ******/
   file_size = PAGE_SIZE * 10000;
-  read_warmup();
+  if(mask & (0x1f<<22)) read_warmup();
 
   if(mask & (1ull<<22)) one_line_test(fp, copy, read_test, base_iter, "huge read");
   if(mask & (1ull<<23)) one_line_test(fp, copy, write_test, base_iter / 4, "huge write");
