@@ -799,7 +799,7 @@ namespace mmu_shared_page_table {
   page_map_cache::__insert(uintptr_t va, pme_t pte)
   {
     pml4s.user->find(va).create(PTE_U & pte, parent_, pml4s.user)->store(pte, memory_order_relaxed);
-    if (va < USERTOP) {
+    if (va < KGLOBAL) {
       pml4s.kernel->find(va).create(PTE_U & pte, parent_, pml4s.user)->store(pte, memory_order_relaxed);
     }
   }

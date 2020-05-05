@@ -3,6 +3,10 @@
 // Everything above KGLOBAL is identical in every address space.
 #define KGLOBAL    KVMALLOC
 
+// Temporary mappings consistent only within address spaces
+#define KTEMPORARY    0xFFFFE00000000000ull
+#define KTEMPORARYEND 0xFFFFE08000000000ull  // 512GB
+
 // [KVMALLOC, KVMALLOCEND) is used for dynamic kernel virtual mappings
 // of vmalloc'd memory.
 #define KVMALLOC    0xFFFFF00000000000ull

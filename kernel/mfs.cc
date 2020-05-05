@@ -130,9 +130,14 @@ readi(sref<mnode> m, char* buf, u64 start, u64 nbytes)
     if (pgend > PGSIZE)
       pgend = PGSIZE;
 
-    // TODO: avoid using secrets here
-    ensure_secrets();
-    memmove(buf + off, (const char*) pi->va() + pgoff, pgend - pgoff);
+    if (secrets_mapped) {
+      memmove(buf + off, (const char*) pi->va() + pgoff, pgend - pgoff);
+    } else {
+      void* va = myproc()->vmap->map_temporary(pi->pa());
+      memmove(buf + off, (const char*) va + pgoff, pgend - pgoff);
+      myproc()->vmap->unmap_temporary(va);
+    }
+
     off += (pgend - pgoff);
   }
 
@@ -179,9 +184,14 @@ writei(sref<mnode> m, const char* buf, u64 start, u64 nbytes,
        * have O_TRUNC, which discards all pages.
        */
 
-      // TODO: avoid using secrets here
-      ensure_secrets();
-      memmove((char*) pi->va() + pgoff, buf + off, pgend - pgoff);
+      if (secrets_mapped) {
+        memmove((char*) pi->va() + pgoff, buf + off, pgend - pgoff);
+      } else {
+        void* va = myproc()->vmap->map_temporary(pi->pa());
+        memmove((char*) va + pgoff, buf + off, pgend - pgoff);
+        myproc()->vmap->unmap_temporary(va);
+      }
+
       if (resize && *resize)
         resize->resize_nogrow(pos + pgend - pgoff);
     } else {
@@ -217,9 +227,14 @@ writei(sref<mnode> m, const char* buf, u64 start, u64 nbytes,
       if (!p)
         break;
 
-      // TODO: avoid using secrets here
-      ensure_secrets();
-      memmove(p + pgoff, buf + off, pgend - pgoff);
+      if (secrets_mapped) {
+        memmove((char*) p + pgoff, buf + off, pgend - pgoff);
+      } else {
+        void* va = myproc()->vmap->map_temporary(v2p(p));
+        memmove((char*) va + pgoff, buf + off, pgend - pgoff);
+        myproc()->vmap->unmap_temporary(va);
+      }
+
       pi = sref<page_info>::transfer(new (page_info::of(p)) page_info());
       resize->resize_append(pos + pgend - pgoff, pi);
     }

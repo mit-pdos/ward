@@ -197,6 +197,9 @@ struct vmap : public referenced {
   void* qalloc(const char *name, bool cached_only = false);
   void qfree(void* page);
 
+  void* map_temporary(paddr pa);
+  void unmap_temporary(void* page);
+
   uptr brk_;                    // Top of heap
 
   futex_list futex_waiters_;

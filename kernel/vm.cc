@@ -850,6 +850,23 @@ safe_read_vm(void *dst, uintptr_t src, size_t n)
 }
 
 void*
+vmap::map_temporary(paddr pa)
+{
+  cache.insert((uintptr_t)pa+KTEMPORARY, nullptr, pa | PTE_P | PTE_NX | PTE_W);
+  return (void*)(pa + KTEMPORARY);
+}
+
+
+void
+vmap::unmap_temporary(void* va)
+{
+  cache.insert((uintptr_t)va, nullptr, 0);
+  mmu::shootdown shootdown;
+  cache.invalidate((uintptr_t)va, PGSIZE, nullptr, &shootdown);
+  shootdown.perform();
+}
+
+void*
 vmap::qalloc(const char* name, bool cached_only)
 {
   void* new_pages[QALLOC_BATCH_SIZE];
