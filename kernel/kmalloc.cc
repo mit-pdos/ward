@@ -178,7 +178,7 @@ kminit(void)
 }
 
 void* kmalloc(u64 nbytes, const char *name) {
-  void* p = freelists->alloc(nbytes, name);
+  void* p = freelists[mycpu()->id].alloc(nbytes, name);
   if (p) {
     mtlabel(mtrace_label_heap, (void*) h, nbytes, name, strlen(name));
   }
@@ -186,14 +186,14 @@ void* kmalloc(u64 nbytes, const char *name) {
 }
 void kmfree(void *p, u64 nbytes) {
   mtunlabel(mtrace_label_heap, p);
-  freelists->free(p, nbytes);
+  freelists[mycpu()->id].free(p, nbytes);
 }
 
 char* pmalloc(u64 nbytes, const char *name) {
-  return (char*)pfreelists->alloc(nbytes, name);
+  return (char*)pfreelists[mycpu()->id].alloc(nbytes, name);
 }
 void pmfree(void *p, u64 nbytes) {
-  pfreelists->free(p, nbytes);
+  pfreelists[mycpu()->id].free(p, nbytes);
 }
 
 // Expand an allocation size to include its alloc_debug_info
