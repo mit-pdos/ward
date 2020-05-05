@@ -77,7 +77,7 @@ do_pagefault(struct trapframe *tf, bool had_secrets)
     u64 bt = (tf->rip & 0x1fffff) | ((pc[0] & 0x1fffff) << 21) | ((pc[1] & 0x1fffff) << 42);
     wm_rips.increment(bt);
     return 0;
-  } else if (addr < USERTOP && (tf->err & FEC_U || (myproc()->uaccess_ && mycpu()->ncli == 0))) {
+  } else if (addr < USERTOP && tf->err & FEC_U) {
     sti();
     int r = pagefault(myproc()->vmap.get(), addr, tf->err);
     cli();
@@ -86,11 +86,20 @@ do_pagefault(struct trapframe *tf, bool had_secrets)
     if(r >= 0 || myproc()->deliver_signal(SIGSEGV)){
       return 0;
     }
-  } else if (addr < USERTOP && myproc()->uaccess_) {
+  } else if (myproc()->uaccess_) {
     // Normally __uaccess_* functions must be called with interrupts disabled so
     // that we can process page faults caused by unmapped pages. However, futex
     // critical sections need to hold a lock while checking user memory, so we
     // offer an escape hatch.
+    if (myproc()->uaccess_ && mycpu()->ncli == 0) {
+      sti();
+      int r = pagefault(myproc()->vmap.get(), addr, tf->err);
+      cli();
+      if(r >= 0) {
+        return 0;
+      }
+    }
+
     tf->rax = -1;
     tf->rip = (u64)__uaccess_end;
     return 0;
