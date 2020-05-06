@@ -351,7 +351,7 @@ linux_syscall_numbers = {
     'clone3': 435,
 }
 
-linux_syscall_names = {num: name for name, num in linux_syscall_numbers.items()}
+linux_syscall_names = {num: name for name, num in list(linux_syscall_numbers.items())}
 
 def main():
     parser = OptionParser(usage="usage: %prog [options] source...")
@@ -370,7 +370,7 @@ def main():
     # Parse source files
     syscalls = []
     for fname in args:
-        syscalls.extend(parse(file(fname, "r")))
+        syscalls.extend(parse(open(fname, "r")))
 
     # Generate syscall numbers
     n = 450
@@ -382,28 +382,28 @@ def main():
 
     # Output
     if options.kvectors:
-        print "#include \"types.h\""
-        print "#include \"kernel.hh\""
-        print "#include <uk/unistd.h>"
-        print "#include <uk/signal.h>"
-        print
+        print("#include \"types.h\"")
+        print("#include \"kernel.hh\"")
+        print("#include <uk/unistd.h>")
+        print("#include <uk/signal.h>")
+        print()
         for syscall in syscalls:
-            print "extern %s %s(%s);" % (syscall.rettype, syscall.kname,
-                                         ", ".join(syscall.kargs))
-        print
+            print("extern %s %s(%s);" % (syscall.rettype, syscall.kname,
+                                         ", ".join(syscall.kargs)))
+        print()
 
-        print "extern u64 (*const syscalls[])(u64, u64, u64, u64, u64, u64);"
-        print "u64 (*const syscalls[])(u64, u64, u64, u64, u64, u64) = {"
+        print("extern u64 (*const syscalls[])(u64, u64, u64, u64, u64, u64);")
+        print("u64 (*const syscalls[])(u64, u64, u64, u64, u64, u64) = {")
         bynum = dict((s.num, s) for s in syscalls)
         for num in range(max(bynum.keys()) + 1):
             if num not in bynum:
-                print "  nullptr,"
+                print("  nullptr,")
             else:
-                print "  (u64(*)(u64,u64,u64,u64,u64,u64))%s," % bynum[num].kname
-        print "};"
-        print
+                print("  (u64(*)(u64,u64,u64,u64,u64,u64))%s," % bynum[num].kname)
+        print("};")
+        print()
 
-        print 'const char* syscall_names[] = {'
+        print('const char* syscall_names[] = {')
         for num in range(max(bynum.keys()) + 1):
             syscallname = None
             if num in bynum:
@@ -413,19 +413,19 @@ def main():
             else:
                 pass # raise Exception("could not find num: %d" % num)
             if syscallname is None:
-                print '  nullptr,'
+                print('  nullptr,')
             else:
-                print '  "%s",' % syscallname
-        print '};'
-        print
+                print('  "%s",' % syscallname)
+        print('};')
+        print()
 
-        print "extern const int nsyscalls = %d;" % (max(bynum.keys()) + 1)
+        print("extern const int nsyscalls = %d;" % (max(bynum.keys()) + 1))
 
     if options.ustubs:
-        print "#include \"traps.h\""
-        print
+        print("#include \"traps.h\"")
+        print()
         for syscall in syscalls:
-            print """\
+            print("""\
 .globl SYS_%(uname)s
 SYS_%(uname)s = %(num)d
 
@@ -435,9 +435,9 @@ SYS_%(uname)s = %(num)d
   movq %%rcx, %%r10
   syscall
   ret
-""" % syscall.__dict__
-        print
-        print """\
+""" % syscall.__dict__)
+        print()
+        print("""\
 .globl syscall
 syscall:
         movq %rdi, %rax /* Syscall number -> rax.  */
@@ -449,29 +449,29 @@ syscall:
         movq 8(%rsp),%r9 /* arg6 is on the stack.  */
         syscall
         ret
-"""
+""")
 
     if options.udecls:
-        print "#include \"types.h\""
-        print "#include <uk/unistd.h>"
-        print
-        print "BEGIN_DECLS"
-        print
+        print("#include \"types.h\"")
+        print("#include <uk/unistd.h>")
+        print()
+        print("BEGIN_DECLS")
+        print()
         types = set(typ for syscall in syscalls for typ in syscall.types())
         for typ in types:
-            print typ + ";"
+            print(typ + ";")
         for syscall in syscalls:
             extra = ""
             if syscall.flags.get("noret"):
                 extra = " __attribute__((noreturn))"
-            print "%s %s(%s)%s;" % (syscall.rettype, syscall.uname,
-                                    ", ".join(syscall.uargs), extra)
-        print "u64 syscall(u64, ...);"
-        print
+            print("%s %s(%s)%s;" % (syscall.rettype, syscall.uname,
+                                    ", ".join(syscall.uargs), extra))
+        print("u64 syscall(u64, ...);")
+        print()
         for syscall in syscalls:
-            print "#define SYS_%s %s" % (syscall.uname, syscall.num)
-        print
-        print "END_DECLS"
+            print("#define SYS_%s %s" % (syscall.uname, syscall.num))
+        print()
+        print("END_DECLS")
 
 class Syscall(object):
     def __init__(self, fp, kname, rettype, kargs, flags, num=None):

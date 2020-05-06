@@ -18,7 +18,7 @@ EXCEPTIONS ?= y
 # Shell command to run in VM after booting
 RUN        ?= $(empty)
 # Python binary
-PYTHON     ?= python2
+PYTHON     ?= python3
 # Directory containing mtrace-magic.h for HW=mtrace
 MTRACESRC  ?= ../mtrace
 # Mtrace-enabled QEMU binary
@@ -240,14 +240,14 @@ grub/boot.img:
 	@echo "  GEN    $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)cp /usr/lib/grub/i386-pc/boot.img $@.tmp
-	$(Q)python -c "print '\x40'" | dd of=$@.tmp bs=1 seek=92 count=1 conv=notrunc 2> /dev/null
+	$(Q)$(PYTHON) -c "print('\x40')" | dd of=$@.tmp bs=1 seek=92 count=1 conv=notrunc 2> /dev/null
 	$(Q)mv $@.tmp $@
 grub/core.img: grub/grub-early.cfg
 	@echo "  GEN    $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)grub-mkimage -O i386-pc -o $@.tmp -p '/' -c grub/grub-early.cfg \
 		biosdisk normal search part_msdos part_gpt fat multiboot multiboot2 gfxmenu echo probe
-	$(Q)python -c "print '\x41'" | dd of=$@.tmp bs=1 seek=500 count=1 conv=notrunc 2> /dev/null
+	$(Q)$(PYTHON) -c "print('\x41')" | dd of=$@.tmp bs=1 seek=500 count=1 conv=notrunc 2> /dev/null
 	$(Q)mv $@.tmp $@
 grub/grub.efi: grub/grub-early.cfg
 	@echo "  GEN    $@"
