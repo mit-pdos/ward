@@ -7,6 +7,7 @@
 #include "amd64.h"
 #include "traps.h"
 #include "disk.hh"
+#include "condvar.hh"
 
 #define IDE_BSY       0x80
 #define IDE_DRDY      0x40
@@ -201,8 +202,11 @@ ide_port::identify(ide_select drive, u16* output)
     return false;
 
   u8 r;
-  while((r = this->reg_read(REG_STATUS_CMD)) & IDE_BSY)
-    ;
+  u64 start = nsectime();
+  while((r = this->reg_read(REG_STATUS_CMD)) & IDE_BSY) {
+    if (nsectime() >= start + 10'000'000)
+      return false;
+  }
 
   if (this->reg_read(REG_CYLINDER_LOW) || this->reg_read(REG_CYLINDER_HIGH))
     return false; // Not ATA
