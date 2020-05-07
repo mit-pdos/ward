@@ -15,15 +15,6 @@ time(time_t *t)
   return res;
 }
 
-int
-gettimeofday(struct timeval *tv, struct timezone *tz)
-{
-  uint64_t nsec = time_nsec();
-  tv->tv_sec = nsec / 1000000000;
-  tv->tv_usec = (nsec % 1000000000) / 1000;
-  return 0;
-}
-
 struct tm *
 gmtime(const time_t *timep)
 {

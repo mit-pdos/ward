@@ -14,9 +14,3 @@ struct timezone
 {
   // Not implemented
 };
-
-BEGIN_DECLS
-
-int gettimeofday(struct timeval *tv, struct timezone *tz);
-
-END_DECLS

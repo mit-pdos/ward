@@ -1,6 +1,7 @@
 // Miscellaneous utilities
 
 #include "libutil.h"
+#include "user.h"
 
 #include <stdarg.h>
 #include <errno.h>

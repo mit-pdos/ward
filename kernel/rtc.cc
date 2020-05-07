@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <uk/time.h>
+#include <sys/time.h>
 
 #define IO_RTC  0x70
 
@@ -90,4 +91,21 @@ sys_time_nsec(void)
 {
   // Return the number of nanoseconds since the UNIX epoch
   return rtc_nsec0 + nsectime();
+}
+
+//SYSCALL
+int
+sys_gettimeofday(userptr<struct timeval> tv, userptr<struct timezone> tz)
+{
+  if(tz)
+    return -1;
+
+  timeval time;
+  u64 nsec = rtc_nsec0 + nsectime();
+  time.tv_sec = nsec / 1000000000;
+  time.tv_usec = (nsec % 1000000000) / 1000;
+
+  if(!tv.store(&time))
+    return -1;
+  return 0;
 }
