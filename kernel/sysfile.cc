@@ -447,6 +447,20 @@ sys_mkdirat(int dirfd, userptr_str path, mode_t mode)
 
 //SYSCALL
 int
+sys_mkdir(userptr_str path, mode_t mode)
+{
+  char path_copy[PATH_MAX];
+  if (!path.load(path_copy, sizeof(path_copy)))
+    return -1;
+
+  if (!vfs_root()->create_dir(myproc()->cwd, path_copy))
+    return -1;
+
+  return 0;
+}
+
+//SYSCALL
+int
 sys_mknod(userptr_str path, int major, int minor)
 {
   char path_copy[PATH_MAX];

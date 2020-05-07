@@ -79,12 +79,6 @@ open(const char *path, int omode, ...)
   return openat(AT_FDCWD, path, omode, mode);
 }
 
-int
-mkdir(const char *path, mode_t mode)
-{
-  return mkdirat(AT_FDCWD, path, mode);
-}
-
 unsigned
 sleep(unsigned secs)
 {
