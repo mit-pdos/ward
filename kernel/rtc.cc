@@ -109,3 +109,19 @@ sys_gettimeofday(userptr<struct timeval> tv, userptr<struct timezone> tz)
     return -1;
   return 0;
 }
+
+//SYSCALL
+int
+sys_clock_gettime(int clk_id, userptr<struct timespec> tp) {
+  if (clk_id != CLOCK_REALTIME)
+    return -1;
+
+  timespec time;
+  u64 nsec = rtc_nsec0 + nsectime();
+  time.tv_sec = nsec / 1000000000;
+  time.tv_nsec = nsec % 1000000000;
+
+  if(!tp.store(&time))
+    return -1;
+  return 0;
+}
