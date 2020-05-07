@@ -151,22 +151,28 @@ sys_fsync(int fd)
 
 //SYSCALL
 ssize_t
-sys_read(int fd, userptr<void> p, size_t n)
+sys_read(int fd, userptr<void> p, size_t total_bytes)
 {
   sref<file> f = getfile(fd);
   if (!f)
     return -1;
 
   char b[PGSIZE];
-  // XXX(Austin) Too bad
-  if (n > PGSIZE)
-    n = PGSIZE;
-  ssize_t res = f->read(b, n);
-  if (res < 0)
-    return -1;
-  if (!p.store_bytes(b, res))
-    return -1;
-  return res;
+  ssize_t bytes = 0;
+  while (bytes < total_bytes) {
+    size_t n = total_bytes - bytes;
+    if (n > PGSIZE)
+      n = PGSIZE;
+
+    ssize_t ret = f->read(b, n);
+    if (ret <= 0)
+      return bytes ? bytes : ret;
+    if (!(p+bytes).store_bytes(b, ret))
+      return bytes ? bytes : -1;
+
+    bytes += ret;
+  }
+  return bytes;
 }
 
 //SYSCALL
@@ -190,7 +196,7 @@ sys_pread(int fd, void *ubuf, size_t count, off_t offset)
 
 //SYSCALL
 ssize_t
-sys_write(int fd, const userptr<void> p, size_t n)
+sys_write(int fd, const userptr<void> p, size_t total_bytes)
 {
   kstats::timer timer_fill(&kstats::write_cycles);
   kstats::inc(&kstats::write_count);
@@ -198,13 +204,24 @@ sys_write(int fd, const userptr<void> p, size_t n)
   sref<file> f = getfile(fd);
   if (!f)
     return -1;
+
   char b[PGSIZE];
-  // XXX(Austin) Too bad
-  if (n > PGSIZE)
-    n = PGSIZE;
-  if (!p.load_bytes(b, n))
-    return -1;
-  return f->write(b, n);
+  ssize_t bytes = 0;
+  while (bytes < total_bytes) {
+    size_t n = total_bytes - bytes;
+    if (n > PGSIZE)
+      n = PGSIZE;
+
+    if (!(p + bytes).load_bytes(b, n))
+      return bytes ? bytes : -1;
+
+    ssize_t ret = f->write(b, n);
+    if (ret <= 0)
+      return bytes ? bytes : ret;
+
+    bytes += ret;
+  }
+  return bytes;
 }
 
 //SYSCALL

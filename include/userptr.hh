@@ -114,6 +114,11 @@ public:
   userptr(const userptr<void> &o) = default;
   userptr& operator=(const userptr& o) = default;
 
+  userptr operator+(ptrdiff_t x) const
+  {
+    return userptr(((char*)unsafe_get() + x));
+  }
+
   void *unsafe_get() const
   {
     return ptr;
