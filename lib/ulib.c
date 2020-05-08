@@ -27,11 +27,11 @@ gets(char *buf, int max)
   return buf;
 }
 
-int
+long
 fstatat(int dirfd, const char *n, struct stat *st)
 {
   int fd;
-  int r;
+  long r;
 
   fd = openat(dirfd, n, O_RDONLY);
   if(fd < 0)

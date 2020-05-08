@@ -7,8 +7,8 @@ BEGIN_DECLS
 
 void *mmap(void *addr, size_t length, int prot, int flags,
            int fd, off_t offset);
-int munmap(void *addr, size_t length);
-int mprotect(void *addr, size_t length, int prot);
-int madvise(void *addr, size_t length, int advice);
+long munmap(void *addr, size_t length);
+long mprotect(void *addr, size_t length, int prot);
+long madvise(void *addr, size_t length, int advice);
 
 END_DECLS

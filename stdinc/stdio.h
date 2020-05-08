@@ -41,6 +41,6 @@ void vdprintf(int fd, const char *fmt, va_list ap);
  * Why does POSIX believe rename() should live in stdio.h?  Unclear.
  * http://pubs.opengroup.org/onlinepubs/009695399/functions/rename.html
  */
-int    rename(const char *oldpath, const char *newpath);
+long    rename(const char *oldpath, const char *newpath);
 
 END_DECLS

@@ -94,7 +94,7 @@ sys_time_nsec(void)
 }
 
 //SYSCALL
-int
+long
 sys_gettimeofday(userptr<struct timeval> tv, userptr<struct timezone> tz)
 {
   if(tz)
@@ -111,7 +111,7 @@ sys_gettimeofday(userptr<struct timeval> tv, userptr<struct timezone> tz)
 }
 
 //SYSCALL
-int
+long
 sys_clock_gettime(int clk_id, userptr<struct timespec> tp) {
   if (clk_id != CLOCK_REALTIME)
     return -1;

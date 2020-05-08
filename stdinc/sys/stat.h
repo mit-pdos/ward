@@ -34,9 +34,9 @@
 
 BEGIN_DECLS
 
-int fstat(int, struct stat *);
-int fstatat(int dirfd, const char*, struct stat*);
-int mkdir(const char *, mode_t);
-int mkdirat(int, const char *, mode_t);
+long fstat(int, struct stat *);
+long fstatat(int dirfd, const char*, struct stat*);
+long mkdir(const char *, mode_t);
+long mkdirat(int, const char *, mode_t);
 
 END_DECLS

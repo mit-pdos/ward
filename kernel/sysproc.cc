@@ -21,7 +21,7 @@
 #include <uk/unistd.h>
 
 //SYSCALL
-int
+pid_t
 sys_fork_flags(int flags)
 {
   clone_flags cflags = clone_flags::CLONE_ALL;
@@ -44,35 +44,35 @@ sys_exit(int status)
 }
 
 //SYSCALL
-int
+pid_t
 sys_waitpid(int pid,  userptr<int> status, int options)
 {
   return wait(pid, status);
 }
 
 //SYSCALL
-int
+pid_t
 sys_wait(userptr<int> status)
 {
   return wait(-1, status);
 }
 
 //SYSCALL
-int
+long
 sys_kill(int pid)
 {
   return proc::kill(pid);
 }
 
 //SYSCALL {"nosec": true}
-int
+pid_t
 sys_getpid(void)
 {
   return myproc()->pid;
 }
 
 //SYSCALL
-int
+long
 sys_gettid(void)
 {
   return myproc()->pid;
@@ -97,7 +97,7 @@ sys_brk(char *ptr)
 }
 
 //SYSCALL
-int
+long
 sys_nsleep(u64 nsec)
 {
   struct spinlock lock("sleep_lock");
@@ -176,7 +176,7 @@ sys_mmap(userptr<void> addr, size_t len, int prot, int flags, int fd,
 }
 
 //SYSCALL
-int
+long
 sys_munmap(userptr<void> addr, size_t len)
 {
   uptr align_addr = PGROUNDDOWN((uptr)addr);
@@ -188,7 +188,7 @@ sys_munmap(userptr<void> addr, size_t len)
 }
 
 //SYSCALL
-int
+long
 sys_madvise(userptr<void> addr, size_t len, int advice)
 {
   uptr align_addr = PGROUNDDOWN((uptr)addr);
@@ -211,7 +211,7 @@ sys_madvise(userptr<void> addr, size_t len, int advice)
 }
 
 //SYSCALL
-int
+long
 sys_mprotect(userptr<void> addr, size_t len, int prot)
 {
   if ((uptr)addr % PGSIZE)
@@ -264,7 +264,7 @@ sys_cpuhz(void)
 }
 
 //SYSCALL
-int
+long
 sys_setfs(u64 base)
 {
   proc *p = myproc();
@@ -273,7 +273,7 @@ sys_setfs(u64 base)
 }
 
 //SYSCALL
-int
+long
 sys_setaffinity(int cpu)
 {
   return myproc()->set_cpu_pin(cpu);
@@ -314,7 +314,7 @@ sys_sched_yield(void)
 }
 
 //SYSCALL
-int
+long
 sys_uname(userptr<struct utsname> buf)
 {
   static struct utsname uts
@@ -342,14 +342,14 @@ sys_uname(userptr<struct utsname> buf)
 
 // XXX(Austin) This is a hack for benchmarking.  See vmap::dup_page.
 //SYSCALL
-int
+long
 sys_dup_page(userptr<void> dest, userptr<void> src)
 {
   return myproc()->vmap->dup_page((uptr)dest, (uptr)src);
 }
 
 //SYSCALL
-int
+long
 sys_sigaction(int signo, userptr<struct sigaction> act, userptr<struct sigaction> oact)
 {
   if (signo < 0 || signo >= NSIG)
@@ -384,7 +384,7 @@ sys_cpu_info(void)
 }
 
 //SYSCALL
-int
+long
 sys_update_microcode(const void* data, u64 len)
 {
   if (len < 48 || len > 0x100000)
@@ -429,21 +429,21 @@ sys_update_microcode(const void* data, u64 len)
 }
 
 //SYSCALL
-int
+long
 sys_cmdline_view_param(const char *name)
 {
   return cmdline_view_param(name);
 }
 
 //SYSCALL
-int
+long
 sys_cmdline_change_param(const char *name, const char *value)
 {
   return cmdline_change_param(name, value);
 }
 
 //SYSCALL
-int
+long
 sys_arch_prctl(int code, userptr<u64> addr)
 {
   if (code == 0x1001) {
@@ -463,7 +463,7 @@ sys_arch_prctl(int code, userptr<u64> addr)
 }
 
 //SYSCALL
-int
+long
 sys_sigprocmask(int how, userptr<u32> set, userptr<u32> oldset)
 {
   if (oldset) {
@@ -500,7 +500,7 @@ sys_sigprocmask(int how, userptr<u32> set, userptr<u32> oldset)
 }
 
 //SYSCALL
-int
+long
 sig_tgkill(int pid, int tid, int sig)
 {
   if (pid != tid)

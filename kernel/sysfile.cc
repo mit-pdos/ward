@@ -38,14 +38,14 @@ fdalloc(sref<file>&& f, int omode)
 }
 
 //SYSCALL
-int
+long
 sys_dup(int ofd)
 {
   return fdalloc(getfile(ofd), 0);
 }
 
 //SYSCALL
-int
+long
 sys_dup2(int ofd, int nfd)
 {
   sref<file> f = getfile(ofd);
@@ -124,7 +124,7 @@ sys_lseek(int fd, off_t offset, int whence)
 }
 
 //SYSCALL
-int
+long
 sys_close(int fd)
 {
   sref<file> f = getfile(fd);
@@ -136,18 +136,19 @@ sys_close(int fd)
 }
 
 //SYSCALL
-void
+long
 sys_sync(void)
 {
   // Not implemented
+  return -ENOSYS;
 }
 
 //SYSCALL
-int
+long
 sys_fsync(int fd)
 {
   // Not implemented
-  return 0;
+  return -ENOSYS;
 }
 
 //SYSCALL
@@ -268,7 +269,7 @@ sys_writev(int fd, const void* iov, int count) {
 }
 
 //SYSCALL
-int
+long
 sys_fstatx(int fd, userptr<struct stat> st, enum stat_flags flags)
 {
   struct stat st_buf;
@@ -283,7 +284,7 @@ sys_fstatx(int fd, userptr<struct stat> st, enum stat_flags flags)
 }
 
 //SYSCALL
-int
+long
 sys_fstat(int fd, userptr<struct stat> st)
 {
   struct stat st_buf;
@@ -298,26 +299,27 @@ sys_fstat(int fd, userptr<struct stat> st)
 }
 
 //SYSCALL
-int
+long
 sys_stat(userptr_str path, userptr<struct stat> st)
 {
   char path_copy[PATH_MAX];
   if (!path.load(path_copy, sizeof path_copy))
-    return -1;
+    return -EINVAL;
 
   sref<vnode> m = vfs_root()->resolve(myproc()->cwd, path_copy);
   if(!m)
-    return -2;
+    return -ENOENT;
 
   struct stat st_buf;
   m->stat(&st_buf, STAT_NO_FLAGS);
-  if (!st.store(&st_buf))
-    return -1;
+  if (!st.store(&st_buf)) {
+    return -EINVAL;
+  }
   return 0;
 }
 
 //SYSCALL
-int
+long
 sys_lstat(userptr_str path, userptr<struct stat> st)
 {
   // We don't support symlinks
@@ -325,7 +327,7 @@ sys_lstat(userptr_str path, userptr<struct stat> st)
 }
 
 //SYSCALL
-int
+long
 sys_access(userptr_str path, int mode)
 {
   char path_copy[PATH_MAX];
@@ -342,7 +344,7 @@ sys_access(userptr_str path, int mode)
 
 // Create the path new as a link to the same inode as old.
 //SYSCALL
-int
+long
 sys_link(userptr_str old_path, userptr_str new_path)
 {
   char old[PATH_MAX], newn[PATH_MAX];
@@ -353,7 +355,7 @@ sys_link(userptr_str old_path, userptr_str new_path)
 }
 
 //SYSCALL
-int
+long
 sys_rename(userptr_str old_path, userptr_str new_path)
 {
   char old[PATH_MAX], newn[PATH_MAX];
@@ -364,7 +366,7 @@ sys_rename(userptr_str old_path, userptr_str new_path)
 }
 
 //SYSCALL
-int
+long
 sys_unlink(userptr_str path)
 {
   char path_copy[PATH_MAX];
@@ -419,7 +421,7 @@ sys_openat(int dirfd, userptr_str path, int omode, ...)
 }
 
 //SYSCALL
-int
+long
 sys_mkdirat(int dirfd, userptr_str path, mode_t mode)
 {
   sref<vnode> cwd;
@@ -447,7 +449,7 @@ sys_mkdirat(int dirfd, userptr_str path, mode_t mode)
 }
 
 //SYSCALL
-int
+long
 sys_mkdir(userptr_str path, mode_t mode)
 {
   char path_copy[PATH_MAX];
@@ -461,7 +463,7 @@ sys_mkdir(userptr_str path, mode_t mode)
 }
 
 //SYSCALL
-int
+long
 sys_mknod(userptr_str path, int major, int minor)
 {
   char path_copy[PATH_MAX];
@@ -475,7 +477,7 @@ sys_mknod(userptr_str path, int major, int minor)
 }
 
 //SYSCALL
-int
+long
 sys_chdir(userptr_str path)
 {
   char path_copy[PATH_MAX];
@@ -583,7 +585,7 @@ doexec(userptr_str upath, userptr<userptr_str> uargv)
 }
 
 //SYSCALL {"uargs":["const char *upath", "char * const uargv[]"]}
-int
+long
 sys_execv(userptr_str upath, userptr<userptr_str> uargv)
 {
   myproc()->data_cpuid = myid();
@@ -591,7 +593,7 @@ sys_execv(userptr_str upath, userptr<userptr_str> uargv)
 }
 
 //SYSCALL
-int
+long
 sys_pipe2(userptr<int> fd, int flags)
 {
   sref<file> rf, wf;
@@ -611,14 +613,14 @@ sys_pipe2(userptr<int> fd, int flags)
 }
 
 //SYSCALL
-int
+long
 sys_pipe(userptr<int> fd)
 {
   return sys_pipe2(fd, 0);
 }
 
 //SYSCALL
-int
+long
 sys_readdir(int dirfd, const userptr<char> prevptr, userptr<char> nameptr)
 {
   sref<file> df = getfile(dirfd);
@@ -649,7 +651,7 @@ sys_readdir(int dirfd, const userptr<char> prevptr, userptr<char> nameptr)
 }
 
 //SYSCALL {"uargs":["const char *upath", "char * const uargv[]", "const void *actions", "size_t actions_len"]}
-int
+long
 sys_spawn(userptr_str upath, userptr<userptr_str> uargv,
               const userptr<void> uactions, size_t actions_len)
 {
