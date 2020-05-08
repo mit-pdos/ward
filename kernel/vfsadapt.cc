@@ -101,7 +101,7 @@ vnode_mfs::stat(struct stat *st, enum stat_flags flags)
   }
 
   memset(st, 0, sizeof(struct stat));
-  st->st_mode = stattype << __S_IFMT_SHIFT;
+  st->st_mode = (stattype << __S_IFMT_SHIFT) | 0777;
   st->st_dev = (uintptr_t) node->fs_;
   st->st_ino = node->inum_;
   if (!(flags & STAT_OMIT_NLINK))
