@@ -18,6 +18,7 @@
 #include <uk/spawn.h>
 #include <uk/fs.h>
 #include "filetable.hh"
+#include "errno.h"
 
 sref<file>
 getfile(int fd)
@@ -488,6 +489,55 @@ sys_chdir(userptr_str path)
   myproc()->cwd = m;
   return 0;
 }
+
+//SYSCALL
+long
+sys_getcwd(userptr<void> out_path, size_t out_len)
+{
+  size_t path_len = 1;
+  char path[PATH_MAX] = { 0 };
+
+  sref<vnode> node = myproc()->cwd;
+  while(1) {
+    strbuf<FILENAME_MAX> name;
+    sref<vnode> parent = vfs_root()->resolve(node, "..");
+    if (!parent || parent->is_same(node))
+      break;
+
+    if(!parent->next_dirent(nullptr, &name))
+      return -EINVAL;
+
+    while(!vfs_root()->resolve(parent, name.ptr())->is_same(node)) {
+      if(!parent->next_dirent(name.ptr(), &name))
+        return -EINVAL;
+    }
+
+    node = parent;
+
+    size_t name_len = strlen(name.ptr());
+    assert(name_len + path_len + 1 < PATH_MAX);
+
+    memmove(path+name_len+1, path, path_len+1);
+    memmove(path+1, name.ptr(), name_len);
+    path[0] = '/';
+    path_len += name_len + 1;
+  }
+
+  if(path_len == 1) {
+    path_len = 2;
+    path[0] = '/';
+    path[1] = '\0';
+  }
+
+  if(out_len < path_len)
+    return -EACCES;
+
+  if(!out_path.store_bytes(path, path_len))
+    return -EINVAL;
+
+  return path_len - 1;
+}
+
 
 // Load NULL-terminated char** list, such as the argv argument to
 // exec.
