@@ -19,6 +19,7 @@
 #include <uk/fs.h>
 #include "filetable.hh"
 #include "errno.h"
+#include "fcntl.h"
 
 sref<file>
 getfile(int fd)
@@ -377,7 +378,7 @@ sys_unlink(userptr_str path)
 }
 
 //SYSCALL
-int
+long
 sys_openat(int dirfd, userptr_str path, int omode, ...)
 {
   sref<vnode> cwd;
@@ -753,4 +754,17 @@ sys_spawn(userptr_str upath, userptr<userptr_str> uargv,
   }
 
   return p->pid;
+}
+
+//SYSCALL
+long
+sys_fcntl(int fd, int cmd, u64 arg)
+{
+  switch(cmd) {
+  case F_GETFL:
+    return O_RDWR;
+
+  default:
+    return -EINVAL;
+  };
 }

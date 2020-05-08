@@ -48,7 +48,7 @@ sockaddr_to_user(userptr<struct sockaddr> sa, userptr<socklen_t> sa_len,
 }
 
 //SYSCALL
-int
+long
 sys_socket(int domain, int type, int protocol)
 {
   extern int unixsocket(int domain, int type, int protocol, file **out);
@@ -64,7 +64,7 @@ sys_socket(int domain, int type, int protocol)
 }
 
 //SYSCALL
-int
+long
 sys_bind(int xsock, const userptr<struct sockaddr> xaddr, uint32_t xaddrlen)
 {
   sref<file> f = getfile(xsock);
@@ -82,7 +82,7 @@ sys_bind(int xsock, const userptr<struct sockaddr> xaddr, uint32_t xaddrlen)
 }
 
 //SYSCALL
-int
+long
 sys_listen(int xsock, int backlog)
 {
   sref<file> f = getfile(xsock);
@@ -94,7 +94,7 @@ sys_listen(int xsock, int backlog)
 }
 
 //SYSCALL
-int
+long
 sys_accept(int xsock, userptr<struct sockaddr> xaddr,
            userptr<uint32_t> xaddrlen)
 {
@@ -160,7 +160,7 @@ sys_sendto(int sockfd, const userptr<void> buf, size_t len, int flags,
 }
 
 //SYSCALL
-int
+long
 sys_connect(int sockfd, const userptr<struct sockaddr> addr, u32 addrlen)
 {
   return -1;
