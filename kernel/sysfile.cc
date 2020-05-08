@@ -387,7 +387,7 @@ sys_openat(int dirfd, userptr_str path, int omode, ...)
   } else {
     sref<file> fdir = getfile(dirfd);
     if (!fdir)
-      return -1;
+      return -EBADF;
     file* ff = fdir.get();
     if (&typeid(*ff) != &typeid(file_inode))
       return -1;
@@ -397,7 +397,7 @@ sys_openat(int dirfd, userptr_str path, int omode, ...)
 
   char path_copy[PATH_MAX];
   if (!path.load(path_copy, sizeof(path_copy)))
-    return -1;
+    return -EINVAL;
 
   sref<vnode> m;
   if (omode & O_CREAT)
@@ -406,11 +406,11 @@ sys_openat(int dirfd, userptr_str path, int omode, ...)
     m = vfs_root()->resolve(cwd, path_copy);
 
   if (!m)
-    return -1;
+    return -ENOENT;
 
   int rwmode = omode & (O_RDONLY|O_WRONLY|O_RDWR);
   if (m->is_directory() && (rwmode != O_RDONLY))
-    return -1;
+    return -EISDIR;
 
   if (m->is_regular_file() && (omode & O_TRUNC))
     if (m->truncate() < 0)
@@ -649,6 +649,20 @@ sys_readdir(int dirfd, const userptr<char> prevptr, userptr<char> nameptr)
     return -1;
 
   return 1;
+}
+
+//SYSCALL
+long
+sys_readlink(userptr_str path, userptr<void> buf, size_t size)
+{
+  return -EINVAL;
+}
+
+//SYSCALL
+long
+sys_chmod(userptr_str path, mode_t mode)
+{
+  return 0;
 }
 
 //SYSCALL {"uargs":["const char *upath", "char * const uargv[]", "const void *actions", "size_t actions_len"]}
