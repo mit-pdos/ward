@@ -171,7 +171,7 @@ else
 QEMUNUMA := -numa node -numa node
 endif
 
-QEMUACCEL ?= -accel kvm:hvf:tcg
+QEMUACCEL ?= -accel kvm
 QEMUAPPEND += root_disk=ahci0.0
 QEMUNET := -net user,hostfwd=tcp::2323-:23,hostfwd=tcp::8080-:80 -net nic,model=e1000
 QEMUSERIAL := $(if $(QEMUOUTPUT),-serial file:$(QEMUOUTPUT),-serial mon:stdio)
@@ -205,9 +205,9 @@ codex: $(KERN)
 ##
 $(O)/writeok:
 	$(Q)echo >$@
-$(O)/fs.part: $(O)/tools/mkfs $(FSEXTRA) $(UPROGS) intel-ucode/*
+$(O)/fs.part: $(O)/tools/mkfs $(FSCONTENTS)
 	@echo "  GEN    $@"
-	$(Q)$(O)/tools/mkfs $@ $(FSEXTRA) $(UPROGS) intel-ucode/*
+	$(Q)$(O)/tools/mkfs $@ $(O)/fs
 $(O)/boot.fat: $(O)/kernel.elf $(O)/bin/anon grub/grub.cfg grub/grub.efi $(O)/writeok
 	@echo "  GEN    $@"
 	$(Q)dd if=/dev/zero of=$@ bs=4096 count=66560 2> /dev/null

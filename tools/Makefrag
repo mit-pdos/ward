@@ -1,11 +1,11 @@
 # -*- makefile-gmake -*-
 
-$(O)/tools/mkfs: tools/mkfs.c include/fs.h
+$(O)/tools/mkfs: tools/mkfs.cc include/fs.h include/types.h
 	$(Q)mkdir -p $(@D)
-	gcc -Werror -Wall -I. -idirafter stdinc -o $@ $<
+	$(Q)g++ -Wall -I. -idirafter stdinc -o $@ $<
 
 $(O)/tools/perf-report: tools/perf-report.cc include/sampler.h
 	$(Q)mkdir -p $(@D)
-	g++ -std=c++0x -m64 -Werror -Wall -I. -o $@ $<
+	$(Q)g++ -std=c++0x -m64 -Werror -Wall -I. -o $@ $<
 
 ALL += $(O)/tools/perf-report

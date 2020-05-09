@@ -213,8 +213,13 @@ load_image(proc *p, const char *path, const char * const *argv,
 {
   sref<vnode> ip = vfs_root()->resolve(p->cwd, path);
   if (!ip) {
-    cprintf("kernel: load_image: could not resolve file \"%s\"\n", path);
-    return -1;
+    sref<vnode> bin = vfs_root()->resolve(p->cwd, "/bin/");
+    ip = vfs_root()->resolve(bin, path);
+
+    if(!ip) {
+      cprintf("kernel: load_image: could not resolve file \"%s\"\n", path);
+      return -1;
+    }
   }
 
   scoped_gc_epoch rcu;
