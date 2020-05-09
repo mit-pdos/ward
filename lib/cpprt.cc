@@ -191,3 +191,8 @@ __cpprt_fini(void)
   for (auto it = atexit_funcs.end(); it-- != atexit_funcs.begin(); )
     it->func(it->arg);
 }
+
+
+extern "C" void __sprintf_chk(char *buf, const char *fmt, ...) {
+  abort();
+}

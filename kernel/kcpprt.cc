@@ -339,6 +339,11 @@ void sprintf(char *buf, const char *fmt, ...) {
   panic("sprintf");
 }
 
+extern "C" void __sprintf_chk(char *buf, const char *fmt, ...);
+void __sprintf_chk(char *buf, const char *fmt, ...) {
+  panic("sprintf");
+}
+
 extern "C" int fputs(const char* str, void*stream);
 int fputs(const char* str, void*stream) {
   panic("fputs");
