@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <uk/time.h>
 #include <sys/time.h>
+#include <errno.h>
 
 #define IO_RTC  0x70
 
@@ -113,15 +114,27 @@ sys_gettimeofday(userptr<struct timeval> tv, userptr<struct timezone> tz)
 //SYSCALL
 long
 sys_clock_gettime(int clk_id, userptr<struct timespec> tp) {
-  if (clk_id != CLOCK_REALTIME)
-    return -1;
+  STRACE_PARAMS("%d, %p", clk_id, tp.unsafe_get());
 
   timespec time;
-  u64 nsec = rtc_nsec0 + nsectime();
-  time.tv_sec = nsec / 1000000000;
-  time.tv_nsec = nsec % 1000000000;
+
+  switch (clk_id) {
+  case CLOCK_REALTIME:
+  case CLOCK_MONOTONIC:
+  case CLOCK_MONOTONIC_RAW:
+  case CLOCK_REALTIME_COARSE:
+  case CLOCK_MONOTONIC_COARSE:
+  {
+    u64 nsec = rtc_nsec0 + nsectime();
+    time.tv_sec = nsec / 1000000000;
+    time.tv_nsec = nsec % 1000000000;
+    break;
+  }
+  default:
+    return -EINVAL;
+  };
 
   if(!tp.store(&time))
-    return -1;
+    return -EFAULT;
   return 0;
 }
