@@ -37,7 +37,7 @@ proc::proc(int npid) :
   tsc(0), cpuid(0), cpu_pin(0), context(nullptr), on_qstack(false), state_(EMBRYO),
   parent(0), fpu_state(nullptr), unmap_tlbreq_(0), data_cpuid(-1), in_exec_(0),
   upath(nullptr), uargv(nullptr), exception_inuse(0), magic(PROC_MAGIC),
-  blocked_signals(0)
+  blocked_signals(0), pending_signals(0)
 {
   snprintf(lockname, sizeof(lockname), "cv:proc:%d", pid);
   lock = spinlock(lockname+3, LOCKSTAT_PROC);
