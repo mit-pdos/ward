@@ -14,3 +14,9 @@ struct timezone
 {
   // Not implemented
 };
+
+BEGIN_DECLS
+
+long gettimeofday(struct timeval* tv, struct timezone* tz);
+
+END_DECLS

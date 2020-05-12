@@ -1,7 +1,6 @@
 // Miscellaneous utilities
 
 #include "libutil.h"
-#include "user.h"
 
 #include <stdarg.h>
 #include <errno.h>
@@ -88,7 +87,7 @@ now_usec(void)
 
 #if !defined(XV6_USER)
 // setaffinity is a syscall in xv6, but not standard in Linux
-int
+long
 setaffinity(int c)
 {
   cpu_set_t cpuset;

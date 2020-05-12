@@ -35,14 +35,14 @@
   int kill(int pid, int sig) {
     return kill(pid);
   }
-
-  void assert(bool b) {
-    if(!b) {
-      printf("Assertion failed!\n");
-      exit(-1);
-    }
-  }
 #endif /* HW_linux */
+
+void assert(bool b) {
+  if(!b) {
+    printf("Assertion failed!\n");
+    exit(-1);
+  }
+}
 
 static inline u64 start_timer() {
   u32 cycles_low, cycles_high;

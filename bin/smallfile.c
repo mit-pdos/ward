@@ -9,8 +9,6 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-#include "user.h"
-
 #define N 1000
 #define FILESIZE 100
 #define NAMESIZE 100
