@@ -122,6 +122,7 @@ endif
 
 FSCONTENTS := $(addprefix $(O)/fs/bin/, $(UPROGS_BIN)) \
               $(addprefix $(O)/fs/bin/, $(notdir $(wildcard git/root/bin/git))) \
+              $(addprefix $(O)/fs/, $(notdir $(wildcard lwip))) \
               $(O)/fs/bin/unittests.sh \
               $(O)/fs/intel-ucode \
 
@@ -167,6 +168,8 @@ $(O)/fs/intel-ucode: intel-ucode
 $(O)/fs/bin/git: git/root/bin/git
 	$(Q)mkdir -p $(O)/fs/bin
 	$(Q)cp -r git/root/bin/git $(O)/fs/bin/git
+$(O)/fs/lwip: lwip
+	$(Q)cp -r lwip $(O)/fs/lwip
 
 ifeq ($(PLATFORM),xv6)
   # Assume everything inclues user.h, which includes sysstubs.h
