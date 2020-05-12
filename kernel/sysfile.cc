@@ -130,6 +130,7 @@ sys_close(int fd)
 {
   STRACE_PARAMS("0x%x", fd);
 
+  ensure_secrets();
   sref<file> f = getfile(fd);
   if (!f)
     return -1;
@@ -387,6 +388,7 @@ sys_unlink(userptr_str path)
 long
 sys_openat(int dirfd, userptr_str path, int omode, ...)
 {
+  ensure_secrets();
   sref<vnode> cwd;
   if (dirfd == AT_FDCWD) {
     cwd = myproc()->cwd;
