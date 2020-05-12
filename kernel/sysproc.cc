@@ -556,7 +556,7 @@ sys_set_safe_addr(u64 addr)
 
 //SYSCALL
 int
-sys_victim(u8 *channel, u8 addr, int input, u64 *elapsed) // channel and addr will be passed to gadget
+sys_victim(u8 *channel, u8 addr, volatile int input) // channel and addr will be passed to gadget
 {
   int junk = 0;
   // set up bhb by performing >29 taken branches
@@ -566,7 +566,7 @@ sys_victim(u8 *channel, u8 addr, int input, u64 *elapsed) // channel and addr wi
   }
 
   u64 target = *safe_target_addr;
-  u64 start = start_timer();
+  //u64 start = start_timer();
   // perform indirect branch
   int result;
   __asm volatile("callq *%1\n"
@@ -574,7 +574,7 @@ sys_victim(u8 *channel, u8 addr, int input, u64 *elapsed) // channel and addr wi
                  : "=r" (result)
                  //: "r" (*safe_target_addr));
                  : "r" (target));
-  *elapsed = end_timer() - start;
+  //*elapsed = end_timer() - start;
 
   // prevent compiler from optimizing out inputs
   result &= (u64)channel;
