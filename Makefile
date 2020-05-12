@@ -209,7 +209,7 @@ $(O)/fs.part: $(O)/tools/mkfs $(FSCONTENTS)
 	@echo "  GEN    $@"
 	$(Q)$(O)/tools/mkfs $@.tmp $(O)/fs
 	mv $@.tmp $@
-$(O)/boot.fat: $(O)/kernel.elf $(O)/bin/anon grub/grub.cfg grub/grub.efi $(O)/writeok
+$(O)/boot.fat: $(O)/kernel.elf grub/grub.cfg grub/grub.efi $(O)/writeok
 	@echo "  GEN    $@"
 	$(Q)dd if=/dev/zero of=$@ bs=4096 count=66560 2> /dev/null
 	$(Q)mkfs.fat -F 32 -s 8 -S 512 $@ > /dev/null
