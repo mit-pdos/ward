@@ -31,7 +31,7 @@ main(void)
   pw = readpw();
 
   if (pw && !strcmp(pw, "xv6")) {
-    static const char *argv[] = { "/sh", 0 };
+    static const char *argv[] = { "/bin/sh", 0 };
     execv(argv[0], const_cast<char * const *>(argv));
   }
   return 0;

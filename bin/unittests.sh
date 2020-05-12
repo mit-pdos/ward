@@ -1,4 +1,4 @@
-#!/sh
+#!/bin/sh
 
 echo Running getpid...
 getpid || (echo FAILED && halt 1)
