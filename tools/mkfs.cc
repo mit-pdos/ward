@@ -103,6 +103,16 @@ copy_files(u16 dir_inode, DIR* dir_dir, int dir_fd)
       strncpy(wde.name, de->d_name, DIRSIZ);
       iappend(dir_inode, &wde, sizeof(ward::dirent));
 
+      bzero(&wde, sizeof(ward::dirent));
+      wde.inum = xshort(inum);
+      strcpy(wde.name, ".");
+      iappend(inum, &wde, sizeof(wde));
+
+      bzero(&wde, sizeof(ward::dirent));
+      wde.inum = xshort(dir_inode);
+      strcpy(wde.name, "..");
+      iappend(inum, &wde, sizeof(wde));
+
       copy_files(inum, dir, fd);
       closedir(dir);
       close(fd);
