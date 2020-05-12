@@ -5,5 +5,6 @@ To build static Git:
  $ make configure
  $ ./configure --prefix=/ CFLAGS="${CFLAGS} -static"
  $ make -j8 EXTLIBS="-ldl -lz"
+ $ make DESTDIR=root install
 
 Then rebuild Ward, and bin/Makefrag will pull in the git binary.

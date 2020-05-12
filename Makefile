@@ -195,7 +195,7 @@ qemu-grub: $(O)/boot.img
 	$(eval QEMUKERNEL = )
 	$(QEMUCOMMAND) $<
 qemu-test: $(KERN)
-	$(eval QEMUAPPEND += %unittests.sh)
+	$(eval QEMUAPPEND += %/bin/unittests.sh)
 	timeout --foreground 15m $(QEMUCOMMAND)
 
 codex: $(KERN)
@@ -207,7 +207,8 @@ $(O)/writeok:
 	$(Q)echo >$@
 $(O)/fs.part: $(O)/tools/mkfs $(FSCONTENTS)
 	@echo "  GEN    $@"
-	$(Q)$(O)/tools/mkfs $@ $(O)/fs
+	$(Q)$(O)/tools/mkfs $@.tmp $(O)/fs
+	mv $@.tmp $@
 $(O)/boot.fat: $(O)/kernel.elf $(O)/bin/anon grub/grub.cfg grub/grub.efi $(O)/writeok
 	@echo "  GEN    $@"
 	$(Q)dd if=/dev/zero of=$@ bs=4096 count=66560 2> /dev/null

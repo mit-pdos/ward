@@ -121,7 +121,7 @@ ifeq ($(HAVE_TESTGEN),y)
 endif
 
 FSCONTENTS := $(addprefix $(O)/fs/bin/, $(UPROGS_BIN)) \
-              $(addprefix $(O)/fs/bin/, $(notdir $(wildcard git/git))) \
+              $(addprefix $(O)/fs/bin/, $(notdir $(wildcard git/root/bin/git))) \
               $(O)/fs/bin/unittests.sh \
               $(O)/fs/intel-ucode \
 
@@ -164,9 +164,9 @@ $(O)/fs/bin/%: bin/%
 $(O)/fs/intel-ucode: intel-ucode
 	$(Q)mkdir -p $(@D)
 	$(Q)cp -r $< $@
-$(O)/fs/bin/git: git/git
-	$(Q)mkdir -p $(@D)
-	$(Q)cp git/git $@
+$(O)/fs/bin/git: git/root/bin/git
+	$(Q)mkdir -p $(O)/fs/bin
+	$(Q)cp -r git/root/bin/git $(O)/fs/bin/git
 
 ifeq ($(PLATFORM),xv6)
   # Assume everything inclues user.h, which includes sysstubs.h
