@@ -131,22 +131,36 @@ syscall(u64 a0, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 num)
           u64 r;
           mtstart(fn, myproc());
           mtrec();
+#if KERNEL_STRACE
+          myproc()->syscall_param_string[0] = '\0';
+#endif
           {
             mt_ascope ascope("syscall:%ld", num);
             r = fn(a0, a1, a2, a3, a4, a5);
           }
           mtstop(myproc());
           mtign();
+#if KERNEL_STRACE
+          if (strcmp(myproc()->name, "git") == 0) {
+            if (myproc()->syscall_param_string[0]) {
+              cprintf("\033[33mCALL: %s(%s) = %lx\033[0m\n",
+                      syscall_names[num], myproc()->syscall_param_string, r);
+            } else {
+              cprintf("\033[33mCALL: %s(%lx, %lx, %lx, %lx) = %lx\033[0m\n",
+                      syscall_names[num], a0, a1, a2, a3, r);
+            }
+          }
+#endif
           return r;
         }
       }
       if (num < nsyscalls && syscall_names[num])
-        cprintf("%d %s: unknown sys call %s [%ld]\n",
-                myproc()->pid, myproc()->name, syscall_names[num], num);
+        cprintf("\033[31m%d %s: unknown sys call %s(%lx, %lx, %lx, %lx)\033[0m\n",
+                myproc()->pid, myproc()->name, syscall_names[num], a0, a1, a2, a3);
       else
-        cprintf("%d %s: unknown sys call %ld\n",
+        cprintf("\033[31m%d %s: unknown sys call %ld\033[0m\n",
                 myproc()->pid, myproc()->name, num);
-      return -1;
+      return -ENOSYS;
 #if EXCEPTIONS
     } catch (std::bad_alloc& e) {
       cprintf("%d: syscall retry\n", myproc()->pid);

@@ -96,6 +96,10 @@ private:
 public:
   __page_pad__;
 
+#if KERNEL_STRACE
+  char syscall_param_string[128];
+#endif
+
   vmalloc_ptr<char[]> kstack_vm; // vmalloc'd kstack, if using vmalloc
   struct proc *parent;         // Parent process
   int status;                  // exit's returns status
@@ -156,3 +160,9 @@ class kill_exception : public std::runtime_error {
 public:
     kill_exception() : std::runtime_error("killed") { };
 };
+
+#if KERNEL_STRACE
+#define STRACE_PARAMS(fmt, ...) snprintf(myproc()->syscall_param_string, 128, fmt, __VA_ARGS__)
+#else
+#define STRACE_PARAMS(fmt, ...) do{} while(0)
+#endif

@@ -128,6 +128,8 @@ sys_lseek(int fd, off_t offset, int whence)
 long
 sys_close(int fd)
 {
+  STRACE_PARAMS("0x%x", fd);
+
   sref<file> f = getfile(fd);
   if (!f)
     return -1;
@@ -288,6 +290,8 @@ sys_fstatx(int fd, userptr<struct stat> st, enum stat_flags flags)
 long
 sys_fstat(int fd, userptr<struct stat> st)
 {
+  STRACE_PARAMS("0x%x, %p", fd, st.unsafe_get());
+
   struct stat st_buf;
   sref<file> f = getfile(fd);
   if (!f)
@@ -306,6 +310,8 @@ sys_stat(userptr_str path, userptr<struct stat> st)
   char path_copy[PATH_MAX];
   if (!path.load(path_copy, sizeof path_copy))
     return -EINVAL;
+
+  STRACE_PARAMS("\"%s\", %p", path_copy, st.unsafe_get());
 
   sref<vnode> m = vfs_root()->resolve(myproc()->cwd, path_copy);
   if(!m)
@@ -398,6 +404,8 @@ sys_openat(int dirfd, userptr_str path, int omode, ...)
   char path_copy[PATH_MAX];
   if (!path.load(path_copy, sizeof(path_copy)))
     return -EINVAL;
+
+  STRACE_PARAMS("0x%x, \"%s\", 0x%x", dirfd, path_copy, omode);
 
   sref<vnode> m;
   if (omode & O_CREAT)
