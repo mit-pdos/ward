@@ -30,7 +30,7 @@ u64 start_timer() {
 __attribute__((always_inline))
 u64 end_timer() {
   u32 cycles_low, cycles_high;
-  __asm volatile("rdtsc\n"
+  __asm volatile("rdtscp\n"
                  "mov %%edx, %0\n"
                  "mov %%eax, %1\n"
                  "cpuid\n"

