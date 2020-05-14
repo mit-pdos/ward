@@ -91,12 +91,12 @@ vnode_mfs::get_page_info(u64 page_idx)
 void
 vnode_mfs::stat(struct stat *st, enum stat_flags flags)
 {
-  u8 stattype = 0;
+  u64 stattype = 0;
   switch (node->type()) {
-    case mnode::types::dir:  stattype = T_DIR;  break;
+    case mnode::types::dir:  stattype = T_DIR; break;
     case mnode::types::file: stattype = T_FILE; break;
-    case mnode::types::dev:  stattype = T_DEV;  break;
-    case mnode::types::sock: stattype = T_SOCKET;  break;
+    case mnode::types::dev:  stattype = T_DEV; break;
+    case mnode::types::sock: stattype = T_FIFO; break;
     default: panic("unknown inode type %d", node->type());
   }
 
