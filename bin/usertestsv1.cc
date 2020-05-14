@@ -1942,7 +1942,7 @@ fsfull(char *s)
 void argptest(char *s)
 {
   int fd;
-  fd = open("init", O_RDONLY);
+  fd = open("/bin/init", O_RDONLY);
   if (fd < 0) {
     printf("%s: open failed\n", s);
     exit(1);

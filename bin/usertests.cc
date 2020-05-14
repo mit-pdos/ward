@@ -1725,7 +1725,7 @@ void argptest()
 {
   int fd;
   printf("arg test\n");
-  fd = open("init", O_RDONLY);
+  fd = open("/bin/init", O_RDONLY);
   if (fd < 0) {
     fprintf(stderr, "open failed\n");
     exit(0);
