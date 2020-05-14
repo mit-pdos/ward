@@ -41,10 +41,11 @@ user_safe()
 // function that makes indirect call
 __attribute__((noinline))
 int
-user_victim(volatile char *addr, volatile int input)
+user_victim(volatile char *addr, volatile int input) // addr will be passed to user_gadget via %rdi
 {
   int junk = 0;
   // set up bhb by performing >29 taken branches
+  // junk and input used to guarantee the loop is actually run
   for (int i = 1; i <= 100; i++) {
     input += i;
     junk += input & i;
