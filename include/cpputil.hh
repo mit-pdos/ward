@@ -12,61 +12,6 @@
 using std::pair;
 using std::make_pair;
 
-template<int N>
-class strbuf {
- public:
-  // NOTE: buf_ used to be non-null-terminated, but now it always is.
-  char buf_[N+1];
-
-  strbuf() {
-    buf_[0] = '\0';
-  }
-
-  // FIXME: consider making this an explicit conversion, so that nobody gets caught off guard with the truncation aspect
-  strbuf(const char *s) {
-    strncpy(buf_, s, N);
-    buf_[N] = '\0';
-  }
-
-  strbuf(const char *s, size_t len) {
-    if (len > N) {
-      len = N;
-    }
-    memcpy(buf_, s, len);
-    buf_[len] = '\0';
-  }
-
-  template<int M>
-  explicit strbuf(const strbuf<M> &s) {
-    static_assert(N >= M, "implicit conversion only valid when lengthening");
-    strncpy(buf_, s.buf_, M);
-    buf_[M] = '\0';
-  }
-
-  // returns true if the string fit
-  bool loadok(const char *s) {
-    auto out = strncpyok(buf_, s, N);
-    buf_[N] = '\0';
-    return out;
-  }
-
-  const char *ptr() const {
-    return buf_;
-  }
-
-  bool operator==(const strbuf<N> &other) const {
-    return !strncmp(buf_, other.buf_, N);
-  }
-
-  bool operator!=(const strbuf<N> &other) const {
-    return !operator==(other);
-  }
-
-  bool operator<(const strbuf<N> &other) const {
-    return strncmp(buf_, other.buf_, N) < 0;
-  }
-};
-
 #ifdef XV6_KERNEL
 namespace std {
   struct ostream { int next_width; };
@@ -244,3 +189,60 @@ throw_bad_alloc()
   panic("bad alloc");
 #endif
 }
+
+
+template<int N>
+class strbuf {
+ public:
+  // NOTE: buf_ used to be non-null-terminated, but now it always is.
+  char buf_[N+1];
+
+  strbuf() {
+    buf_[0] = '\0';
+  }
+
+  // FIXME: consider making this an explicit conversion, so that nobody gets caught off guard with the truncation aspect
+  strbuf(const char *s) {
+    strncpy(buf_, s, N);
+    buf_[N] = '\0';
+  }
+
+  strbuf(const char *s, size_t len) {
+    if (len > N) {
+      len = N;
+    }
+    memcpy(buf_, s, len);
+    buf_[len] = '\0';
+  }
+
+  template<int M>
+  explicit strbuf(const strbuf<M> &s) {
+    static_assert(N >= M, "implicit conversion only valid when lengthening");
+    strncpy(buf_, s.buf_, M);
+    buf_[M] = '\0';
+  }
+
+  // returns true if the string fit
+  bool loadok(const char *s) {
+    auto out = strncpyok(buf_, s, N);
+    buf_[N] = '\0';
+    return out;
+  }
+
+  const char *ptr() const {
+    return buf_;
+  }
+
+  bool operator==(const strbuf<N> &other) const {
+    return !strncmp(buf_, other.buf_, N);
+  }
+
+  bool operator!=(const strbuf<N> &other) const {
+    return !operator==(other);
+  }
+
+  bool operator<(const strbuf<N> &other) const {
+    return strncmp(buf_, other.buf_, N) < 0;
+  }
+  NEW_DELETE_OPS(strbuf);
+};
