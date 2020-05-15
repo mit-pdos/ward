@@ -55,7 +55,8 @@ user_victim(volatile char *addr, volatile int input) // addr will be passed to u
   __asm volatile("callq *%1\n"
                  "mov %%eax, %0\n"
                  : "=r" (result)
-                 : "r" (*target));
+                 : "r" (*target)
+                 : "rax", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11");
   return result & junk;
 }
 
