@@ -273,6 +273,41 @@ sys_writev(int fd, const void* iov, int count) {
 }
 
 //SYSCALL
+ssize_t
+sys_getdents64(int fd, const userptr<void> p, size_t total_bytes) {
+  sref<file> f = getfile(fd);
+  if (!f)
+    return -EBADF;
+
+  STRACE_PARAMS("0x%x, %p, 0x%lx", fd, p, total_bytes);
+
+  file* dff = f.get();
+  if (&typeid(*dff) != &typeid(file_inode))
+    return -ENOTDIR;
+
+  file_inode* dfi = static_cast<file_inode*>(dff);
+  if (!dfi->ip->is_directory())
+    return -ENOTDIR;
+
+  char b[PGSIZE];
+  ssize_t bytes = 0;
+  while (bytes < total_bytes) {
+    size_t n = total_bytes - bytes;
+    if (n > PGSIZE)
+      n = PGSIZE;
+
+    ssize_t ret = dfi->getdents((linux_dirent*)b, n);
+    if (ret <= 0)
+      return bytes ? bytes : ret;
+    if (!(p+bytes).store_bytes(b, ret))
+      return bytes ? bytes : -EINVAL;
+
+    bytes += ret;
+  }
+  return bytes;
+}
+
+//SYSCALL
 long
 sys_fstatx(int fd, userptr<struct stat> st, enum stat_flags flags)
 {

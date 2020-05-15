@@ -6,6 +6,7 @@
 #include "file.hh"
 #include <uk/stat.h>
 #include "net.hh"
+#include <errno.h>
 
 struct devsw __mpalign__ devsw[NDEV];
 
@@ -114,6 +115,43 @@ file_inode::pwrite(const char *addr, size_t n, off_t off)
   return ip->write_at(addr, off, n, false);
 }
 
+ssize_t
+file_inode::getdents(linux_dirent* out_dirents, size_t bytes)
+{
+  if (!readable)
+    return -1;
+
+  int i;
+  lock_guard<sleeplock> l;
+  u16 major, minor;
+  if (!ip->is_directory()) {
+    return -ENOTDIR;
+  } else {
+    l = off_lock.guard();
+
+    for(i = 0; (i+1) * sizeof(linux_dirent) < bytes; i++) {
+      const char* last = last_dirent ? last_dirent->ptr() : nullptr;
+      if (!last_dirent) {
+        last_dirent = std::move(std::unique_ptr(new strbuf<FILENAME_MAX>("")));
+      }
+
+      if(!ip->next_dirent(last, last_dirent.get())) {
+        break;
+      }
+
+      off += sizeof(linux_dirent);
+
+      memset(&out_dirents[i], 0, sizeof(linux_dirent));
+      out_dirents[i].d_ino = 1; // TODO (must be non-zero since 0=deleted)
+      out_dirents[i].d_type = 0; // TODO
+      out_dirents[i].d_off = off;
+      out_dirents[i].d_reclen = sizeof(linux_dirent);
+      strncpy(out_dirents[i].d_name, last_dirent->ptr(), sizeof(linux_dirent::d_name));
+    }
+  }
+
+  return i * sizeof(linux_dirent);
+}
 
 int
 file_pipe_reader::stat(struct stat *st, enum stat_flags flags)

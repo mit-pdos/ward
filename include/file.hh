@@ -32,6 +32,9 @@ struct file {
   virtual ssize_t pread(char *addr, size_t n, off_t offset) { return -1; }
   virtual ssize_t pwrite(const char *addr, size_t n, off_t offset) { return -1; }
 
+  // Directory operations
+  virtual ssize_t getdents(linux_dirent* out_dirents, size_t bytes) { return -1; }
+
   // Socket operations
   virtual int bind(const struct sockaddr *addr, size_t addrlen) { return -1; }
   virtual int listen(int backlog) { return -1; }
@@ -77,6 +80,7 @@ public:
   const bool writable;
   const bool append;
   u32 off;
+  std::unique_ptr<strbuf<FILENAME_MAX>> last_dirent;
   sleeplock off_lock;
 
   int stat(struct stat*, enum stat_flags) override;
@@ -84,6 +88,7 @@ public:
   ssize_t write(const char *addr, size_t n) override;
   ssize_t pread(char* addr, size_t n, off_t off) override;
   ssize_t pwrite(const char *addr, size_t n, off_t offset) override;
+  ssize_t getdents(linux_dirent* out_dirents, size_t bytes) override;
   void onzero() override
   {
     delete this;
