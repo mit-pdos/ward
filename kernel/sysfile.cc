@@ -161,7 +161,10 @@ sys_read(int fd, userptr<void> p, size_t total_bytes)
 {
   sref<file> f = getfile(fd);
   if (!f)
-    return -1;
+    return -EBADF;
+
+  if(f->get_vnode()->is_directory())
+    return -EISDIR;
 
   char b[PGSIZE];
   ssize_t bytes = 0;
@@ -376,6 +379,8 @@ sys_access(userptr_str path, int mode)
   char path_copy[PATH_MAX];
   if (!path.load(path_copy, sizeof path_copy))
     return -1;
+
+  STRACE_PARAMS("\"%s\", 0%o", path_copy, mode);
 
   sref<vnode> m = vfs_root()->resolve(myproc()->cwd, path_copy);
   if(!m)
