@@ -5,16 +5,6 @@
 #include <stdio.h>
 #include <sys/time.h>
 
-time_t
-time(time_t *t)
-{
-  uint64_t nsec = time_nsec();
-  time_t res = nsec / 1000000000;
-  if (t)
-    *t = res;
-  return res;
-}
-
 struct tm *
 gmtime(const time_t *timep)
 {

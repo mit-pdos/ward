@@ -95,6 +95,17 @@ sys_time_nsec(void)
 }
 
 //SYSCALL
+time_t
+sys_time(userptr<time_t> tloc)
+{
+  time_t t = (rtc_nsec0 + nsectime()) / 1000000000ull;
+
+  if(tloc && !tloc.store(&t))
+    return -EFAULT;
+  return t;
+}
+
+//SYSCALL
 long
 sys_gettimeofday(userptr<struct timeval> tv, userptr<struct timezone> tz)
 {

@@ -11,7 +11,7 @@
 #define CLOCK_REALTIME_ALARM        8
 #define CLOCK_BOOTTIME_ALARM        9
 
-typedef int time_t;
+typedef long time_t;
 typedef int clockid_t;
 
 struct tm {

@@ -13,5 +13,5 @@ typedef uint64_t nlink_t;
 typedef uint32_t mode_t;
 typedef int pid_t;
 
-typedef int time_t;
-typedef int suseconds_t;
+typedef long time_t;
+typedef long suseconds_t;
