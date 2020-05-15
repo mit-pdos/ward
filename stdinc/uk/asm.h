@@ -4,19 +4,19 @@
 #include "types.h"
 
 __attribute__((always_inline))
-void clflush(volatile void *p)
+inline void clflush(volatile void *p)
 {
   __asm volatile("clflush (%0)" :: "r" (p));
 }
 
 __attribute__((always_inline))
-void mfence()
+inline void mfence()
 {
   __asm volatile("mfence");
 }
 
 __attribute__((always_inline))
-u64 start_timer() {
+inline u64 start_timer() {
   u32 cycles_low, cycles_high;
   __asm volatile ("cpuid\n"
                   "rdtsc\n"
@@ -28,9 +28,9 @@ u64 start_timer() {
 }
 
 __attribute__((always_inline))
-u64 end_timer() {
+inline u64 end_timer() {
   u32 cycles_low, cycles_high;
-  __asm volatile("rdtscp\n"
+  __asm volatile("rdtscp\n" // rdtscp breaks in qemu, use rdtsc+mfence instead
                  "mov %%edx, %0\n"
                  "mov %%eax, %1\n"
                  "cpuid\n"

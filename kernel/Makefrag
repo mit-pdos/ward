@@ -42,6 +42,7 @@ OBJS = \
 	spinlock.o \
 	swtch.o \
 	string.o \
+	sysattack.o \
 	syscall.o \
 	sysfile.o \
 	sysproc.o \
