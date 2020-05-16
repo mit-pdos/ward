@@ -75,9 +75,9 @@ UPROGS_BIN= \
 	param \
 	smallfile \
 	lebench \
-  spectrev1 \
-  spectrev2 \
-  spectrev2u \
+	spectrev1 \
+	spectrev2 \
+	spectrev2u \
 
 # Binaries that are known to build on PLATFORM=native
 UPROGS_NATIVE := \

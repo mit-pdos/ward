@@ -19,7 +19,6 @@
 #include <uk/mman.h>
 #include <uk/utsname.h>
 #include <uk/unistd.h>
-#include <uk/asm.h>
 
 //SYSCALL
 pid_t
@@ -442,8 +441,6 @@ sys_cmdline_change_param(const char *name, const char *value)
 {
   return cmdline_change_param(name, value);
 }
-
-volatile u64 done;
 
 //SYSCALL
 long
