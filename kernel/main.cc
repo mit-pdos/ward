@@ -70,6 +70,7 @@ void initmfs(void);
 void initvfs(void);
 void idleloop(void);
 void inithotpatch(void);
+void initattack(void);
 
 #define IO_RTC  0x70
 
@@ -275,6 +276,8 @@ cmain(u64 mbmagic, u64 mbaddr)
   cleanuppg();             // Requires bootothers
   initcpprt();
   initwd();                // Requires initnmi
+
+  initattack(); // for spectre demo
 
   idleloop();
 

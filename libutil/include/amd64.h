@@ -445,6 +445,16 @@ static inline uint64_t rdtscp_and_serialize() {
   return ((uint64_t)cycles_high << 32) | (uint64_t)cycles_low;
 }
 
+static inline void clflush(volatile void *p)
+{
+  __asm volatile("clflush (%0)" :: "r" (p));
+}
+
+static inline void mfence()
+{
+  __asm volatile("mfence");
+}
+
 // Layout of the trap frame built on the stack by the
 // hardware and by trapasm.S, and passed to trap().
 // Also used by sysentry (but sparsely populated).
