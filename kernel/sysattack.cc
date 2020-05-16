@@ -8,11 +8,20 @@
 #include <uk/unistd.h>
 #include <uk/asm.h>
 
+char *secret = "The Magic Words are Please Make My Code Work.";
+
+//SYSCALL
+u64
+sys_get_secret_addr(void)
+{
+  return (u64)secret;
+}
+
 __attribute__((noinline))
 u8
-sys_gadget(volatile u8 *channel, volatile int secret)
+sys_gadget(volatile u8 *channel, volatile u8 *addr)
 {
-  return channel[secret * 1024]; // should match GAP size in bin/attack.cc
+  return channel[*addr * 1024]; // should match GAP size in bin/attack.cc
 }
 
 //SYSCALL
@@ -36,7 +45,7 @@ sys_get_safe_addr(void)
   return (u64)&safe_target;
 }
 
-u64 *safe_target_addr __attribute__((section (".qdata")));
+u64 *safe_target_addr __attribute__((section (".qdata"))); // always equal to &safe_target
 
 //SYSCALL
 void
@@ -48,7 +57,7 @@ sys_set_safe_addr(u64 addr)
 
 //SYSCALL
 int
-sys_victim(volatile u8 *channel, volatile int secret, volatile int input) // channel and addr will be passed to gadget
+sys_victim(volatile u8 *channel, volatile u8 *addr, volatile int input) // channel and addr will be passed to gadget
 {
   int junk = 0;
   // set up bhb by performing >29 taken branches
@@ -59,16 +68,20 @@ sys_victim(volatile u8 *channel, volatile int secret, volatile int input) // cha
 
   // perform indirect branch
   int result;
+  /*
   __asm volatile("callq *%1\n"
                  "mov %%eax, %0\n"
                  : "=r" (result)
                  : "r" (*safe_target_addr)
                  : "rax", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11");
+  */
+  result = ((int (*)(void))(*safe_target_addr))();
 
   // prevent compiler from optimizing out inputs
   result &= (u64)channel;
   result &= ((u64)(channel) >> 32);
-  result &= secret;
+  result &= (u64)addr;
+  result &= ((u64)(addr) >> 32);
   return result & junk;
 }
 
