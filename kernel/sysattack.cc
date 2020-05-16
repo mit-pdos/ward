@@ -42,7 +42,7 @@ u64 *safe_target_addr __attribute__((section (".qdata")));
 void
 sys_set_safe_addr(u64 addr)
 {
-  *safe_target_addr = addr;
+  //*safe_target_addr = addr;
   mfence();
 }
 

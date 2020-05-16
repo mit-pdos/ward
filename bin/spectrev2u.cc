@@ -60,7 +60,7 @@ user_victim(volatile char *addr, volatile int input) // addr will be passed to u
   return result & junk;
 }
 
-// see appendix A of https://spectreattack.com/spectre.pdf
+// see appendix C of https://spectreattack.com/spectre.pdf
 int
 readByte(volatile char *addrToRead, char result[2])
 {
