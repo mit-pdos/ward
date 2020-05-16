@@ -6,7 +6,6 @@
 #include "kernel.hh"
 
 #include <uk/unistd.h>
-#include <uk/asm.h>
 
 char *secret = "The Magic Words are Please Make My Code Work.";
 const int secret_len = 45;

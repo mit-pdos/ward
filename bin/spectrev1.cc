@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <uk/asm.h>
 #include "amd64.h"
 
 /********************************************************************

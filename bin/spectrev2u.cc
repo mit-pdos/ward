@@ -9,10 +9,9 @@
 #include "types.h"
 #include "user.h"
 
-#include <uk/asm.h>
 #include <cstring>
 #include <stdlib.h>
-#include "amd64.h" // for rdtsc()
+#include "amd64.h"
 
 #define CACHE_HIT_THRESHOLD 80
 #define GAP 1024

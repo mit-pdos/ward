@@ -20,7 +20,6 @@
 #include "user.h"
 
 #include <uk/mman.h>
-#include <uk/asm.h>
 #include <cstring>
 #include <stdlib.h>
 #include "amd64.h"
