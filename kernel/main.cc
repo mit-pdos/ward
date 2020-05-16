@@ -277,14 +277,7 @@ cmain(u64 mbmagic, u64 mbaddr)
   initcpprt();
   initwd();                // Requires initnmi
 
-  // attack
-  initattack();
-  /*
-  extern int safe_target(void);
-  extern u64 *safe_target_addr;
-  safe_target_addr = (u64*)palloc("safe_target_addr");
-  *safe_target_addr = (u64)&safe_target;
-  */
+  initattack(); // for spectre demo
 
   idleloop();
 

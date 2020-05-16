@@ -9,27 +9,28 @@
 #include <uk/asm.h>
 
 char *secret = "The Magic Words are Please Make My Code Work.";
-const int secretLen = 46;
+const int secret_len = 45;
 
 //SYSCALL
 u64
-sys_get_secret_addr(void)
+sys_spectre_get_secret_addr(int *len)
 {
+  *len = secret_len;
   return (u64)secret;
 }
 
 __attribute__((noinline))
 u8
-sys_gadget(volatile u8 *channel, volatile u8 *addr)
+gadget(u8 *channel, u8 *addr)
 {
-  return channel[*addr * 1024]; // should match GAP size in bin/attack.cc
+  return channel[*addr * 1024]; // should match GAP size in bin/spectrev2k.cc
 }
 
 //SYSCALL
 u64
-sys_get_gadget_addr(void)
+sys_spectre_get_gadget_addr(void)
 {
-  return (u64)&sys_gadget;
+  return (u64)&gadget;
 }
 
 __attribute__((noinline))
@@ -39,26 +40,11 @@ safe_target(void)
   return 4;
 }
 
-//SYSCALL
-u64
-sys_get_safe_addr(void)
-{
-  return (u64)&safe_target;
-}
-
-u64 *safe_target_addr __attribute__((section (".qdata"))); // always equal to &safe_target
-
-//SYSCALL
-void
-sys_set_safe_addr(u64 addr)
-{
-  //*safe_target_addr = addr;
-  mfence();
-}
+u64 *spectre_target_addr __attribute__((section (".qdata"))); // always equal to &safe_target
 
 //SYSCALL
 int
-sys_victim(volatile u8 *channel, volatile u8 *addr, volatile int input) // channel and addr will be passed to gadget
+sys_spectre_victim(u8 *channel, u8 *addr, int input) // channel and addr will be passed to gadget
 {
   int junk = 0;
   // set up bhb by performing >29 taken branches
@@ -68,15 +54,7 @@ sys_victim(volatile u8 *channel, volatile u8 *addr, volatile int input) // chann
   }
 
   // perform indirect branch
-  int result;
-  /*
-  __asm volatile("callq *%1\n"
-                 "mov %%eax, %0\n"
-                 : "=r" (result)
-                 : "r" (*safe_target_addr)
-                 : "rax", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11");
-  */
-  result = ((int (*)(void))(*safe_target_addr))();
+  int result = ((int (*)(void))(*spectre_target_addr))();
 
   // prevent compiler from optimizing out inputs
   result &= (u64)channel;
@@ -88,16 +66,16 @@ sys_victim(volatile u8 *channel, volatile u8 *addr, volatile int input) // chann
 
 //SYSCALL
 u64
-sys_get_victim_addr(void)
+sys_spectre_get_victim_addr(void)
 {
-  return (u64)&sys_victim;
+  return (u64)&sys_spectre_victim;
 }
 
 //SYSCALL
 int
-sys_get_victim_offset(void)
+sys_spectre_get_victim_call_offset(void)
 {
-  u8 *code = (u8*) &sys_victim;
+  u8 *code = (u8*) &sys_spectre_victim;
   int offset;
   for (offset = 0; *(code + offset) != 0xff; offset++); // look for call instruction
   return offset;
@@ -105,17 +83,17 @@ sys_get_victim_offset(void)
 
 //SYSCALL
 void
-sys_flush_target(void)
+sys_spectre_flush_target(void)
 {
-  clflush((void*) safe_target_addr);
+  clflush((void*) spectre_target_addr);
   mfence();
 }
 
 void
 initattack(void)
 {
-  safe_target_addr = (u64*)palloc("safe_target_addr");
-  *safe_target_addr = (u64)&safe_target;
+  spectre_target_addr = (u64*)palloc("spectre_target_addr");
+  *spectre_target_addr = (u64)&safe_target;
 }
 
 #pragma GCC pop_options
