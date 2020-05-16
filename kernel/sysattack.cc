@@ -9,6 +9,7 @@
 #include <uk/asm.h>
 
 char *secret = "The Magic Words are Please Make My Code Work.";
+const int secretLen = 46;
 
 //SYSCALL
 u64
@@ -108,6 +109,13 @@ sys_flush_target(void)
 {
   clflush((void*) safe_target_addr);
   mfence();
+}
+
+void
+initattack(void)
+{
+  safe_target_addr = (u64*)palloc("safe_target_addr");
+  *safe_target_addr = (u64)&safe_target;
 }
 
 #pragma GCC pop_options

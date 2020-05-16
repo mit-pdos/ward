@@ -70,6 +70,7 @@ void initmfs(void);
 void initvfs(void);
 void idleloop(void);
 void inithotpatch(void);
+void initattack(void);
 
 #define IO_RTC  0x70
 
@@ -277,10 +278,13 @@ cmain(u64 mbmagic, u64 mbaddr)
   initwd();                // Requires initnmi
 
   // attack
+  initattack();
+  /*
   extern int safe_target(void);
   extern u64 *safe_target_addr;
   safe_target_addr = (u64*)palloc("safe_target_addr");
   *safe_target_addr = (u64)&safe_target;
+  */
 
   idleloop();
 
