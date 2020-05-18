@@ -64,7 +64,7 @@
 #define RANDOMIZE_KMALLOC 1
 // Track kernel memory usage
 #define KERNEL_HEAP_PROFILE 0
-#define KERNEL_STRACE 1
+#define KERNEL_STRACE 0
 
 //
 // QEMU-based targets
