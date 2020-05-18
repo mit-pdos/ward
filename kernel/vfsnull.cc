@@ -93,6 +93,14 @@ public:
     panic("cannot set mount data on root directory of vfsnull");
   }
 
+  u64 mtime() override {
+    return 0;
+  }
+
+  bool set_mtime(u64 time) override {
+    panic("cannot set mtime on vfsnull");
+  }
+
   int hardlink(const char *name, sref<vnode> olddir, const char *oldname) override {
     return -1;
   }

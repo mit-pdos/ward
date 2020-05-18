@@ -8,6 +8,7 @@
 #include "kalloc.hh"
 #include "fs.h"
 
+#include <time.h>
 #include <limits.h>
 
 class mdir;
@@ -21,6 +22,7 @@ class mnode : public refcache::weak_referenced
 {
 private:
   friend class mfs;
+  friend class vnode_mfs;
   struct inumber {
     u64 v_;
     static const int type_bits = 8;
@@ -74,6 +76,8 @@ public:
 
 protected:
   mnode(mfs* fs, u64 inum);
+
+  atomic<u64> mtime_;
 
 private:
   void onzero() override;
@@ -417,16 +421,16 @@ private:
   radix_array<page_state, maxidx, PGSIZE,
               palloc_allocator<page_state>> pages_;
 
-  spinlock resize_lock_;
-  seqcount<u32> size_seq_;
+  spinlock lock_;
+  seqcount<u32> seq_;
   u64 size_;
 
 public:
   class resizer : public lock_guard<spinlock>,
                   public seq_writer {
   private:
-    resizer(mfile* mf) : lock_guard<spinlock>(&mf->resize_lock_),
-                         seq_writer(&mf->size_seq_),
+    resizer(mfile* mf) : lock_guard<spinlock>(&mf->lock_),
+                         seq_writer(&mf->seq_),
                          mf_(mf) {}
     mfile* mf_;
     friend class mfile;
@@ -434,7 +438,7 @@ public:
   public:
     resizer() : mf_(nullptr) {}
     explicit operator bool () const { return !!mf_; }
-    u64 read_size() { return mf_->size_; }
+    u64 size() { return mf_->size_; }
     void resize_nogrow(u64 size);
     void resize_append(u64 size, sref<page_info> pi);
   };
@@ -443,8 +447,8 @@ public:
     return resizer(this);
   }
 
-  seq_reader<u64> read_size() {
-    return seq_reader<u64>(&size_, &size_seq_);
+  u64 size() {
+    return *seq_reader<u64>(&size_, &seq_);
   }
 
   page_state get_page(u64 pageidx);

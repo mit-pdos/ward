@@ -243,6 +243,8 @@ public:
   int write_at(const char *addr, u64 off, size_t len, bool append) override;
   int truncate() override;
   sref<page_info> get_page_info(u64 page_idx) override;
+  u64 mtime() override { return 0; }
+  bool set_mtime(u64 time) override { return false; }
 
   bool is_directory() override;
   bool child_exists(const char *name) override;

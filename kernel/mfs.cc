@@ -117,7 +117,7 @@ readi(sref<mnode> m, char* buf, u64 start, u64 nbytes)
       break;
 
     if (ps.is_partial_page()) {
-      u64 msize = *m->as_file()->read_size();
+      u64 msize = m->as_file()->size();
       if (end > msize)
         end = msize;
       // Re-check loop condition, since end changed
@@ -169,7 +169,7 @@ writei(sref<mnode> m, const char* buf, u64 start, u64 nbytes,
     if (pi) {
       /* File already has the page we are about to update */
       if (ps.is_partial_page() && resize == nullptr) {
-        if (pos + pgend - pgoff > *m->as_file()->read_size()) {
+        if (pos + pgend - pgoff > m->as_file()->size()) {
           scoped_resize = m->as_file()->write_size();
           resize = &scoped_resize;
         }
@@ -207,7 +207,7 @@ writei(sref<mnode> m, const char* buf, u64 start, u64 nbytes,
        * a few zero pages.  We do not support sparse files -- the
        * holes are filled in with zeroed pages.
        */
-      u64 msize = resize->read_size();
+      u64 msize = resize->size();
       while (msize < pgbase) {
         if (msize % PGSIZE) {
           resize->resize_nogrow(msize - (msize % PGSIZE) + PGSIZE);
@@ -220,7 +220,7 @@ writei(sref<mnode> m, const char* buf, u64 start, u64 nbytes,
           resize->resize_append(msize + PGSIZE, pi);
         }
 
-        msize = resize->read_size();
+        msize = resize->size();
       }
 
       char* p = zalloc("file page");

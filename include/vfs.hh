@@ -28,6 +28,8 @@ public:
   virtual int read_at(char *data, u64 offset, size_t len) = 0;
   virtual int write_at(const char *data, u64 offset, size_t len, bool append) = 0;
   virtual int truncate() = 0;
+  virtual u64 mtime() = 0;
+  virtual bool set_mtime(u64 time) = 0;
 
   // directory operations
   virtual bool is_directory() = 0;

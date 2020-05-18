@@ -529,6 +529,34 @@ sys_mknod(userptr_str path, int major, int minor)
 
 //SYSCALL
 long
+sys_utime(userptr_str path, userptr<time_t> times)
+{
+  char path_copy[PATH_MAX];
+  if (!path.load(path_copy, sizeof(path_copy)))
+    return -EINVAL;
+
+  STRACE_PARAMS("\"%s\", %p", path_copy, times);
+
+  extern time_t sys_time(userptr<time_t> tloc);
+
+  time_t times_copy[2];
+  if (!times)
+    times_copy[0] = times_copy[1] = sys_time(nullptr);
+  else if (!times.load(times_copy, 2))
+    return -EFAULT;
+
+  sref<vnode> m = vfs_root()->resolve(myproc()->cwd, path_copy);
+  if(!m)
+    return -ENOENT;
+
+  if(!m->set_mtime(times_copy[1] * 1000000000ull))
+    return -EPERM;
+
+  return 0;
+}
+
+//SYSCALL
+long
 sys_chdir(userptr_str path)
 {
   char path_copy[PATH_MAX];

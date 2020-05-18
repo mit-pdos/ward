@@ -21,6 +21,8 @@ public:
   int write_at(const char *addr, u64 off, size_t len, bool append) override;
   int truncate() override;
   sref<page_info> get_page_info(u64 page_idx) override;
+  u64 mtime() override;
+  bool set_mtime(u64 mtime) override;
 
   bool is_directory() override;
   bool child_exists(const char *name) override;
@@ -101,14 +103,18 @@ vnode_mfs::stat(struct stat *st, enum stat_flags flags)
   }
 
   memset(st, 0, sizeof(struct stat));
-  st->st_mode = (stattype << __S_IFMT_SHIFT) | 0777;
+  st->st_mode = (stattype << __S_IFMT_SHIFT) | 0644;
   st->st_dev = (uintptr_t) node->fs_;
   st->st_ino = node->inum_;
   if (!(flags & STAT_OMIT_NLINK))
     st->st_nlink = node->nlink_.get_consistent();
   st->st_size = 0;
-  if (node->type() == mnode::types::file)
-    st->st_size = *node->as_file()->read_size();
+  if (node->type() == mnode::types::file) {
+    st->st_size = node->as_file()->size();
+    u64 t = node->as_file()->mtime_;
+    st->st_mtim.tv_sec =  t / 1000000000ull;
+    st->st_mtim.tv_nsec = t % 1000000000ull;
+  }
   st->st_blksize = PGSIZE;
 }
 
@@ -150,7 +156,7 @@ vnode_mfs::is_regular_file()
 u64
 vnode_mfs::file_size()
 {
-  return *node->as_file()->read_size();
+  return node->as_file()->size();
 }
 
 bool
@@ -185,7 +191,7 @@ vnode_mfs::write_at(const char *addr, u64 off, size_t n, bool append)
   mfile::resizer resize;
   if (append) {
     resize = node->as_file()->write_size();
-    off = resize.read_size();
+    off = resize.size();
   }
 
   return writei(node, addr, off, n, append ? &resize : nullptr);
@@ -194,9 +200,22 @@ vnode_mfs::write_at(const char *addr, u64 off, size_t n, bool append)
 int
 vnode_mfs::truncate()
 {
-  if (*this->node->as_file()->read_size())
+  if (this->node->as_file()->size())
     this->node->as_file()->write_size().resize_nogrow(0);
   return 0;
+}
+
+u64
+vnode_mfs::mtime()
+{
+  return node->mtime_;
+}
+
+bool
+vnode_mfs::set_mtime(u64 time)
+{
+  node->mtime_ = time;
+  return true;
 }
 
 bool
