@@ -108,6 +108,8 @@
 
 #define MSR_INTEL_PAT            0x277
 
+#define MSR_INTEL_SPEC_CTRL      0x48
+
 // Common event-select bits
 #define PERF_SEL_USR        (1ULL << 16)
 #define PERF_SEL_OS         (1ULL << 17)
