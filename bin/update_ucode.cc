@@ -20,7 +20,7 @@ main(int argc, char *argv[])
   printf("microcode = %x\n", (u32)(info>>32));
 
   char file[1024];
-  snprintf(file, 1024, "%02lx-%02lx-%02lx", ((info>>12) & 0xfff), ((info>>4) & 0xff), (info & 0xf));
+  snprintf(file, 1024, "intel-ucode/%02lx-%02lx-%02lx", ((info>>12) & 0xfff), ((info>>4) & 0xff), (info & 0xf));
   printf("file = %s\n", file);
 
   int fd = open(file, O_RDONLY);
