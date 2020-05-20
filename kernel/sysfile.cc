@@ -166,6 +166,9 @@ sys_read(int fd, userptr<void> p, size_t total_bytes)
   if(f->get_vnode() && f->get_vnode()->is_directory())
     return -EISDIR;
 
+  if(total_bytes >= 1024 * 1024)
+    ensure_secrets();
+
   char b[PGSIZE];
   ssize_t bytes = 0;
   while (bytes < total_bytes) {
@@ -213,6 +216,9 @@ sys_write(int fd, const userptr<void> p, size_t total_bytes)
   sref<file> f = getfile(fd);
   if (!f)
     return -1;
+
+  if(total_bytes >= 1024 * 1024)
+    ensure_secrets();
 
   char b[PGSIZE];
   ssize_t bytes = 0;
