@@ -46,7 +46,7 @@ void assert(bool b) {
 
 static inline u64 start_timer() {
   u32 cycles_low, cycles_high;
-  asm volatile ("CPUID\n\t"
+  asm volatile ("MFENCE\n\t"
                 "RDTSC\n\t"
                 "mov %%edx, %0\n\t"
                 "mov %%eax, %1\n\t"
@@ -60,7 +60,7 @@ static inline u64 end_timer() {
   asm volatile("RDTSCP\n\t"
                "mov %%edx, %0\n\t"
                "mov %%eax, %1\n\t"
-               "CPUID\n\t"
+               "MFENCE\n\t"
                : "=r" (cycles_high), "=r" (cycles_low)
                :: "%rax", "%rbx", "%rcx", "%rdx");
   return ((u64)cycles_high << 32) | (u64)cycles_low;
