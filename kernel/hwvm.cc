@@ -580,7 +580,7 @@ switchvm(vmap* from, vmap* to)
       to->cache.switch_to();
       mycpu()->ts.ist[1] = ((u64)&to->nmi_stacks[mycpu()->id + 1]) - 16;
 
-      if (cpuid::features().spec_ctrl) { // TODO: control via param
+      if (cmdline_params.spectre_v2 && cpuid::features().spec_ctrl) {
         indirect_branch_prediction_barrier();
       }
     }
