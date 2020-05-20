@@ -26,8 +26,8 @@
  * the optimal version — two calls, each with their own speculation
  * trap should their return address end up getting used, in a loop.
  */
-#define __FILL_RETURN_BUFFER(scratch)    \
-    movq $(RSB_CLEAR_LOOPS/2), scratch;  \
+#define FILL_RETURN_BUFFER               \
+    movq $(RSB_CLEAR_LOOPS/2), %rbx;     \
 771:                                     \
     call    772f;                        \
 773:    /* speculation trap */           \
@@ -41,7 +41,7 @@
     lfence;                              \
     jmp    775b;                         \
 774:                                     \
-    dec    scratch;                      \
+    dec    %rbx;                         \
     jnz    771b;                         \
     addq    $(RSB_CLEAR_LOOPS * 8), %rsp;
 
@@ -65,7 +65,7 @@ swtch:
         movq %rsp, (%rdi)
         movq %rsi, %rsp
 
-        __FILL_RETURN_BUFFER(%rbx)
+        FILL_RETURN_BUFFER
 
         popq %r15
         popq %r14
@@ -92,7 +92,7 @@ swtch_and_barrier:
         movq %rbx, %cr3
         movq %rsi, %rsp
 
-        __FILL_RETURN_BUFFER(%rbx)
+        FILL_RETURN_BUFFER
 
         popq %r15
         popq %r14
