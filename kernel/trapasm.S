@@ -1,6 +1,7 @@
 #include "mmu.h"
 #include "asmdefines.h"
 #include "memlayout.h"
+#include "asmmacros.h"
 
 #define NOEC pushq $0
 #define EC
@@ -25,35 +26,6 @@
         .data; \
         .quad handler; \
         .previous
-
-#define _OPTIONAL(option, value, opcode) \
-    .section .rodata; \
-91:  .asciz option; \
-92:  .asciz value; \
-    .previous; \
-    .section .hotpatch, "a"; \
-    .quad opcode, 91b, 92b, 93f; \
-    .previous; \
-    93:
-
-#define OPTIONAL(option, value) \
-    _OPTIONAL(option, value, 0x3)
-#define OPTIONAL_KTEXT(option, value) \
-    _OPTIONAL(option, value, 0x1)
-#define OPTIONAL_QTEXT(option, value) \
-    _OPTIONAL(option, value, 0x2)
-
-#define OPTIONAL_OR_NOPS(option) \
-    .section .hotpatch, "a"; \
-    .quad 0x4, 0, 91f, 0; \
-    .previous; \
-    91:
-
-#define OPTIONAL_OR_CALL(option, alternative) \
-    .section .hotpatch, "a"; \
-    .quad 0x5, alternative, 91f, 0; \
-    .previous; \
-    91:
 
 #define SAVE_REGISTERS        \
         pushq %rdi;           \
