@@ -163,7 +163,7 @@ sys_read(int fd, userptr<void> p, size_t total_bytes)
   if (!f)
     return -EBADF;
 
-  if(f->get_vnode()->is_directory())
+  if(f->get_vnode() && f->get_vnode()->is_directory())
     return -EISDIR;
 
   char b[PGSIZE];
@@ -449,11 +449,10 @@ sys_openat(int dirfd, userptr_str path, int omode, ...)
 
   STRACE_PARAMS("0x%x, \"%s\", 0x%x", dirfd, path_copy, omode);
 
-  sref<vnode> m;
-  if (omode & O_CREAT)
+  sref<vnode> m = vfs_root()->resolve(cwd, path_copy);
+
+  if (!m && omode & O_CREAT)
     m = vfs_root()->create_file(cwd, path_copy, omode & O_EXCL);
-  else
-    m = vfs_root()->resolve(cwd, path_copy);
 
   if (!m)
     return -ENOENT;
