@@ -48,9 +48,9 @@ ASFLAGS  =
 else
 CC  = $(TOOLPREFIX)gcc
 CXX = $(TOOLPREFIX)g++
-CXXFLAGS = -Wno-delete-non-virtual-dtor  -fno-pie -fno-pic
-CFLAGS   = -fno-pie -fno-pic
-ASFLAGS  = -fno-pie -fno-pic
+CXXFLAGS = -Wno-delete-non-virtual-dtor
+CFLAGS   =
+ASFLAGS  =
 endif
 
 AR = $(TOOLPREFIX)ar
@@ -69,7 +69,7 @@ INCLUDES  = --sysroot=$(O)/sysroot \
 COMFLAGS  = -static -DXV6_HW=$(HW) -DXV6 \
 	    -fno-builtin -fno-strict-aliasing -fno-omit-frame-pointer -fms-extensions \
 	    -mno-red-zone
-COMFLAGS  += -Wl,-m,elf_x86_64 -nostdlib -ffreestanding
+COMFLAGS  += -Wl,-m,elf_x86_64 -nostdlib -ffreestanding -fno-pie -fno-pic
 LDFLAGS   = -m elf_x86_64
 else
 INCLUDES := -include param.h -iquote libutil/include -I$(MTRACESRC)
