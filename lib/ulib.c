@@ -97,7 +97,7 @@ __crt_main(uint64_t argc, char **argv, uint64_t elf_phdr, uint64_t elf_phnum)
 
   _dl_phdr = (struct proghdr*) elf_phdr;
   _dl_phnum = elf_phnum;
-  forkt_setup(getpid());
+  forkt_setup(getpid(), NULL);
   __cpprt_init();
 
   // Run global initializers.  (Note that gcc 4.7 eliminated the

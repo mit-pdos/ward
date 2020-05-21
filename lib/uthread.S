@@ -19,6 +19,8 @@ forkt:
         # child
         movq %r12, %rsp
         movq %rax, %rdi
+        movq %rsp, %rsi
+        addq $0x10, %rsi
         call forkt_setup
         popq %rdi
         popq %rax
@@ -27,3 +29,12 @@ forkt:
 1:      # parent
         popq %r12
         ret
+
+.globl munmap_and_exit
+munmap_and_exit:
+	movq $SYS_munmap, %rax
+	syscall
+
+	movq $0, %rdi
+	movq $SYS_exit, %rax
+	syscall

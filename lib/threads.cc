@@ -7,11 +7,16 @@
 #include <sched.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/mman.h>
 
 enum { stack_size = 8192 };
 static std::atomic<int> nextkey;
 enum { max_keys = 128 };
-enum { elf_tls_reserved = 1 };
+enum {
+  tlsdata_ptr = 0,
+  stacktop_ptr = 1,
+  elf_tls_reserved = 2,
+};
 
 struct tlsdata {
   void* tlsptr[elf_tls_reserved];
@@ -19,7 +24,7 @@ struct tlsdata {
 };
 
 void
-forkt_setup(u64 pid)
+forkt_setup(u64 pid, void* stack_top)
 {
   static size_t memsz;
   static size_t filesz;
@@ -40,12 +45,13 @@ forkt_setup(u64 pid)
 
   u64 memsz_align = (memsz+align-1) & ~(align-1);
 
-  s64 tptr = (s64) sbrk(sizeof(tlsdata) + memsz_align);
+  s64 tptr = stack_top ? (u64)stack_top - stack_size : (s64) sbrk(sizeof(tlsdata) + memsz_align);
   assert(tptr != -1);
 
   memcpy((void*)tptr, initimage, filesz);
   tlsdata* t = (tlsdata*) (tptr + memsz_align);
-  t->tlsptr[0] = t;
+  t->tlsptr[tlsdata_ptr] = t;
+  t->tlsptr[stacktop_ptr] = stack_top;
   setfs((u64) t);
 }
 
@@ -53,23 +59,9 @@ int
 pthread_create(pthread_t* tid, const pthread_attr_t* attr,
                void* (*start)(void*), void* arg)
 {
-  char* base = (char*) sbrk(stack_size);
-  assert(base != (char*)-1);
+  char* base = (char*) mmap(NULL, stack_size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  assert(base);
   int t = forkt(base + stack_size, (void*) start, arg, FORK_SHARE_VMAP | FORK_SHARE_FD);
-  if (t < 0)
-    return t;
-
-  *tid = t;
-  return 0;
-}
-
-int
-pthread_createflags(pthread_t* tid, const pthread_attr_t* attr,
-                    void* (*start)(void*), void* arg, int flag)
-{
-  char* base = (char*) sbrk(stack_size);
-  assert(base != (char*)-1);
-  int t = forkt(base + stack_size, (void*) start, arg, FORK_SHARE_VMAP);
   if (t < 0)
     return t;
 
@@ -81,8 +73,8 @@ int
 xthread_create(pthread_t* tid, int flags,
                void* (*start)(void*), void* arg)
 {
-  char* base = (char*) sbrk(stack_size);
-  assert(base != (char*)-1);
+  char* base = (char*) mmap(NULL, stack_size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  assert(base);
   int t = forkt(base + stack_size, (void*) start, arg,
                 FORK_SHARE_VMAP | FORK_SHARE_FD | flags);
   if (t < 0)
@@ -95,7 +87,11 @@ xthread_create(pthread_t* tid, int flags,
 void
 pthread_exit(void* retval)
 {
-  exit(0);
+  void* stack_top = pthread_getspecific(stacktop_ptr);
+  if(stack_top)
+    munmap_and_exit(stack_top - (u64)stack_size, stack_size);
+  else
+    exit(0);
 }
 
 int
