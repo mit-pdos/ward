@@ -122,10 +122,14 @@ bool patch_needed(patch* p, bool ktext) {
     cmdline_value = cmdline_params.mds;
   } else if(strcmp(p->option, "fsgsbase") == 0) {
     cmdline_value = cpuid::features().fsgsbase;
+  } else if(strcmp(p->option, "spectre_v2") == 0) {
+    cmdline_value = cmdline_params.spectre_v2;
   } else if(strcmp(p->option, "retpolines") == 0) {
     cmdline_value = ktext ? cmdline_params.spectre_v2 : cmdline_params.keep_retpolines;
+#if ENABLE_PARAVIRT
   } else if(strcmp(p->option, "kvm_paravirt") == 0) {
     cmdline_value = (strcmp(cpuid::features().hypervisor_id, "KVMKVMKVM") == 0);
+#endif
   } else if(strcmp(p->option, "kpti") == 0) {
     cmdline_value = cmdline_params.kpti;
   } else {

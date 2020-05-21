@@ -65,6 +65,7 @@
 // Track kernel memory usage
 #define KERNEL_HEAP_PROFILE 0
 #define KERNEL_STRACE 0
+#define ENABLE_PARAVIRT 0
 
 //
 // QEMU-based targets
