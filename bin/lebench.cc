@@ -167,34 +167,30 @@ void one_line_test(FILE *fp, FILE *copy, u64 (*f)(), int iter, const char* name)
   for(int i = 0; i < 18-strlen(name); i++)
     fprintf(fp, " ");
 
-  u64 average[MITIGATION_STYLES];
-  u64 kbest[MITIGATION_STYLES];
+  u64 sum[MITIGATION_STYLES];
+  u64 best[MITIGATION_STYLES];
 
   for(int j=0; j < MITIGATION_STYLES; j++) {
     set_mitigations(j);
 
-    u64 sum = 0;
-    u64* timeArray = (u64*)malloc(sizeof(u64) * iter);
+    sum[j] = 0;
+    best[j] = 999999999999999999ull;
+
+    for(int i=0; i < 3 + iter/10; i++)
+      (*f)();
 
     for (int i=0; i < iter; i++) {
-      timeArray[i] = (*f)();
-      sum += timeArray[i];
+      u64 time = (*f)();
+      sum[j] += time;
+      if(time < best[j])
+        best[j] = time;
     }
-
-    average[j] = sum / iter;
-    kbest[j] = calc_k_closest(timeArray, iter);
-    free(timeArray);
   }
 
-  for(int j=0; j < MITIGATION_STYLES; j++) {
-    if (kbest)
-      fprintf(fp,"%12ld,", kbest[j]);
-    else
-      fprintf(fp,"???.???,");
-  }
   for(int j=0; j < MITIGATION_STYLES; j++)
-    fprintf(fp,"%12ld,", average[j]);
-
+    fprintf(fp,"%12ld,", best[j]);
+  for(int j=0; j < MITIGATION_STYLES; j++)
+    fprintf(fp,"%12ld,", sum[j] / iter);
 
   fprintf(fp,"\n");
 
@@ -206,41 +202,39 @@ void two_line_test(FILE *fp, FILE *copy, void (*f)(u64*,u64*), int iter, const c
   for(int i = 0; i < 18-strlen(name); i++)
     fprintf(fp, " ");
 
-  u64 averageParent[MITIGATION_STYLES];
-  u64 averageChild[MITIGATION_STYLES];
-  u64 kbestParent[MITIGATION_STYLES];
-  u64 kbestChild[MITIGATION_STYLES];
+  u64 sumParent[MITIGATION_STYLES];
+  u64 sumChild[MITIGATION_STYLES];
+  u64 bestParent[MITIGATION_STYLES];
+  u64 bestChild[MITIGATION_STYLES];
 
   for(int j=0; j < MITIGATION_STYLES; j++) {
     set_mitigations(j);
 
-    u64 sumParent = 0;
-    u64 sumChild = 0;
-    u64* timeArrayParent = (u64*) malloc(sizeof(u64) * iter);
-    u64* timeArrayChild = (u64*) malloc(sizeof(u64) * iter);
+    u64 timeParent=0, timeChild=0;
+    sumParent[j] = 0;
+    sumChild[j] = 0;
+    bestParent[j] = 999999999999999999ull;
+    bestChild[j] = 999999999999999999ull;
+
+    for(int i=0; i < 3 + iter/10; i++)
+      (*f)(&timeChild,&timeParent);
+
     for (int i=0; i < iter; i++)
     {
-      timeArrayParent[i] = 0;
-      timeArrayChild[i] = 0;
-      (*f)(&timeArrayChild[i],&timeArrayParent[i]);
-      sumParent += timeArrayParent[i];
-      sumChild += timeArrayChild[i];
+      (*f)(&timeChild,&timeParent);
+      sumParent[j] += timeParent;
+      sumChild[j] += timeChild;
+      if(timeParent < bestParent[j])
+        bestParent[j] = timeParent;
+      if(timeChild < bestChild[j])
+        bestChild[j] = timeChild;
     }
-
-    averageParent[j] = sumParent / iter;
-    averageChild[j] = sumChild / iter;
-
-    kbestParent[j] = calc_k_closest(timeArrayParent, iter);
-    kbestChild[j] = calc_k_closest(timeArrayChild, iter);
-
-    free(timeArrayChild);
-    free(timeArrayParent);
   }
 
   for(int j=0; j < MITIGATION_STYLES; j++)
-    fprintf(fp,"%12ld,", kbestParent[j]);
+    fprintf(fp,"%12ld,", bestParent[j]);
   for(int j=0; j < MITIGATION_STYLES; j++)
-    fprintf(fp,"%12ld,", averageParent[j]);
+    fprintf(fp,"%12ld,", sumParent[j] / iter);
   fprintf(fp, "\n");
 
   printf("%s-child,", name);
@@ -248,9 +242,9 @@ void two_line_test(FILE *fp, FILE *copy, void (*f)(u64*,u64*), int iter, const c
     fprintf(fp, " ");
 
   for(int j=0; j < MITIGATION_STYLES; j++)
-    fprintf(fp,"%12ld,", kbestChild[j]);
+    fprintf(fp,"%12ld,", bestChild[j]);
   for(int j=0; j < MITIGATION_STYLES; j++)
-    fprintf(fp,"%12ld,", averageChild[j]);
+    fprintf(fp,"%12ld,", sumChild[j] / iter);
   fprintf(fp, "\n");
 
   return;
@@ -273,8 +267,8 @@ void forkTest(u64 *childTime, u64 *parentTime)
   } else if (forkId > 0) {
     timeC = end_timer();
     wait(&status);
-	*childTime += *timeB - timeA;
-	*parentTime += timeC - timeA;
+	*childTime = *timeB - timeA;
+	*parentTime = timeC - timeA;
   } else {
     printf("[error] fork failed.\n");
   }
@@ -525,9 +519,9 @@ int main(int argc, char *argv[])
   FILE *copy = stdout;
 
 #ifdef HW_linux
-  fprintf(fp, "Benchmark (linux),        kBest,     Average,\n");
+  fprintf(fp, "Benchmark (linux),         Best,     Average,\n");
 #else
-  fprintf(fp, "Benchmark (ward),     Off kBest,    On kBest,  Fast kBest, Off Average,  On Average,    Fast Avg,\n");
+  fprintf(fp, "Benchmark (ward),     Off  Best,    On  Best,  Fast  Best, Off Average,  On Average,    Fast Avg,\n");
 #endif
 
   int base_iter = 200;
