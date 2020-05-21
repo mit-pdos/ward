@@ -97,44 +97,6 @@ int comp(const void *ele1, const void *ele2) {
   }
 }
 
-#define INPRECISION 0.05
-#define K 5
-u64 calc_k_closest(u64* timeArray, int size)
-{
-  qsort(timeArray, size, sizeof(u64), comp);
-  u64** k_closest = (u64**) malloc (sizeof(u64*) * K);
-  for (int ii = 0; ii < K; ii++)
-    k_closest[ii] = NULL;
-  u64* prev = &timeArray[0];
-  int j = 0;
-  k_closest[j] = prev;
-  j++;
-  for (int i = 1; i < size; i ++)
-  {
-    u64* curr = &timeArray[i];
-    double diff = (double)*curr - (double)*prev;
-    double ratioDiff = diff/(double)*prev;
-    if (ratioDiff > INPRECISION)
-    {
-      j = 0;
-      for (int ii = 0; ii < K; ii++)
-        k_closest[ii] = NULL;
-    }
-    else
-    {
-      k_closest[j] = curr;
-      j++;
-
-    }
-    if (j == K) break;
-    prev = curr;
-  }
-  u64 result = k_closest[0] ? *k_closest[0] : timeArray[0];
-  free(k_closest);
-  return result;
-
-}
-
 void set_mitigations(int style) {
 #ifdef HW_linux
   assert(style == 0);
