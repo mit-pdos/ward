@@ -32,6 +32,7 @@ cpuid::cpuid() : basic_{}, extended_{}
   features_.pdcm = l.c & (1<<15);
   features_.pcid = l.c & (1<<17);
   features_.x2apic = l.c & (1<<21);
+  features_.xsave = l.c & (1<<26);
   features_.hypervisor = l.c & (1<<31);
 
   features_.apic = l.d & (1<<9);
@@ -43,6 +44,9 @@ cpuid::cpuid() : basic_{}, extended_{}
   features_.intel_pt = l.b & (1<<25);
   features_.md_clear = l.d & (1<<10);
   features_.spec_ctrl = l.d & (1<<26);
+
+  l = get_leaf(leafid::ext_state, 1);
+  features_.xsaveopt = l.a & (1<<0);
 
   if(features_.hypervisor) {
     // We can't use get_leaf because the hypervisor leaf will be rejected by the

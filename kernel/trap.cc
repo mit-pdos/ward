@@ -23,7 +23,7 @@ extern "C" void __uaccess_end(void);
 
 struct intdesc idt[256] __attribute__((section (".qdata"), aligned(4096)));
 
-char fpu_initial_state[FXSAVE_BYTES]  __attribute__((section (".qdata")));
+char fpu_initial_state[XSAVE_BYTES]  __attribute__((section (".qdata")));
 
 DEFINE_PERCPU(char*, nmistacktop);
 
@@ -396,8 +396,11 @@ inittrap(void)
 void
 initfpu(void)
 {
+  assert(cpuid::features().xsave);
+
   // Allow usage of FPU instructions.
   lcr0(rcr0() & ~(CR0_TS | CR0_EM));
+  lcr4(rcr4() | CR4_OSXSAVE);
   // Initialize FPU, ignoring pending FP exceptions
   fninit();
   // Don't generate interrupts for any SSE exceptions
@@ -405,7 +408,7 @@ initfpu(void)
   // Stash away the initial FPU state to use as each process' initial
   // FPU state
   if (myid() == 0)
-    fxsave(fpu_initial_state);
+    xsave(fpu_initial_state, -1);
 }
 
 void

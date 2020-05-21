@@ -46,6 +46,7 @@
 #define CR4_PCE         0x100           // RDPMC at CPL > 0
 #define CR4_FSGSBASE    (1 << 16)       // Enable [rd|wr][fs|gs]base
 #define CR4_PCIDE       (1 << 17)       // Process Context IDs enable
+#define CR4_OSXSAVE     (1 << 18)       // Enable XSAVE
 
 // FS/GS base registers
 #define MSR_FS_BASE     0xc0000100

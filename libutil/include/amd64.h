@@ -390,7 +390,7 @@ clear_bit(int nr, volatile void *a)
 }
 
 enum {
-  FXSAVE_BYTES = 512
+  XSAVE_BYTES = 512 + 64
 };
 
 static inline void
@@ -403,6 +403,33 @@ static inline void
 fxrstor(volatile void *a)
 {
   __asm volatile("fxrstor (%0)" : : "r" (a) : "memory");
+}
+
+static inline void
+xsave(volatile void *a, uint64_t mask)
+{
+	uint32_t lmask = mask;
+	uint32_t umask = mask >> 32;
+
+	__asm volatile("xsaveq (%0)" : : "r" (a), "a"(lmask), "d"(umask) : "memory");
+}
+
+static inline void
+xsaveopt(volatile void *a, uint64_t mask)
+{
+	uint32_t lmask = mask;
+	uint32_t umask = mask >> 32;
+
+	__asm volatile("xsaveoptq (%0)" : : "r" (a), "a"(lmask), "d"(umask) : "memory");
+}
+
+static inline void
+xrstor(volatile void *a, uint64_t mask)
+{
+	uint32_t lmask = mask;
+	uint32_t umask = mask >> 32;
+
+	__asm volatile("xrstorq (%0)" : : "r" (a), "a"(lmask), "d"(umask) : "memory");
 }
 
 static inline void

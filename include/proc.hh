@@ -95,7 +95,7 @@ private:
   procstate_t state_;          // Process state
 public:
 
-  char fpu_state[FXSAVE_BYTES] __attribute__ ((aligned (16)));
+  char fpu_state[XSAVE_BYTES] __attribute__ ((aligned (64)));
 
   __page_pad__;
 

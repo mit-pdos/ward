@@ -25,7 +25,7 @@ proc::hash(const u32 &p)
 xns<u32, proc*, proc::hash> *xnspid __mpalign__;
 struct proc *bootproc __mpalign__;
 
-extern char fpu_initial_state[FXSAVE_BYTES];
+extern char fpu_initial_state[XSAVE_BYTES];
 
 #if MTRACE
 struct kstack_tag kstack_tag[NCPU];
@@ -41,7 +41,7 @@ proc::proc(int npid) :
   upath(nullptr), uargv(nullptr), exception_inuse(0), magic(PROC_MAGIC),
   blocked_signals(0), pending_signals(0)
 {
-  memmove(fpu_state, fpu_initial_state, FXSAVE_BYTES);
+  memmove(fpu_state, fpu_initial_state, XSAVE_BYTES);
 
   snprintf(lockname, sizeof(lockname), "cv:proc:%d", pid);
   lock = spinlock(lockname+3, LOCKSTAT_PROC);

@@ -171,7 +171,8 @@ public:
     bool pdcm : 1;              // Perfmon and debug
     bool pcid : 1;
     bool x2apic : 1;
-    bool hypervisor: 1;
+    bool xsave : 1;
+    bool hypervisor : 1;
 
     // 1.EDX
     bool apic : 1;              // "APIC on chip"
@@ -188,6 +189,9 @@ public:
 
     // 80000001.EDX
     bool page1GB : 1;
+
+    // D:1.EAX
+    bool xsaveopt : 1;
 
     char hypervisor_id[13];
   };

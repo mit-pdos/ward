@@ -16,6 +16,7 @@
 #include "dequeue.hh"
 #include "kstream.hh"
 #include "file.hh"
+#include "cpuid.hh"
 
 enum { sched_debug = 0 };
 
@@ -254,8 +255,12 @@ public:
     }
     mtrec();
 
-    fxsave(prev->fpu_state);
-    fxrstor(next->fpu_state);
+    if(cpuid::features().xsaveopt) {
+      xsaveopt(prev->fpu_state, -1);
+    } else {
+      xsave(prev->fpu_state, -1);
+    }
+    xrstor(next->fpu_state, -1);
 
     switchvm(prev->vmap.get(), next->vmap.get());
     mycpu()->ts.rsp[0] = (u64) next->kstack + KSTACKSIZE;
