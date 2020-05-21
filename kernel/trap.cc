@@ -292,24 +292,6 @@ trap(struct trapframe *tf, bool had_secrets)
     on_ipicall();
     break;
   }
-  case T_DEVICE: {
-    // Clear "task switched" flag to enable floating-point
-    // instructions.  sched will set this again when it switches
-    // tasks.
-    clts();
-    // Save current FPU state
-    // XXX(Austin) This process could exit and free its fpu_state, but
-    // scoped_gc_epoch breaks if I use it here.
-    // XXX(Austin) Do I need to FWAIT first?
-    struct proc *fpu_owner = mycpu()->fpu_owner;
-    if (fpu_owner) {
-      fxsave(fpu_owner->fpu_state);
-    }
-    // Restore myproc's FPU state
-    fxrstor(myproc()->fpu_state);
-    mycpu()->fpu_owner = myproc();
-    break;
-  }
   default:
     if (tf->trapno == T_ILLOP && (tf->cs&3) == 0 && tf->rip >= KTEXT && tf->rip < KTEXTEND) {
       u64 instr = *(u64*)tf->rip;
@@ -414,8 +396,7 @@ inittrap(void)
 void
 initfpu(void)
 {
-  // Allow ourselves to use FPU instructions.  We'll clear this before
-  // we schedule anything.
+  // Allow usage of FPU instructions.
   lcr0(rcr0() & ~(CR0_TS | CR0_EM));
   // Initialize FPU, ignoring pending FP exceptions
   fninit();
