@@ -430,16 +430,26 @@ sys_update_microcode(const void* data, u64 len)
 
 //SYSCALL
 long
-sys_cmdline_view_param(const char *name)
+sys_cmdline_view_param(userptr_str name)
 {
-  return cmdline_view_param(name);
+  char name_copy[64];
+  if (!name.load(name_copy, sizeof(name_copy)))
+    return -1;
+
+  return cmdline_view_param(name_copy);
 }
 
 //SYSCALL
 long
-sys_cmdline_change_param(const char *name, const char *value)
+sys_cmdline_change_param(userptr_str name, userptr_str value)
 {
-  return cmdline_change_param(name, value);
+  char name_copy[64], value_copy[64];
+  if (!name.load(name_copy, sizeof(name_copy)))
+    return -1;
+  if (!value.load(value_copy, sizeof(value_copy)))
+    return -1;
+
+  return cmdline_change_param(name_copy, value_copy);
 }
 
 //SYSCALL
