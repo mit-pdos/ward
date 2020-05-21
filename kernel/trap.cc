@@ -23,7 +23,7 @@ extern "C" void __uaccess_end(void);
 
 struct intdesc idt[256] __attribute__((section (".qdata"), aligned(4096)));
 
-static char fpu_initial_state[FXSAVE_BYTES];
+char fpu_initial_state[FXSAVE_BYTES]  __attribute__((section (".qdata")));
 
 DEFINE_PERCPU(char*, nmistacktop);
 
@@ -303,18 +303,7 @@ trap(struct trapframe *tf, bool had_secrets)
     // XXX(Austin) Do I need to FWAIT first?
     struct proc *fpu_owner = mycpu()->fpu_owner;
     if (fpu_owner) {
-      assert(fpu_owner->fpu_state);
       fxsave(fpu_owner->fpu_state);
-    }
-    // Lazily allocate myproc's FPU state
-    if (!myproc()->fpu_state) {
-      myproc()->fpu_state = kmalloc(FXSAVE_BYTES, "(fxsave)");
-      if (!myproc()->fpu_state) {
-        console.println("out of memory allocating fxsave region");
-        myproc()->killed = 1;
-        break;
-      }
-      memmove(myproc()->fpu_state, &fpu_initial_state, FXSAVE_BYTES);
     }
     // Restore myproc's FPU state
     fxrstor(myproc()->fpu_state);
@@ -435,7 +424,7 @@ initfpu(void)
   // Stash away the initial FPU state to use as each process' initial
   // FPU state
   if (myid() == 0)
-    fxsave(&fpu_initial_state);
+    fxsave(fpu_initial_state);
 }
 
 void

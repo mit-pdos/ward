@@ -94,6 +94,9 @@ struct proc {
 private:
   procstate_t state_;          // Process state
 public:
+
+  char fpu_state[FXSAVE_BYTES] __attribute__ ((aligned (16)));
+
   __page_pad__;
 
 #if KERNEL_STRACE
@@ -104,7 +107,6 @@ public:
   struct proc *parent;         // Parent process
   int status;                  // exit's returns status
   char name[16];               // Process name (debugging)
-  void *fpu_state;             // FXSAVE state, lazily allocated
   ilink<proc> child_next;
   ilist<proc,&proc::child_next> childq;
   struct gc_handle *gc;

@@ -25,6 +25,8 @@ proc::hash(const u32 &p)
 xns<u32, proc*, proc::hash> *xnspid __mpalign__;
 struct proc *bootproc __mpalign__;
 
+extern char fpu_initial_state[FXSAVE_BYTES];
+
 #if MTRACE
 struct kstack_tag kstack_tag[NCPU];
 #endif
@@ -35,10 +37,12 @@ proc::proc(int npid) :
   kstack(0), qstack(0), killed(0), tf(0), uaccess_(0), user_fs_(0), pid(npid),
   unmapped_hint(0), cv(nullptr), yield_(false), oncv(0), cv_wakeup(0), curcycles(0),
   tsc(0), cpuid(0), cpu_pin(0), context(nullptr), on_qstack(false), state_(EMBRYO),
-  parent(0), fpu_state(nullptr), unmap_tlbreq_(0), data_cpuid(-1), in_exec_(0),
+  parent(0), unmap_tlbreq_(0), data_cpuid(-1), in_exec_(0),
   upath(nullptr), uargv(nullptr), exception_inuse(0), magic(PROC_MAGIC),
   blocked_signals(0), pending_signals(0)
 {
+  memmove(fpu_state, fpu_initial_state, FXSAVE_BYTES);
+
   snprintf(lockname, sizeof(lockname), "cv:proc:%d", pid);
   lock = spinlock(lockname+3, LOCKSTAT_PROC);
 
@@ -50,9 +54,6 @@ proc::proc(int npid) :
 proc::~proc(void)
 {
   magic = 0;
-  if (fpu_state)
-    kmfree(fpu_state, FXSAVE_BYTES);
-  fpu_state = nullptr;
 }
 
 void
@@ -201,13 +202,10 @@ exit(int status)
   if (wakeupinit)
     bootproc->cv->wake_all();
 
-  // Clean up FPU state
-  if (myproc()->fpu_state) {
-    // Make sure no CPUs think this process is the FPU owner
-    for (int i = 0; i < ncpu; ++i) {
-      struct proc *copy = myproc();
-      atomic_compare_exchange_strong(&cpus[i].fpu_owner, &copy, (proc*)nullptr);
-    }
+  // Clean up FPU state by making sure no CPUs think this process is the FPU owner
+  for (int i = 0; i < ncpu; ++i) {
+    struct proc *copy = myproc();
+    atomic_compare_exchange_strong(&cpus[i].fpu_owner, &copy, (proc*)nullptr);
   }
 
   // Jump into the scheduler, never to return.
