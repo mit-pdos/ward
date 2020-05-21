@@ -26,11 +26,13 @@
   #include <stdint.h>
   typedef uint32_t u32;
   typedef uint64_t u64;
+  const int MITIGATION_STYLES = 1;
 #else /* HW_linux */
   #include "libutil.h"
   #include "sockutil.h"
   #include "sysstubs.h"
 
+  const int MITIGATION_STYLES = 3;
   const int SIGINT = 0;
   int kill(int pid, int sig) {
     return kill(pid);
@@ -133,66 +135,124 @@ u64 calc_k_closest(u64* timeArray, int size)
 
 }
 
+void set_mitigations(int style) {
+#ifdef HW_linux
+  assert(style == 0);
+#else
+  switch(style) {
+  case 0:
+    cmdline_change_param("lazy_barrier", "yes");
+    cmdline_change_param("spectre_v2", "no");
+    cmdline_change_param("kpti", "no");
+    cmdline_change_param("mds", "no");
+    break;
+  case 1:
+    cmdline_change_param("lazy_barrier", "no");
+    cmdline_change_param("spectre_v2", "yes");
+    cmdline_change_param("kpti", "yes");
+    cmdline_change_param("mds", "yes");
+    break;
+  case 2:
+    cmdline_change_param("lazy_barrier", "yes");
+    cmdline_change_param("spectre_v2", "yes");
+    cmdline_change_param("kpti", "yes");
+    cmdline_change_param("mds", "yes");
+    break;
+  };
+#endif
+}
+
 void one_line_test(FILE *fp, FILE *copy, u64 (*f)(), int iter, const char* name){
   printf("%s,", name);
-  for(int i = 0; i < 20-strlen(name); i++)
+  for(int i = 0; i < 18-strlen(name); i++)
     fprintf(fp, " ");
 
-  u64 sum = 0;
-  u64* timeArray = (u64*)malloc(sizeof(u64) * iter);
-  for (int i=0; i < iter; i++) {
-    timeArray[i] = (*f)();
-    sum += timeArray[i];
+  u64 average[MITIGATION_STYLES];
+  u64 kbest[MITIGATION_STYLES];
+
+  for(int j=0; j < MITIGATION_STYLES; j++) {
+    set_mitigations(j);
+
+    u64 sum = 0;
+    u64* timeArray = (u64*)malloc(sizeof(u64) * iter);
+
+    for (int i=0; i < iter; i++) {
+      timeArray[i] = (*f)();
+      sum += timeArray[i];
+    }
+
+    average[j] = sum / iter;
+    kbest[j] = calc_k_closest(timeArray, iter);
+    free(timeArray);
   }
 
-  u64 average = sum / iter;
-  u64 kbest = calc_k_closest(timeArray, iter);
+  for(int j=0; j < MITIGATION_STYLES; j++) {
+    if (kbest)
+      fprintf(fp,"%12ld,", kbest[j]);
+    else
+      fprintf(fp,"???.???,");
+  }
+  for(int j=0; j < MITIGATION_STYLES; j++)
+    fprintf(fp,"%12ld,", average[j]);
 
-  if (kbest)
-    fprintf(fp,"%12ld, ", kbest);
-  else
-    fprintf(fp,"???.???, ");
-  fprintf(fp,"%12ld,\n", average);
 
-  free(timeArray);
+  fprintf(fp,"\n");
 
   return;
 }
 
 void two_line_test(FILE *fp, FILE *copy, void (*f)(u64*,u64*), int iter, const char* name) {
   printf("%s,", name);
-  for(int i = 0; i < 20-strlen(name); i++)
+  for(int i = 0; i < 18-strlen(name); i++)
     fprintf(fp, " ");
 
-  u64 sumParent = 0;
-  u64 sumChild = 0;
-  u64* timeArrayParent = (u64*) malloc(sizeof(u64) * iter);
-  u64* timeArrayChild = (u64*) malloc(sizeof(u64) * iter);
-  for (int i=0; i < iter; i++)
-  {
-    timeArrayParent[i] = 0;
-    timeArrayChild[i] = 0;
-    (*f)(&timeArrayChild[i],&timeArrayParent[i]);
-    sumParent += timeArrayParent[i];
-    sumChild += timeArrayChild[i];
+  u64 averageParent[MITIGATION_STYLES];
+  u64 averageChild[MITIGATION_STYLES];
+  u64 kbestParent[MITIGATION_STYLES];
+  u64 kbestChild[MITIGATION_STYLES];
+
+  for(int j=0; j < MITIGATION_STYLES; j++) {
+    set_mitigations(j);
+
+    u64 sumParent = 0;
+    u64 sumChild = 0;
+    u64* timeArrayParent = (u64*) malloc(sizeof(u64) * iter);
+    u64* timeArrayChild = (u64*) malloc(sizeof(u64) * iter);
+    for (int i=0; i < iter; i++)
+    {
+      timeArrayParent[i] = 0;
+      timeArrayChild[i] = 0;
+      (*f)(&timeArrayChild[i],&timeArrayParent[i]);
+      sumParent += timeArrayParent[i];
+      sumChild += timeArrayChild[i];
+    }
+
+    averageParent[j] = sumParent / iter;
+    averageChild[j] = sumChild / iter;
+
+    kbestParent[j] = calc_k_closest(timeArrayParent, iter);
+    kbestChild[j] = calc_k_closest(timeArrayChild, iter);
+
+    free(timeArrayChild);
+    free(timeArrayParent);
   }
 
-  u64 averageParent = sumParent / iter;
-  u64 averageChild = sumChild / iter;
-
-  u64 kbestParent = calc_k_closest(timeArrayParent, iter);
-  u64 kbestChild = calc_k_closest(timeArrayChild, iter);
-
-  fprintf(fp,"%12ld, %12ld,\n", kbestParent, averageParent);
+  for(int j=0; j < MITIGATION_STYLES; j++)
+    fprintf(fp,"%12ld,", kbestParent[j]);
+  for(int j=0; j < MITIGATION_STYLES; j++)
+    fprintf(fp,"%12ld,", averageParent[j]);
+  fprintf(fp, "\n");
 
   printf("%s-child,", name);
-  for(int i = 0; i < 14-strlen(name); i++)
+  for(int i = 0; i < 12-strlen(name); i++)
     fprintf(fp, " ");
 
-  fprintf(fp,"%12ld, %12ld,\n", kbestChild, averageChild);
+  for(int j=0; j < MITIGATION_STYLES; j++)
+    fprintf(fp,"%12ld,", kbestChild[j]);
+  for(int j=0; j < MITIGATION_STYLES; j++)
+    fprintf(fp,"%12ld,", averageChild[j]);
+  fprintf(fp, "\n");
 
-  free(timeArrayChild);
-  free(timeArrayParent);
   return;
 }
 
@@ -465,9 +525,9 @@ int main(int argc, char *argv[])
   FILE *copy = stdout;
 
 #ifdef HW_linux
-  fprintf(fp, "Benchmark (linux),          kBest,      Average,\n");
+  fprintf(fp, "Benchmark (linux),        kBest,     Average,\n");
 #else
-  fprintf(fp, "Benchmark (ward),           kBest,      Average,\n");
+  fprintf(fp, "Benchmark (ward),     Off kBest,    On kBest,  Fast kBest, Off Average,  On Average,    Fast Avg,\n");
 #endif
 
   int base_iter = 200;
