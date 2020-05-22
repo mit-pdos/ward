@@ -46,7 +46,11 @@ private:
 
   cpuid();
 
-  static class cpuid instance_;
+  static class cpuid instance_
+#ifdef XV6_KERNEL
+  __attribute__((section (".qdata")))
+#endif
+  ;
 
   static cpuid &get_instance() {
     // This may be called before static initializers are run, in which
