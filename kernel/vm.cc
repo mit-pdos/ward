@@ -211,7 +211,7 @@ vmap::copy()
           sdebug.println("vm: mark COW");
         it->flags |= vmdesc::FLAG_COW;
         // XXX(Austin) Should we try to invalidate in larger chunks?
-        cache.invalidate(it.index() * PGSIZE, PGSIZE, it, &shootdown);
+        cache.invalidate(it.index() * PGSIZE, PGSIZE, &shootdown);
       }
 
       // Copy the descriptor
@@ -269,7 +269,7 @@ again:
       pages.add(std::move(it->page));
     }
 
-    cache.invalidate(start, len, begin, &shootdown);
+    cache.invalidate(start, len, &shootdown);
 
     // XXX If this is a large fill, we could actively re-fold already
     // expanded regions.
@@ -294,7 +294,7 @@ vmap::qinsert(void* qptr, void* kptr, size_t len)
   assert(len % PGSIZE == 0);
 
   for(size_t offset = 0; offset < len; offset += PGSIZE) {
-    cache.insert((uintptr_t)qptr+offset, nullptr, (v2p(kptr)+offset) | PTE_P | /*PTE_NX |*/ PTE_W);
+    cache.insert((uintptr_t)qptr+offset, (v2p(kptr)+offset) | PTE_P | /*PTE_NX |*/ PTE_W);
   }
 }
 
@@ -317,13 +317,13 @@ vmap::remove(uptr start, uptr len)
     for (auto it = begin; it < end; it += it.span())
       if (it.is_set())
         pages.add(std::move(it->page));
-    cache.invalidate(start, len, begin, &shootdown);
+    cache.invalidate(start, len, &shootdown);
     // XXX If this is a large unset, we could actively re-fold already
     // expanded regions.
     vpfs_.unset(begin, end);
   } else {
     assert(start >= KGLOBAL);
-    cache.invalidate(start, len, nullptr, &shootdown);
+    cache.invalidate(start, len, &shootdown);
   }
   shootdown.perform();
 
@@ -350,7 +350,7 @@ vmap::willneed(uptr start, uptr len)
     bool writable = (it->flags & vmdesc::FLAG_WRITE);
     if (writable && (it->flags & vmdesc::FLAG_COW)) {
       pages.add(page_info_ref(it->page));
-      cache.invalidate(it.index() * PGSIZE, PGSIZE, it, &shootdown);
+      cache.invalidate(it.index() * PGSIZE, PGSIZE, &shootdown);
     }
 
     paddr pa = ensure_page(it, writable ? access_type::WRITE : access_type::READ);
@@ -358,9 +358,9 @@ vmap::willneed(uptr start, uptr len)
       continue;
 
     if (it->flags & vmdesc::FLAG_COW || !writable)
-      cache.insert(it.index() * PGSIZE, &*it, pa | PTE_P | PTE_U);
+      cache.insert(it.index() * PGSIZE, pa | PTE_P | PTE_U);
     else
-      cache.insert(it.index() * PGSIZE, &*it, pa | PTE_P | PTE_U | PTE_W);
+      cache.insert(it.index() * PGSIZE, pa | PTE_P | PTE_U | PTE_W);
   }
 
   shootdown.perform();
@@ -380,7 +380,7 @@ vmap::invalidate_cache(uptr start, uptr len)
     if (!it.is_set())
       continue;
 
-    cache.invalidate(it.index() * PGSIZE, PGSIZE, it, &shootdown);
+    cache.invalidate(it.index() * PGSIZE, PGSIZE, &shootdown);
   }
 
   shootdown.perform();
@@ -406,7 +406,7 @@ vmap::mprotect(uptr start, uptr len, uint64_t flags)
 
     if ((it->flags & vmdesc::FLAG_WRITE) && !(flags & vmdesc::FLAG_WRITE)) {
       // Permissions are decreasing; need a shootdown
-      cache.invalidate(it.index() * PGSIZE, PGSIZE, it, &shootdown);
+      cache.invalidate(it.index() * PGSIZE, PGSIZE, &shootdown);
     } else if (!(it->flags & vmdesc::FLAG_WRITE) && (flags & vmdesc::FLAG_WRITE)) {
       // We're giving write permission.  We don't need a shootdown
       // (we'll just get a spurious fault), but we do need to check
@@ -492,7 +492,7 @@ vmap::pagefault(uptr va, u32 err)
     // down.
     if (type == access_type::WRITE && (desc.flags & vmdesc::FLAG_COW)) {
       old_page = page_info_ref(desc.page);
-      cache.invalidate(va, PGSIZE, it, &shootdown);
+      cache.invalidate(va, PGSIZE, &shootdown);
     }
 
     // Ensure we have a backing page and copy COW pages
@@ -511,12 +511,12 @@ vmap::pagefault(uptr va, u32 err)
     // If this is a read COW fault, we can reuse the COW page, but
     // don't mark it writable!
     if (desc.flags & vmdesc::FLAG_COW)
-      cache.insert(va, &*it, pa | PTE_P | PTE_U);
+      cache.insert(va, pa | PTE_P | PTE_U);
     else {
       if (desc.flags & vmdesc::FLAG_WRITE)
-        cache.insert(va, &*it, pa | PTE_P | PTE_U | PTE_W);
+        cache.insert(va, pa | PTE_P | PTE_U | PTE_W);
       else
-        cache.insert(va, &*it, pa | PTE_P | PTE_U);
+        cache.insert(va, pa | PTE_P | PTE_U);
     }
 
     shootdown.perform();
@@ -852,7 +852,7 @@ safe_read_vm(void *dst, uintptr_t src, size_t n)
 void*
 vmap::map_temporary(paddr pa)
 {
-  cache.insert((uintptr_t)pa+KTEMPORARY, nullptr, pa | PTE_P | PTE_NX | PTE_W);
+  cache.insert((uintptr_t)pa+KTEMPORARY, pa | PTE_P | PTE_NX | PTE_W);
   return (void*)(pa + KTEMPORARY);
 }
 
@@ -860,9 +860,9 @@ vmap::map_temporary(paddr pa)
 void
 vmap::unmap_temporary(void* va)
 {
-  cache.insert((uintptr_t)va, nullptr, 0);
+  cache.insert((uintptr_t)va, 0);
   mmu::shootdown shootdown;
-  cache.invalidate((uintptr_t)va, PGSIZE, nullptr, &shootdown);
+  cache.invalidate((uintptr_t)va, PGSIZE, &shootdown);
   shootdown.perform();
 }
 
@@ -937,7 +937,7 @@ vmap::qfree(void* page)
 
   mmu::shootdown shootdown;
   for (auto p : unneeded_pages) {
-    cache.invalidate((uintptr_t)p, PGSIZE, nullptr, &shootdown);
+    cache.invalidate((uintptr_t)p, PGSIZE, &shootdown);
   }
   shootdown.perform();
   for (auto p : unneeded_pages) {

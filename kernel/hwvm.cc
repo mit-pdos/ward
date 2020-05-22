@@ -796,7 +796,7 @@ namespace mmu_shared_page_table {
   }
 
   void
-  page_map_cache::__insert(uintptr_t va, pme_t pte)
+  page_map_cache::insert(uintptr_t va, pme_t pte)
   {
     pml4s.user->find(va).create(PTE_U & pte, parent_, pml4s.user)->store(pte, memory_order_relaxed);
     if (va < KGLOBAL) {
@@ -805,8 +805,7 @@ namespace mmu_shared_page_table {
   }
 
   void
-  page_map_cache::__invalidate(
-    uintptr_t start, uintptr_t len, shootdown *sd)
+  page_map_cache::invalidate(uintptr_t start, uintptr_t len, shootdown *sd)
   {
     sd->set_cache(this);
     for (auto it = pml4s.user->find(start); it.index() < start + len;

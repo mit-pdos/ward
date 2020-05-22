@@ -82,32 +82,16 @@ namespace mmu_shared_page_table {
     page_map_cache &operator=(page_map_cache&&) = delete;
 
     // Load a mapping into the translation cache from the virtual
-    // address va to the specified PTE.  This should be called on page
-    // faults.  In general, the PTE is not guaranteed to persist and
-    // may be core- or thread-local.  Furthermore, the page_tracker may
-    // not be thread-safe, so the caller must prevent concurrent calls
-    // with the same page_tracker.
-    void insert(uintptr_t va, page_tracker *t, pme_t pte)
-    {
-      __insert(va, pte);
-    }
+    // address va to the specified PTE. This should be called on page
+    // faults. In general, the PTE is not guaranteed to persist.
+    void insert(uintptr_t va, pme_t pte);
 
     // Invalidate all mappings from virtual address @c va to
-    // <tt>start+len</tt>.  This should be called whenever a page
+    // <tt>start+len</tt>. This should be called whenever a page
     // mapping's permissions become more strict or the mapped page
-    // changes.  @c tracker_it must be a forward iterator over an
-    // array of page trackers that points to the tracker for the page
-    // at @c start.  Any pages that need to be shot-down will have
-    // their trackers accumulated in @c sd and cleared.  As for
-    // insert, the caller must prevent concurrent use of the same
-    // page tracker.
-    template<class ForwardIterator>
-    void invalidate(uintptr_t start, uintptr_t len,
-                    ForwardIterator tracker_it, shootdown *sd)
-    {
-      // This page_map_cache doesn't use the page tracker.
-      __invalidate(start, len, sd);
-    }
+    // changes. Any pages that need to be shot-down will have
+    // their trackers accumulated in @c sd and cleared.
+    void invalidate(uintptr_t start, uintptr_t len, shootdown *sd);
 
     void qinsert(uintptr_t va, pme_t pte);
 
