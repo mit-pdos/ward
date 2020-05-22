@@ -28,6 +28,6 @@ main(int ac, char * const av[])
 
   wait(NULL);
   u64 t1 = rdtsc();
-  printf("%lu cycles\n", t1-t0);
+  printf("%lu\n", t1-t0);
   return 0;
 }
