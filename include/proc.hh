@@ -96,8 +96,6 @@ public:
 
   char fpu_state[XSAVE_BYTES] __attribute__ ((aligned (64)));
 
-  __page_pad__;
-
 #if KERNEL_STRACE
   char syscall_param_string[128];
 #endif
@@ -109,6 +107,9 @@ public:
   ilink<proc> child_next;
   ilist<proc,&proc::child_next> childq;
   struct gc_handle *gc;
+
+  __page_pad__;
+
   char lockname[16];
 #if MTRACE
   struct mtrace_stacks mtrace_stacks;
