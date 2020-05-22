@@ -186,8 +186,8 @@ vmap::copy()
   mmu::shootdown shootdown;
 
   {
+    scoped_acquire l(&vpfs_lock_);
     auto out = nm->vpfs_.begin();
-    auto lock = vpfs_.acquire(vpfs_.begin(), vpfs_.end());
     for (auto it = vpfs_.begin(), end = vpfs_.end(); it != end; ) {
       // Skip unset spans
       if (!it.is_set()) {
@@ -254,8 +254,7 @@ again:
   page_holder pages;
 
   {
-    auto lock = vpfs_.acquire(begin, end);
-
+    scoped_acquire l(&vpfs_lock_);
     for (auto it = begin; it < end; it += it.span()) {
       if (!it.is_set())
         continue;
@@ -309,7 +308,7 @@ vmap::remove(uptr start, uptr len)
   if (start + len <= USERTOP) {
     auto begin = vpfs_.find(start / PGSIZE);
     auto end = vpfs_.find((start + len) / PGSIZE);
-    auto lock = vpfs_.acquire(begin, end);
+    scoped_acquire l(&vpfs_lock_);
     for (auto it = begin; it < end; it += it.span())
       if (it.is_set())
         pages.add(std::move(it->page));
@@ -334,7 +333,7 @@ vmap::willneed(uptr start, uptr len)
 {
   auto begin = vpfs_.find(start / PGSIZE);
   auto end = vpfs_.find((start + len) / PGSIZE);
-  auto lock = vpfs_.acquire(begin, end);
+  scoped_acquire l(&vpfs_lock_);
 
   page_holder pages;
   mmu::shootdown shootdown;
@@ -368,7 +367,7 @@ vmap::invalidate_cache(uptr start, uptr len)
 {
   auto begin = vpfs_.find(start / PGSIZE);
   auto end = vpfs_.find((start + len) / PGSIZE);
-  auto lock = vpfs_.acquire(begin, end);
+  scoped_acquire l(&vpfs_lock_);
 
   mmu::shootdown shootdown;
 
@@ -388,7 +387,7 @@ vmap::mprotect(uptr start, uptr len, uint64_t flags)
 {
   auto begin = vpfs_.find(start / PGSIZE);
   auto end = vpfs_.find((start + len) / PGSIZE);
-  auto lock = vpfs_.acquire(begin, end);
+  scoped_acquire l(&vpfs_lock_);
 
   mmu::shootdown shootdown;
 
@@ -438,7 +437,7 @@ vmap::dup_page(uptr dest, uptr src)
   auto destit = vpfs_.find(dest / PGSIZE);
 
   {
-    auto lock = vpfs_.acquire(destit);
+    scoped_acquire l(&vpfs_lock_);
     assert(!destit.is_set());
     vpfs_.fill(destit, desc);
   }
@@ -470,7 +469,7 @@ vmap::pagefault(uptr va, u32 err)
 
   {
     auto it = vpfs_.find(va / PGSIZE);
-    auto lock = vpfs_.acquire(it);
+    scoped_acquire l(&vpfs_lock_);
     if (!it.is_set())
       return -1;
     if (SDEBUG)
@@ -556,7 +555,7 @@ vmap::pagelookup(uptr va)
   auto it = vpfs_.find(va / PGSIZE);
   if (!it.is_set())
     return nullptr;
-  auto lock = vpfs_.acquire(it);
+  scoped_acquire l(&vpfs_lock_);
   if (!it.is_set())
     return nullptr;
 
@@ -597,7 +596,7 @@ vmap::copyout(uptr va, const void *p, u64 len)
   char *buf = (char*)p;
   auto it = vpfs_.find(va / PGSIZE);
   auto end = vpfs_.find(PGROUNDUP(va + len) / PGSIZE);
-  auto lock = vpfs_.acquire(it, end);
+  scoped_acquire l(&vpfs_lock_);
   for (; it != end; ++it) {
     if (!it.is_set())
       return -1;
@@ -624,8 +623,8 @@ vmap::set_write_permission(uptr start, uptr len, bool is_readonly, bool is_cow)
   assert(len % PGSIZE == 0);
   auto it = vpfs_.find(start / PGSIZE);
   auto end = vpfs_.find((start + len) / PGSIZE);
-  auto lock = vpfs_.acquire(it, end);
-  for (; it != end; ++it) {
+  scoped_acquire l(&vpfs_lock_);
+    for (; it != end; ++it) {
     if (!it.is_set())
       return -1;
     auto &desc = *it;
@@ -702,9 +701,9 @@ vmap::sbrk_update(ssize_t n)
     remove(newend, newstart-newend);
   } else if (newstart < newend) {
     // Adjust break up by mapping pages
-    auto begin = vpfs_.find(newstart / PGSIZE),
-      end = vpfs_.find(newend / PGSIZE);
-    auto rlock = vpfs_.acquire(begin, end);
+    auto begin = vpfs_.find(newstart / PGSIZE);
+    auto end = vpfs_.find(newend / PGSIZE);
+    scoped_acquire l(&vpfs_lock_);
 
     // Make sure we're not about to overwrite an existing mapping
     for (auto it = begin; it < end; it += it.span()) {

@@ -222,6 +222,7 @@ private:
   typedef radix_array<vmdesc, USERTOP / PGSIZE, PGSIZE,
                       qalloc_allocator<vmdesc>, scoped_no_sched> vpf_array;
   vpf_array vpfs_;
+  spinlock vpfs_lock_;
 
   atomic<u64> unmapped_hint;
 
