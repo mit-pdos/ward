@@ -242,7 +242,8 @@ void *thrdfnc(void *args) {
   pthread_exit(NULL);
 }
 void threadTest(u64 *childTime, u64 *parentTime) {
-  timeB = (u64 *)malloc(sizeof(u64));
+  u64 timeB_data;
+  timeB = &timeB_data;
   pthread_t newThrd;
 
   u64 timeD = start_timer();
@@ -250,10 +251,9 @@ void threadTest(u64 *childTime, u64 *parentTime) {
   u64 timeC = end_timer();
   pthread_join(newThrd,NULL);
 
-  *parentTime += timeC - timeD;
-  *childTime += *timeB - timeD;
+  *parentTime = timeC - timeD;
+  *childTime = *timeB - timeD;
 
-  free(timeB);
   timeB = NULL;
 }
 
