@@ -152,11 +152,6 @@ vmap::alloc(void)
     nmiframe* cpu_nmiframe = (nmiframe*)(nmistacktop[c] - sizeof(nmiframe));
     v->nmi_stacks[c].stack = cpu_nmiframe->stack;
     v->nmi_stacks[c].gsbase = cpu_nmiframe->gsbase;
-
-    // Any double fault results in a kernel panic, so it is harmless to just
-    // share double fault stacks globally.
-    void* dblflt_stack = (void*)(cpus[c].ts.ist[2] - KSTACKSIZE);
-    v->qinsert(dblflt_stack, dblflt_stack, KSTACKSIZE);
   }
 
   return v;

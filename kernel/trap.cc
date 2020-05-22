@@ -376,9 +376,10 @@ inittrap(void)
   // be used for MSI).
   irq_info[255 - T_IRQ0].in_use = true;
 
-  // Configure double fault handling
+  // Configure double fault handling. Any double fault results in a kernel
+  // panic, so it is harmless to just share double fault stacks globally.
   for (int c = 0; c < ncpu; c++) {
-    cpus[c].ts.ist[2] = (u64)kalloc("dblfltstack", KSTACKSIZE) + KSTACKSIZE;
+    cpus[c].ts.ist[2] = (u64)palloc("dblfltstack", KSTACKSIZE) + KSTACKSIZE;
   }
   idt[T_DBLFLT].ist = 2;
 

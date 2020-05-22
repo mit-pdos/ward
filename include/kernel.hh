@@ -167,7 +167,7 @@ void            kminit(void);
 void            kmemprint(print_stream *s);
 char*           zalloc(const char* name);
 void            zfree(void* p);
-char*           palloc(const char* name);
+char*           palloc(const char* name, size_t size = PGSIZE);
 void            pfree(void* p);
 char*           pmalloc(u64 nbytes, const char *name);
 void            pmfree(void*, u64 nbytes);

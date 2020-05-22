@@ -1291,7 +1291,16 @@ void zfree(void* page) {
   }
 }
 
-char* palloc(const char* name) {
+char* palloc(const char* name, size_t size) {
+  size = PGROUNDUP(size);
+
+  if(size > PGSIZE) {
+    void* data = kalloc("pallc", size) - KBASE + KPUBLIC;
+    for(auto i = 0; i < size; i += PGSIZE)
+      register_public_pages(&data, 1);
+    return (char*)data;
+  }
+
   scoped_cli cli;
   auto mem = mycpu()->mem;
   if (mem->npublic == 0) {
