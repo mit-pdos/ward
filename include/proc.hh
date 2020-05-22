@@ -70,7 +70,6 @@ struct proc {
   u64 user_fs_;
   volatile int pid;            // Process ID
   sref<vmap> vmap;             // va -> vma
-  uptr unmapped_hint;
   struct condvar *cv;          // for waiting till children exit
 
   ilink<proc> futex_link;

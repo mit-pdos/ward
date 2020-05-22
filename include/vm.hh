@@ -223,6 +223,8 @@ private:
                       qalloc_allocator<vmdesc>, scoped_no_sched> vpf_array;
   vpf_array vpfs_;
 
+  atomic<u64> unmapped_hint;
+
   struct spinlock brklock_;
 
   // Cache of free quasi user-visible pages for processes in this address space.

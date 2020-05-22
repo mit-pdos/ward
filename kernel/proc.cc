@@ -35,7 +35,7 @@ enum { sched_debug = 0 };
 
 proc::proc(int npid) :
   kstack(0), qstack(0), killed(0), tf(0), uaccess_(0), user_fs_(0), pid(npid),
-  unmapped_hint(0), cv(nullptr), yield_(false), oncv(0), cv_wakeup(0), curcycles(0),
+  cv(nullptr), yield_(false), oncv(0), cv_wakeup(0), curcycles(0),
   tsc(0), cpuid(0), cpu_pin(0), context(nullptr), on_qstack(false), state_(EMBRYO),
   parent(0), unmap_tlbreq_(0), data_cpuid(-1), in_exec_(0),
   upath(nullptr), uargv(nullptr), exception_inuse(0), magic(PROC_MAGIC),

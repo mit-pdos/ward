@@ -158,7 +158,8 @@ vmap::alloc(void)
 }
 
 vmap::vmap() :
-  brk_(0), cache(this), vpfs_(this), brklock_("brk_lock", LOCKSTAT_VM)
+  brk_(0), cache(this), vpfs_(this), brklock_("brk_lock", LOCKSTAT_VM),
+  unmapped_hint(0)
 {
 }
 
@@ -322,8 +323,8 @@ vmap::remove(uptr start, uptr len)
   }
   shootdown.perform();
 
-  if (myproc()->unmapped_hint * PGSIZE == start + len)
-    myproc()->unmapped_hint = start / PGSIZE;
+  uptr expected = (start + len) / PGSIZE;
+  unmapped_hint.compare_exchange_weak(expected, start / PGSIZE);
 
   return 0;
 }
@@ -723,7 +724,7 @@ vmap::sbrk_update(ssize_t n)
 uptr
 vmap::unmapped_area(size_t npages)
 {
-  uptr start = std::max(myproc()->unmapped_hint, (uptr)0x400000000ull / PGSIZE); // 16 GB
+  uptr start = std::max(unmapped_hint.load(), (uptr)0x400000000ull / PGSIZE); // 16 GB
   auto it = vpfs_.find(start), end = vpfs_.find(USERTOP / PGSIZE);
 
   for (; it < end; it += it.span()) {
@@ -731,7 +732,7 @@ vmap::unmapped_area(size_t npages)
       // Skip by at least 4GB -- might want to round up, too.
       start = it.index() + std::max(it.span(), 1UL * 1024 * 1024);
     } else if (it.index() + it.span() - start >= npages) {
-      myproc()->unmapped_hint = start + npages;
+      unmapped_hint.store(start + npages);
       return start * PGSIZE;
     }
   }
