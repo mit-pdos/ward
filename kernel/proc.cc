@@ -376,6 +376,8 @@ doclone(clone_flags flags)
 {
   struct proc *np;
 
+  ensure_secrets();
+
   // cprintf("%d: fork\n", myproc()->pid);
 
   // Allocate process.
