@@ -237,49 +237,39 @@ vmap::insert(vmdesc&& desc, uptr start, uptr len)
   assert(start % PGSIZE == 0);
   assert(len % PGSIZE == 0);
 
-  bool fixed = (start != 0);
-  page_holder pages;
-  scoped_acquire l(&vpfs_lock_);
+  if (start) {
+    page_holder pages;
+    mmu::shootdown shootdown;
+    scoped_acquire l(&vpfs_lock_);
 
-again:
-  if (!fixed) {
+    bool need_invalidate = false;
+    auto begin = vpfs_.find(start / PGSIZE);
+    auto end = vpfs_.find((start + len) / PGSIZE);
+    for (auto it = begin; it < end; it += it.span()) {
+      if (it.is_set()) {
+        pages.add(std::move(it->page));
+        need_invalidate = true;
+      }
+    }
+    if (need_invalidate) {
+      cache.invalidate(start, len, &shootdown);
+    }
+    vpfs_.fill(begin, end, desc);
+    shootdown.perform();
+  } else {
+    scoped_acquire l(&vpfs_lock_);
     start = unmapped_area(len / PGSIZE);
     if (start == 0) {
       cprintf("vmap::insert: no unmapped areas\n");
       return (uptr)-1;
     }
-  }
 
-  auto begin = vpfs_.find(start / PGSIZE);
-  auto end = vpfs_.find((start + len) / PGSIZE);
-  mmu::shootdown shootdown;
-
-  bool need_invalidate = false;
-  for (auto it = begin; it < end; it += it.span()) {
-    if (it.is_set()) {
-      if (fixed) {
-        pages.add(std::move(it->page));
-        need_invalidate = true;
-      } else {
-        goto again;
-      }
-    }
-  }
-
-  if (need_invalidate) {
-    cache.invalidate(start, len, &shootdown);
-  }
-
-  // XXX If this is a large fill, we could actively re-fold already
-  // expanded regions.
-  if (!fixed) {
+    // XXX If this is a large fill, we could actively re-fold already
+    // expanded regions.
     desc.start += start;
-    vpfs_.fill(begin, end, desc, true);
-  } else {
-    vpfs_.fill(begin, end, desc);
+    vpfs_.fill(vpfs_.find(start / PGSIZE),
+               vpfs_.find((start + len) / PGSIZE), desc, true);
   }
-
-  shootdown.perform();
 
   return start;
 }
