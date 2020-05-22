@@ -154,12 +154,14 @@ syscall(u64 a0, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 num)
           return r;
         }
       }
+#if KERNEL_STRACE_UNKOWN
       if (num < nsyscalls && syscall_names[num])
         cprintf("\033[31m%d %s: unknown sys call %s(%lx, %lx, %lx, %lx)\033[0m\n",
                 myproc()->pid, myproc()->name, syscall_names[num], a0, a1, a2, a3);
       else
         cprintf("\033[31m%d %s: unknown sys call %ld\033[0m\n",
                 myproc()->pid, myproc()->name, num);
+#endif
       return -ENOSYS;
 #if EXCEPTIONS
     } catch (std::bad_alloc& e) {
