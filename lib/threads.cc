@@ -61,6 +61,9 @@ pthread_create(pthread_t* tid, const pthread_attr_t* attr,
 {
   char* base = (char*) mmap(NULL, stack_size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
   assert(base);
+
+  madvise(base, stack_size, MADV_WILLNEED);
+
   int t = forkt(base + stack_size, (void*) start, arg, FORK_SHARE_VMAP | FORK_SHARE_FD);
   if (t < 0)
     return t;
