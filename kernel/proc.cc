@@ -239,24 +239,12 @@ proc::alloc(void)
     panic("allocproc: ns_insert");
 
   // Allocate kernel stacks.
-  try {
-    if(!(p->qstack = (char*) kalloc("qstack", KSTACKSIZE)))
-      throw_bad_alloc();
-
-#if KSTACK_DEBUG && false // TODO: fix kstack debugging
-    // vmalloc the stack to surround it with guard pages so we can
-    // detect stack over/underflows.
-    p->kstack_vm = vmalloc<char[]>(KSTACKSIZE);
-    p->kstack = p->kstack_vm.get();
-#else
-    if(!(p->kstack = (char*) kalloc("kstack", KSTACKSIZE)))
-      throw_bad_alloc();
-#endif
-  } catch (...) {
+  if(!(p->qstack = (char*) kalloc("qstack", KSTACKSIZE)) ||
+     !(p->kstack = (char*) kalloc("kstack", KSTACKSIZE))) {
     if (!xnspid->remove(p->pid, &p))
       panic("allocproc: ns_remove");
     freeproc(p);
-    throw;
+    return nullptr;
   }
 
   sp = p->kstack + KSTACKSIZE;
