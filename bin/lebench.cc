@@ -67,8 +67,6 @@ static inline u64 end_timer() {
                :: "%rax", "%rbx", "%rcx", "%rdx");
   return ((u64)cycles_high << 32) | (u64)cycles_low;
 }
-u64 *timeB;
-u64 *timeD;
 struct timespec *calc_diff(struct timespec *smaller, struct timespec *bigger)
 {
   struct timespec *diff = (struct timespec *)malloc(sizeof(struct timespec));
@@ -212,9 +210,9 @@ void two_line_test(FILE *fp, FILE *copy, void (*f)(u64*,u64*), int iter, const c
   return;
 }
 
+u64 *timeB;
 void forkTest(u64 *childTime, u64 *parentTime)
 {
-  u64 timeC;
   timeB = (u64*)mmap(NULL, sizeof(u64), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
   int status;
 
@@ -227,7 +225,7 @@ void forkTest(u64 *childTime, u64 *parentTime)
 	printf("[error] unable to kill child process\n");
 	return;
   } else if (forkId > 0) {
-    timeC = end_timer();
+    u64 timeC = end_timer();
     wait(&status);
 	*childTime = *timeB - timeA;
 	*parentTime = timeC - timeA;
