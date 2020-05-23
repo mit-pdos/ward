@@ -155,20 +155,9 @@ sys_fsync(int fd)
   return -ENOSYS;
 }
 
-//SYSCALL
 ssize_t
-sys_read(int fd, userptr<void> p, size_t total_bytes)
+impl_read(sref<file>&& f, userptr<void> p, size_t total_bytes)
 {
-  sref<file> f = getfile(fd);
-  if (!f)
-    return -EBADF;
-
-  if(f->get_vnode() && f->get_vnode()->is_directory())
-    return -EISDIR;
-
-  if(total_bytes >= 1024 * 1024)
-    ensure_secrets();
-
   char b[PGSIZE];
   ssize_t bytes = 0;
   while (bytes < total_bytes) {
@@ -177,14 +166,37 @@ sys_read(int fd, userptr<void> p, size_t total_bytes)
       n = PGSIZE;
 
     ssize_t ret = f->read(b, n);
-    if (ret <= 0)
+    if (ret <= 0){
       return bytes ? bytes : ret;
-    if (!(p+bytes).store_bytes(b, ret))
+    }
+    if (!(p+bytes).store_bytes(b, ret)) {
       return bytes ? bytes : -1;
+    }
 
     bytes += ret;
   }
   return bytes;
+}
+
+//SYSCALL
+ssize_t
+sys_read(int fd, userptr<void> p, size_t total_bytes)
+{
+  sref<file> f = getfile(fd);
+  if (!f)
+    return -EBADF;
+
+  if(f->get_vnode()) {
+    if(f->get_vnode()->is_directory())
+      return -EISDIR;
+  } else {
+    ensure_secrets();
+  }
+
+  if(total_bytes >= 1024 * 1024)
+    ensure_secrets();
+
+  return impl_read(std::move(f), p, total_bytes);
 }
 
 //SYSCALL
@@ -206,20 +218,9 @@ sys_pread(int fd, void *ubuf, size_t count, off_t offset)
   return r;
 }
 
-//SYSCALL
 ssize_t
-sys_write(int fd, const userptr<void> p, size_t total_bytes)
+impl_write(sref<file>&& f, const userptr<void> p, size_t total_bytes)
 {
-  kstats::timer timer_fill(&kstats::write_cycles);
-  kstats::inc(&kstats::write_count);
-
-  sref<file> f = getfile(fd);
-  if (!f)
-    return -1;
-
-  if(total_bytes >= 1024 * 1024)
-    ensure_secrets();
-
   char b[PGSIZE];
   ssize_t bytes = 0;
   while (bytes < total_bytes) {
@@ -237,6 +238,23 @@ sys_write(int fd, const userptr<void> p, size_t total_bytes)
     bytes += ret;
   }
   return bytes;
+}
+
+//SYSCALL
+ssize_t
+sys_write(int fd, const userptr<void> p, size_t total_bytes)
+{
+  kstats::timer timer_fill(&kstats::write_cycles);
+  kstats::inc(&kstats::write_count);
+
+  sref<file> f = getfile(fd);
+  if (!f)
+    return -1;
+
+  if(total_bytes >= 1024 * 1024 || !f->get_vnode())
+    ensure_secrets();
+
+  return impl_write(std::move(f), p, total_bytes);
 }
 
 //SYSCALL
