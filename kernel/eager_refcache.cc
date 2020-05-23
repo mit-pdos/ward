@@ -1,7 +1,7 @@
 #include "eager_refcache.hh"
 
 namespace eager_refcache {
-  DEFINE_PERCPU(cache, mycache, NO_CRITICAL);
+  DEFINE_QPERCPU(cache, mycache, NO_CRITICAL);
 }
 
 void

@@ -13,14 +13,6 @@
 #define PIPESIZE (16*4096)
 
 struct pipe {
-  virtual ~pipe() { };
-  virtual int write(const char *addr, int n) = 0;
-  virtual int read(char *addr, int n) = 0;
-  virtual int close(int writable) = 0;
-  NEW_DELETE_OPS(pipe);
-};
-
-struct ordered : pipe {
   struct spinlock lock;
   struct spinlock lock_close;
   struct condvar  empty;
@@ -32,7 +24,7 @@ struct ordered : pipe {
   bool nonblock;
   char data[PIPESIZE];
 
-  ordered(int flags)
+  pipe(int flags)
     : readopen(true), writeopen(1), nread(0), nwrite(0),
       nonblock(flags & O_NONBLOCK)
   {
@@ -40,12 +32,12 @@ struct ordered : pipe {
     lock_close = spinlock("pipe:close", LOCKSTAT_PIPE);
     empty = condvar("pipe:empty");
     full = condvar("pipe:full");
-  };
-  ~ordered() override {
-  };
-  NEW_DELETE_OPS(ordered);
+  }
+  ~pipe() {}
 
-  virtual int write(const char *addr, int n) override {
+  NEW_DELETE_OPS(pipe);
+
+  int write(const char *addr, int n) {
     if (nonblock) {
       for (;;) {
         size_t nr = nread;
@@ -79,7 +71,7 @@ struct ordered : pipe {
     return n;
   }
 
-  virtual int read(char *addr, int n) override {
+  int read(char *addr, int n) {
     if (nonblock) {
       for (;;) {
         size_t nr = nread;
@@ -113,7 +105,7 @@ struct ordered : pipe {
     return i;
   }
 
-  virtual int close(int writable) override {
+  int close(int writable) {
     scoped_acquire l(&lock_close);
     if(writable){
       writeopen = 0;
@@ -135,7 +127,7 @@ pipealloc(sref<file> *f0, sref<file> *f1, int flags)
   struct pipe *p = nullptr;
   auto cleanup = scoped_cleanup([&](){delete p;});
   try {
-    p = new ordered(flags);
+    p = new pipe(flags);
     *f0 = make_sref<file_pipe_reader>(p);
     *f1 = make_sref<file_pipe_writer>(p);
   } catch (std::bad_alloc &e) {
