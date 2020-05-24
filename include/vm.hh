@@ -229,7 +229,7 @@ private:
   struct spinlock brklock_;
 
   // Cache of free quasi user-visible pages for processes in this address space.
-  static_vector<void*, 32> qpage_pool_;
+  static_vector<void*, 128> qpage_pool_;
   struct spinlock qpage_pool_lock_;
 
   nmiframe* nmi_stacks;
