@@ -73,10 +73,16 @@ static u64 reload_cr3() {
   return cr3;
 }
 static u64 flush_tlb_context() {
-  // TODO: use invpcid instead of switching page tables via ensure_secrets.
-  ensure_secrets();
-  mycpu()->cr3_noflush = 0;
-  return reload_cr3();
+  scoped_cli cli;
+
+  if(secrets_mapped) {
+    mycpu()->cr3_noflush = 0;
+    return reload_cr3();
+  } else {
+    u64 cr3 = reload_cr3();
+    invpcid((cr3 & 0xfff) ^ 0x1, 0, INVPCID_ONE_PCID);
+    return cr3;
+  }
 }
 
 // One level in an x86-64 page table, typically the top level.  Many
