@@ -258,17 +258,16 @@ vmap::insert(vmdesc&& desc, uptr start, uptr len)
     shootdown.perform();
   } else {
     scoped_acquire l(&vpfs_lock_);
+
     start = unmapped_area(len / PGSIZE);
     if (start == 0) {
       cprintf("vmap::insert: no unmapped areas\n");
       return (uptr)-1;
     }
 
-    // XXX If this is a large fill, we could actively re-fold already
-    // expanded regions.
     desc.start += start;
-    vpfs_.fill(vpfs_.find(start / PGSIZE),
-               vpfs_.find((start + len) / PGSIZE), desc, true);
+    vpfs_.fill_recursive(vpfs_.find(start / PGSIZE),
+                         vpfs_.find((start + len) / PGSIZE), desc);
   }
 
   return start;

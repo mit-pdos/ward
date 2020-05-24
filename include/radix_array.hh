@@ -13,6 +13,12 @@
 #define RADIX_DEBUG 1
 #endif
 
+#ifdef XV6_KERNEL
+void cprintf(const char*, ...) __attribute__((format(printf, 1, 2)));
+#else
+void cprintf(const char*, ...) {}
+#endif
+
 namespace std {
   /** @internal Prototype standard allocator template. */
   template <class T> class allocator;
@@ -213,6 +219,12 @@ private:
   level_span(unsigned level)
   {
     return (key_type)1 << key_shift(level);
+  }
+
+  static constexpr key_type
+  level_mask(unsigned level)
+  {
+    return level_span(level) - 1;
   }
 
   static constexpr unsigned
@@ -892,6 +904,78 @@ public:
   }
 
   /**
+   * low and high must fall inside node
+   *
+   */
+  void
+  fill_recursive(node_ptr node, unsigned level, key_type base, key_type low, key_type high, const T &x)
+  {
+    // for(int i = 0; i < LEVELS - level; i++)
+    //   cprintf(" ");
+    // cprintf("filling %lx .. %lx\n", low, high);
+
+    if (level == 0) {
+      assert(node.is_leaf());
+      leaf_node* leaf = node.as_leaf_node();
+      for (auto i = low - base; i < high - base; i++) {
+        leaf->child[i] = x;
+      }
+    } else {
+      assert(node.is_upper());
+      key_type span = level_span(level);
+      upper_node* upper = node.as_upper_node();
+
+      for (key_type i = subkey(low, level); i <= subkey(high-1, level); i++) {
+        node_ptr child = upper->child[i].load(std::memory_order_relaxed);
+        key_type child_base = base + i * span;
+
+        bool low_split = child_base < low;
+        bool high_split = child_base + span > high;
+
+        if ((child.is_null() || child.is_external()) && (low_split || high_split)) {
+          node_ptr new_child;
+          if (level > 1) {
+            // Create upper node
+            new_child = node_ptr(upper_node::create(this, child, level-1), false);
+          } else {
+            // Create leaf node
+            new_child = node_ptr(leaf_node::create(this, child), false);
+          }
+          if(child.is_external())
+            child.as_external()->free(this);
+          upper->child[i].store(new_child, std::memory_order_relaxed);
+          child = new_child;
+        }
+
+        if (low_split && high_split) {
+          assert(child.is_upper() || child.is_leaf());
+          fill_recursive(child, level-1, child_base, low, high, x);
+        } else if(low_split) {
+          assert(child.is_upper() || child.is_leaf());
+          fill_recursive(child, level-1, child_base, low, child_base + span, x);
+        } else if (high_split) {
+          assert(child.is_upper() || child.is_leaf());
+          fill_recursive(child, level-1, child_base, child_base, high, x);
+        } else if (child.is_external()) {
+          child.as_external()->value = x;
+        } else if (child.is_null()) {
+          upper->child[i].store(node_ptr(external_node::create(this, x), false), std::memory_order_relaxed);
+        } else {
+          assert(child.is_upper() || child.is_leaf());
+          fill_recursive(child, level-1, child_base, child_base, child_base+span, x);
+        }
+      }
+    }
+  }
+
+  void
+  fill_recursive(const iterator &low, const iterator &high, const T &x)
+  {
+    assert(x.is_set());
+    fill_recursive(get_root_ptr(), LEVELS, 0, low.k_, high.k_, x);
+  }
+
+  /**
    * Copy-assign all values in the range <tt>[low, high)</tt> to @c x.
    *
    * The caller must ensure that this operation will not overlap the
@@ -1178,6 +1262,16 @@ private:
       return get_type() == NONE;
     }
 
+    bool is_upper() const
+    {
+      return get_type() == UPPER;
+    }
+
+    bool is_leaf() const
+    {
+      return get_type() == LEAF;
+    }
+
     upper_node *as_upper_node() const
     {
       if (RADIX_DEBUG)
@@ -1425,7 +1519,7 @@ private:
      */
     external_node() = default;
     external_node(const external_node &o) = default;
-    external_node(T& v): value(v) { }
+    external_node(const T& v): value(v) { }
 
     external_node(external_node &&o) = delete;
 
@@ -1434,7 +1528,7 @@ private:
      * initialized to replace @c src from the parent node.  @c src
      * must be a null or external pointer.
      */
-    static external_node *create(radix_array *r, T& orig)
+    static external_node *create(radix_array *r, const T& orig)
     {
       external_node* node = r->external_node_alloc_.allocate(1);
       r->external_node_alloc_.construct(node, orig);
