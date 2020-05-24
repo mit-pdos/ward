@@ -958,11 +958,9 @@ public:
           fill_recursive(child, level-1, child_base, child_base, high, x);
         } else if (child.is_external()) {
           child.as_external()->value = x;
-        } else if (child.is_null()) {
-          upper->child[i].store(node_ptr(external_node::create(this, x), false), std::memory_order_relaxed);
         } else {
-          assert(child.is_upper() || child.is_leaf());
-          fill_recursive(child, level-1, child_base, child_base, child_base+span, x);
+          child.free(this);
+          upper->child[i].store(node_ptr(external_node::create(this, x), false), std::memory_order_relaxed);
         }
       }
     }
