@@ -325,6 +325,8 @@ trap(struct trapframe *tf, bool had_secrets)
       piceoi();
       return;
     } else if (tf->trapno == T_PGFLT && do_pagefault(tf, had_secrets) == 0) {
+      if(myproc()->killed)
+        exit(-1);
       return;
     }
 
