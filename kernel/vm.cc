@@ -717,6 +717,8 @@ uptr
 vmap::unmapped_area(size_t npages)
 {
   uptr start = std::max(unmapped_hint.load(), (uptr)0x400000000ull / PGSIZE); // 16 GB
+  start = (start | ((1 << ceil_log2(npages)) - 1)) + 1;
+
   auto it = vpfs_.find(start), end = vpfs_.find(USERTOP / PGSIZE);
 
   for (; it < end; it += it.span()) {
