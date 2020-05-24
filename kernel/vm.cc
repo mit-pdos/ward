@@ -92,13 +92,14 @@ class page_holder
     NHEAP = (PGSIZE - sizeof(batch)) / sizeof(page_info_ref)
   };
 
+  vmap* vmap_;
   batch *cur;
   size_t curmax;
   batch first;
   char first_buf[NLOCAL * sizeof(page_info_ref)];
 
 public:
-  page_holder() : cur(&first), curmax(NLOCAL) {
+  page_holder(vmap* v) : vmap_(v), cur(&first), curmax(NLOCAL) {
     // TODO: fix this hack?
     // static_assert((void*)&(((page_holder*)nullptr)->first.pages[NLOCAL]) <=
     //               (void*)&((page_holder*)nullptr)->first_buf[sizeof(first_buf)],
@@ -111,14 +112,14 @@ public:
     for (batch *b = first.next; b; b = next) {
       next = b->next;
       b->~batch();
-      kfree(b);
+      vmap_->qfree(b);
     }
   }
 
   void add(page_info_ref &&page)
   {
     if (cur->used == curmax) {
-      cur->next = new (kalloc("page_holder::batch")) batch();
+      cur->next = new (vmap_->qalloc("page_holder::batch")) batch();
       cur = cur->next;
       curmax = NHEAP;
     }
@@ -238,7 +239,7 @@ vmap::insert(vmdesc&& desc, uptr start, uptr len)
   assert(len % PGSIZE == 0);
 
   if (start) {
-    page_holder pages;
+    page_holder pages(this);
     mmu::shootdown shootdown;
     scoped_acquire l(&vpfs_lock_);
 
@@ -295,7 +296,7 @@ vmap::remove(uptr start, uptr len)
     sdebug.println("vm: remove(", start, ",", len, ")");
 
   mmu::shootdown shootdown;
-  page_holder pages;
+  page_holder pages(this);
 
   if (start + len <= USERTOP) {
     auto begin = vpfs_.find(start / PGSIZE);
@@ -327,7 +328,7 @@ vmap::willneed(uptr start, uptr len)
   auto end = vpfs_.find((start + len) / PGSIZE);
   scoped_acquire l(&vpfs_lock_);
 
-  page_holder pages;
+  page_holder pages(this);
   mmu::shootdown shootdown;
 
   for (auto it = begin; it < end; it += it.span()) {
