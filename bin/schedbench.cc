@@ -1,34 +1,69 @@
-#include "types.h"
-#include "user.h"
-#include "amd64.h"
-#include "pthread.h"
-#include "errno.h"
-#include "mtrace.h"
 
-#include <uk/futex.h>
+#include "compiler.h"
 
+#include <errno.h>
 #include <atomic>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/time.h>
+#include <pthread.h>
 
-static volatile std::atomic<u64> waiting;
-static volatile std::atomic<u64> waking __attribute__((unused));
+#ifdef XV6_USER
+#include <uk/futex.h>
+#include "user.h"
+#include "amd64.h"
+#include "pthread.h"
+#else
+#include "assert.h"
+#include <linux/futex.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/syscall.h>
+#include <sched.h>
+#include <unistd.h>
+void nsleep(uint64_t t) {
+  timespec ts;
+  ts.tv_nsec = t % 1000000000;
+  ts.tv_sec = t / 1000000000;
+  nanosleep(&ts, nullptr);
+}
+int futex(uint32_t *uaddr, int futex_op, int val, uint64_t timeout) {
+  timespec ts;
+  ts.tv_nsec = timeout % 1000000000;
+  ts.tv_sec = timeout / 1000000000;
+  if(timeout == 0)
+    ts.tv_sec = 0xffffffff;
+
+  int r = syscall(SYS_futex, uaddr, futex_op, val, &ts);
+  return r < 0 ? errno : r;
+}
+#endif
+
+static volatile std::atomic<uint64_t> waiting;
+static volatile std::atomic<uint64_t> waking __attribute__((unused));
 static int iters;
 static int nworkers;
 static volatile int go;
 
+pthread_t* worker_threads;
+
 static struct {
-  u32 mem;
+  uint32_t mem;
   __padout__;
 } ftx[256] __mpalign__;
+
+#define die(...) do { \
+  printf( __VA_ARGS__ ); \
+  exit(-1); \
+} while(0)
 
 static
 void* worker0(void* x)
 {
   // Ping pong a futex between a pair of workers
-  u64 id = (u64)x;
-  u32* f = &(ftx[id>>1].mem);
+  uint64_t id = (uint64_t)x;
+  uint32_t* f = &(ftx[id>>1].mem);
   long r;
 
   // setaffinity(id);
@@ -37,22 +72,20 @@ void* worker0(void* x)
     sched_yield();
 
   if (id & 0x1) {
-    for (u64 i = 0; i < iters; i++) {
-      r = futex(f, FUTEX_WAIT_PRIVATE, (u64)(i<<1), 0);
+    for (uint64_t i = 0; i < iters; i++) {
+      r = futex(f, FUTEX_WAIT_PRIVATE, (uint64_t)(i<<1), 0);
       if (r < 0 && r != -EWOULDBLOCK)
-        die("futex: %ld", r);
+        die("futex: %ld\n", r);
       *f = (i<<1)+2;
       r = futex(f, FUTEX_WAKE_PRIVATE, 1, 0);
-      // assert(r == 1);
     }
   } else {
-    for (u64 i = 0; i < iters; i++) {
+    for (uint64_t i = 0; i < iters; i++) {
       *f = (i<<1)+1;
       r = futex(f, FUTEX_WAKE_PRIVATE, 1, 0);
-      // assert(r == 1);
-      r = futex(f, FUTEX_WAIT_PRIVATE, (u64)(i<<1)+1, 0);
+      r = futex(f, FUTEX_WAIT_PRIVATE, (uint64_t)(i<<1)+1, 0);
       if (r < 0 && r != -EWOULDBLOCK)
-        die("futex: %ld", r);
+        die("futex: %ld\n", r);
     }
   }
 
@@ -64,7 +97,7 @@ void master0(void)
 {
   go = 1;
   for (int i = 0; i < nworkers; i++)
-    wait(NULL);
+    pthread_join(worker_threads[i], nullptr);
 }
 
 int
@@ -74,7 +107,7 @@ main(int ac, char** av)
 
   if (ac == 1) {
     iters = 500000;
-    nworkers = 4;
+    nworkers = 2;
   } else if (ac < 3){
     die("usage: %s iters nworkers", av[0]);
   } else {
@@ -82,23 +115,22 @@ main(int ac, char** av)
     nworkers = atoi(av[2]);
   }
 
+  worker_threads = (pthread_t*)malloc(nworkers * sizeof(pthread_t));
+
   waiting.store(0);
 
   for (int i = 0; i < nworkers; i++) {
-    pthread_t th;
-
-    r = pthread_create(&th, nullptr, worker0, (void*)(u64)i);
+    r = pthread_create(&worker_threads[i],
+                       nullptr, worker0, (void*)(uint64_t)i);
     if (r < 0)
       die("pthread_create");
   }
   nsleep(1000*1000);
 
-  mtenable("xv6-schedbench");
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
   master0();
   clock_gettime(CLOCK_REALTIME, &end);
-  mtdisable("xv6-schedbench");
 
   unsigned long delta = (end.tv_sec - start.tv_sec) * 1000000000UL +
     (unsigned long)end.tv_nsec - (unsigned long)start.tv_nsec;
