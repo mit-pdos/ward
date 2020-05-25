@@ -21,6 +21,8 @@
  *   Software.
  */
 
+#include "user.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -1333,30 +1335,38 @@ static int numCharCountBits(enum qrcodegen_Mode mode, int version) {
 }
 
 int main(int argc, char* argv[]) {
-  if(argc == 1) {
-    printf("usages: %s file\n", argv[0]);
-    return;
-  }
+  char* data = malloc(16 * 1024+1);
 
-  int f = open(argv[1], O_RDONLY);
-  if (f < 0) {
-    printf("failed to open '%s'\n", argv[1]);
-    return;
-  }
+  if (argc == 1) {
+    int n = 0;
+    while (n < 16 * 1024) {
+      int r = read(0, data+n, 1);
+      if (r <= 0) break;
+      write(1, data+n, r);
+      n += r;
+    }
+    data[n] = 0;
+  } else {
+    int f = open(argv[1], O_RDONLY);
+    if (f < 0) {
+      printf("failed to open '%s'\n", argv[1]);
+      return -1;
+    }
 
-  void* data = malloc(16 * 1024);
-  int n = read(f, data, 16 * 1024);
-  if(n < 0) {
-    printf("failed to read '%s'\n", argv[1]);
-    return;
+    int n = read(f, data, 16 * 1024);
+    if(n < 0) {
+      printf("failed to read '%s'\n", argv[1]);
+      return -1;
+    }
+    data[n] = 0;
   }
 
   uint8_t* tempBuffer = malloc(qrcodegen_BUFFER_LEN_MAX);
   uint8_t* qrcode = malloc(qrcodegen_BUFFER_LEN_MAX);
 
-  bool ret = qrcodegen_encodeText(data, tempBuffer, qrcode,
-                                  qrcodegen_Ecc_LOW, 1, 40,
-                                  qrcodegen_Mask_AUTO, false);
+  qrcodegen_encodeText(data, tempBuffer, qrcode,
+                       qrcodegen_Ecc_LOW, 1, 40,
+                       qrcodegen_Mask_AUTO, false);
 
   int size = qrcodegen_getSize(qrcode);
 
@@ -1378,4 +1388,5 @@ int main(int argc, char* argv[]) {
   }
 
   display_image(image, size*SCALE+BORDER*2, size*SCALE+BORDER*2);
+  return 0;
 }
