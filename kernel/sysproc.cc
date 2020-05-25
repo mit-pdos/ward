@@ -24,6 +24,7 @@
 pid_t
 sys_fork_flags(int flags)
 {
+  ensure_secrets();
   clone_flags cflags = clone_flags::CLONE_ALL;
   if (flags & FORK_SHARE_VMAP)
     cflags |= CLONE_SHARE_VMAP;
