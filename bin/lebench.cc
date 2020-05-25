@@ -213,9 +213,10 @@ void two_line_test(FILE *fp, FILE *copy, void (*f)(u64*,u64*), int iter, const c
 u64 *timeB;
 void forkTest(u64 *childTime, u64 *parentTime)
 {
-  timeB = (u64*)mmap(NULL, sizeof(u64), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-  int status;
+  timeB = (u64*)mmap((void*)0x900000000, 8, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+  *timeB = 0;
 
+  int status;
   u64 timeA = start_timer();
 
   int forkId = fork();
@@ -223,16 +224,15 @@ void forkTest(u64 *childTime, u64 *parentTime)
     *timeB = end_timer();
     kill(getpid(),SIGINT);
 	printf("[error] unable to kill child process\n");
-	return;
   } else if (forkId > 0) {
     u64 timeC = end_timer();
     wait(&status);
 	*childTime = *timeB - timeA;
 	*parentTime = timeC - timeA;
+    munmap(timeB, 8);
   } else {
     printf("[error] fork failed.\n");
   }
-  munmap(timeB, sizeof(u64));
 }
 
 void *thrdfnc(void *args) {
