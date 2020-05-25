@@ -271,6 +271,7 @@ void            pushcli(void);
 void            popcli(void);
 void            getcallerpcs(void*, uptr*, int);
 extern "C" u64  sysentry_c(u64 a0, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 num);
+void            ensure_secrets()  __attribute__((noinline));
 
 // uart.c
 void            uartputc(char c);

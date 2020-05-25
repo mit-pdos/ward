@@ -80,11 +80,3 @@ myid(void)
 {
   return mycpu()->id;
 }
-
-static inline void
-ensure_secrets()
-{
-  pushcli();
-  switch_to_kstack();
-  popcli();
-}

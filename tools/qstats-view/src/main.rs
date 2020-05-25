@@ -8,6 +8,7 @@ use std::env;
 struct ExitTrigger {
     backtrace: Vec<String>,
     count: u64,
+    intentional: bool,
 }
 #[derive(Debug, Deserialize)]
 struct QStats {
@@ -73,12 +74,16 @@ fn main() {
 
 	let mut skipped = 0;
     let mut total = 0;
-    for ExitTrigger { backtrace, count } in exits {
+    for ExitTrigger { backtrace, count, intentional } in exits {
         total += count;
 		if count < 10 {
 			skipped += 1;
 			continue;
 		}
+
+        if intentional {
+            print!("\u{1b}[32m");
+        }
 
         let mut combined_frames = Vec::new();
         for addr in &backtrace {
@@ -102,14 +107,18 @@ fn main() {
             let line = location.line.unwrap_or(0);
 
             if i == 0 {
-                println!("{:>4}: {}:{}", count, file, line);
+                if intentional {
+                    println!("{:>4}: {}:{}", count, file, line);
+                } else {
+                    println!("{:>4}: {}:{}", count, file, line);
+                }
             } else {
                 println!("      {}:{}", file, line);
             }
         }
 
         let addr = u64::from_str_radix(&backtrace[0][2..18], 16).unwrap();
-        println!("      {:x}", addr);
+        println!("      {:x}\u{1b}[0m", addr);
     }
 
     println!();

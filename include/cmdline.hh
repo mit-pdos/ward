@@ -25,6 +25,7 @@ struct cmdline_params_t
   char boot_uuid[CMDLINE_VALUE+1];
   bool use_vga;
   bool use_cga;
+  bool track_wbs;
 
   // mitigations
   bool spectre_v2;

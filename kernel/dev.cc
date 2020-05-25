@@ -42,10 +42,11 @@ qstatsread(char *dst, u32 off, u32 n)
 {
   window_stream s(dst, off, n);
 
-  extern linearhash<u64, u64> wm_rips;
+  extern linearhash<u64, u64> transparent_wb_rips;
+  extern linearhash<u64, u64> intentional_wb_rips;
 
   s.println("exit_triggers = [");
-  for(auto i = wm_rips.begin(); i != wm_rips.end(); i++) {
+  for(auto i = transparent_wb_rips.begin(); i != transparent_wb_rips.end(); i++) {
     u64 key, value;
     if(i.get(&key, &value)) {
       s.print("  { backtrace = [\"", shex(KTEXT | (key & 0x1fffff)));
@@ -55,9 +56,16 @@ qstatsread(char *dst, u32 off, u32 n)
       if ((key >> 42) != 0) {
         s.print("\", \"", shex(KTEXT | ((key>>42) & 0x1fffff)));
       }
-      s.println("\"], count = ", value, " },");
+      s.println("\"], count = ", value, ", intentional = false },");
     }
   }
+  for(auto i = intentional_wb_rips.begin(); i != intentional_wb_rips.end(); i++) {
+    u64 key, value;
+    if(i.get(&key, &value)) {
+      s.println("  { backtrace = [\"", shex(key), "\"], count = ", value, ", intentional = true },");
+    }
+  }
+
   s.println("]");
   return s.get_used();
 }

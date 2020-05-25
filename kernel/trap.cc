@@ -18,6 +18,7 @@
 #include "cpuid.hh"
 #include "linearhash.hh"
 #include "vm.hh"
+#include "cmdline.hh"
 
 extern "C" void __uaccess_end(void);
 
@@ -38,9 +39,24 @@ static struct irq_info
 } irq_info[256 - T_IRQ0];
 
 // Instruction pointers that cause transparent world barriers.
-linearhash<u64, u64> wm_rips(10240);
+linearhash<u64, u64> transparent_wb_rips(10240);
+linearhash<u64, u64> intentional_wb_rips(10240);
 
 static void trap(struct trapframe *tf, bool had_secrets);
+
+void
+ensure_secrets()
+{
+  pushcli();
+  bool had_secrets = secrets_mapped;
+  switch_to_kstack();
+  popcli();
+
+  if (cmdline_params.track_wbs && !had_secrets) {
+    intentional_wb_rips.increment((u64)__builtin_return_address(0) - 1);
+  }
+}
+
 
 u64
 sysentry_c(u64 a0, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 num)
@@ -72,10 +88,12 @@ do_pagefault(struct trapframe *tf, bool had_secrets)
     // data so map all secrets in now and record where this happened.
     switch_to_kstack();
 
-    uptr pc[2];
-    getcallerpcs((void *) tf->rbp, pc, NELEM(pc));
-    u64 bt = (tf->rip & 0x1fffff) | ((pc[0] & 0x1fffff) << 21) | ((pc[1] & 0x1fffff) << 42);
-    wm_rips.increment(bt);
+    if (cmdline_params.track_wbs) {
+      uptr pc[2];
+      getcallerpcs((void *) tf->rbp, pc, NELEM(pc));
+      u64 bt = (tf->rip & 0x1fffff) | ((pc[0] & 0x1fffff) << 21) | ((pc[1] & 0x1fffff) << 42);
+      transparent_wb_rips.increment(bt);
+    }
     return 0;
   } else if (addr < USERTOP && tf->err & FEC_U) {
     sti();
