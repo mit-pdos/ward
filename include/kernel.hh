@@ -279,6 +279,7 @@ void            uartintr(void);
 // vga.c
 void            vgaputc(int c);
 bool            get_framebuffer(paddr* out_address, u64* out_size);
+void            vga_put_image(u32* data, int width, int height);
 
 // vm.c
 void            switchvm(struct vmap*, struct vmap*);

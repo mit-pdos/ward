@@ -235,7 +235,7 @@ void vgaputc(int c) {
   bool full_redraw = false;
 
   if (cursor_x + width + BORDER > screen_width) {
-    cursor_x = 0;
+    cursor_x = BORDER;
     cursor_y += 16;
     line_end = 0;
   }
@@ -283,4 +283,47 @@ void vgaputc(int c) {
   if (c != 0x100) { // BACKSPACE
     cursor_x += width;
   }
+}
+
+void vga_put_image(u32* data, int width, int height) {
+  u32* buffer = back_buffer ? back_buffer : front_buffer;
+  if (!buffer)
+    return;
+
+  int original_width = width;
+
+  if(width + BORDER * 2 > screen_width)
+    width = screen_width - BORDER * 2;
+  if(height + BORDER * 2 > screen_height)
+    height = screen_height - BORDER * 2;
+
+  if (cursor_x != BORDER) {
+    cursor_x = BORDER;
+    cursor_y += 16;
+    line_end = 0;
+  }
+  while (cursor_y + height + BORDER > screen_height) {
+    memmove(buffer,
+            buffer + 16 * screen_width,
+            screen_width * (screen_height - 16) * 4);
+    memset(buffer + (screen_height - 16) * screen_width, 0,
+           16 * screen_width * 4);
+    cursor_y -= 16;
+    line_end = 0;
+  }
+
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      buffer[(cursor_x+x) + (cursor_y+y) * screen_width] = data[x + y * original_width];
+    }
+  }
+
+  if (back_buffer) {
+    u64* back = (u64*)back_buffer;
+    volatile u64* front = (volatile u64*)front_buffer;
+    for (size_t i = 0; i < screen_width * screen_height / 2; i++)
+      front[i] = back[i];
+  }
+
+  cursor_y += (height | 15) + 1;
 }

@@ -519,3 +519,19 @@ sig_tgkill(int pid, int tid, int sig)
   proc::deliver_signal(pid, sig);
   return 0;
 }
+
+//SYSCALL
+long
+sys_display_image(userptr<u32> data, unsigned int width, unsigned int height) {
+  if (width > 2048 || height > 2048)
+    return -1;
+
+  u32* image = (u32*)kalloc("display_image", 2048 * 2048 * 4);
+  auto cleanup = scoped_cleanup([&](){ kfree(image, 2048 * 2048 * 4); });
+
+  if (!data.load(image, width * height))
+    return -1;
+
+  vga_put_image(image, width, height);
+  return 0;
+}
