@@ -224,7 +224,7 @@ private:
   vpf_array vpfs_;
   spinlock vpfs_lock_;
 
-  atomic<u64> unmapped_hint;
+  u64 unmapped_hint; // also proteced by vpfs_lock_
 
   struct spinlock brklock_;
 

@@ -309,16 +309,16 @@ vmap::remove(uptr start, uptr len)
     // XXX If this is a large unset, we could actively re-fold already
     // expanded regions.
     vpfs_.unset(begin, end);
+
+    if (unmapped_hint == (start + len) / PGSIZE) {
+      unmapped_hint = start / PGSIZE;
+    }
   } else {
     assert(start >= KGLOBAL);
     cache.invalidate(start, len, &shootdown);
   }
   shootdown.perform();
 
-  if (start + len <= USERTOP) {
-    uptr expected = (start + len) / PGSIZE;
-    unmapped_hint.compare_exchange_weak(expected, start / PGSIZE);
-  }
 
   return 0;
 }
@@ -718,8 +718,8 @@ vmap::sbrk_update(ssize_t n)
 uptr
 vmap::unmapped_area(size_t npages)
 {
-  uptr start = std::max(unmapped_hint.load(), (uptr)0x400000000ull / PGSIZE); // 16 GB
-  start = (start | ((1 << ceil_log2(npages)) - 1)) + 1;
+  uptr start = std::max(unmapped_hint, (uptr)0x400000000ull / PGSIZE); // 16 GB
+  start = ((start-1) | ((1 << ceil_log2(npages)) - 1)) + 1;
 
   auto it = vpfs_.find(start), end = vpfs_.find(USERTOP / PGSIZE);
 
@@ -728,7 +728,7 @@ vmap::unmapped_area(size_t npages)
       // Skip by at least 4GB -- might want to round up, too.
       start = it.index() + std::max(it.span(), 1UL * 1024 * 1024);
     } else if (it.index() + it.span() - start >= npages) {
-      unmapped_hint.store(start + npages);
+      unmapped_hint = start + npages;
       return start * PGSIZE;
     }
   }
