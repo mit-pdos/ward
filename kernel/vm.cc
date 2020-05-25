@@ -315,8 +315,10 @@ vmap::remove(uptr start, uptr len)
   }
   shootdown.perform();
 
-  uptr expected = (start + len) / PGSIZE;
-  unmapped_hint.compare_exchange_weak(expected, start / PGSIZE);
+  if (start + len <= USERTOP) {
+    uptr expected = (start + len) / PGSIZE;
+    unmapped_hint.compare_exchange_weak(expected, start / PGSIZE);
+  }
 
   return 0;
 }
@@ -765,6 +767,7 @@ vmap::ensure_page(const vmap::vpf_array::iterator &it, vmap::access_type type,
   }
 
   if (need_copy) {
+    ensure_secrets();
     // This is a COW fault; copy in to a new page
     if (allocated)
       *allocated = true;
