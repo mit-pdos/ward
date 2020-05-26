@@ -536,3 +536,20 @@ sys_display_image(userptr<u32> data, unsigned int width, unsigned int height) {
   vga_put_image(image, width, height);
   return 0;
 }
+
+static volatile int t = 0;
+
+//SYSCALL
+long
+sys_transparent_barrier(int n)
+{
+  return t ^ n;
+}
+
+//SYSCALL
+long
+sys_intentional_barrier(int n)
+{
+  ensure_secrets();
+  return t ^ n;
+}

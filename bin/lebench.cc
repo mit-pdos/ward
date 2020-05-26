@@ -48,7 +48,7 @@ void assert(bool b) {
 
 static inline u64 start_timer() {
   u32 cycles_low, cycles_high;
-  asm volatile ("MFENCE\n\t"
+  asm volatile ("CPUID\n\t"
                 "RDTSC\n\t"
                 "mov %%edx, %0\n\t"
                 "mov %%eax, %1\n\t"
@@ -62,7 +62,7 @@ static inline u64 end_timer() {
   asm volatile("RDTSCP\n\t"
                "mov %%edx, %0\n\t"
                "mov %%eax, %1\n\t"
-               "MFENCE\n\t"
+               "CPUID\n\t"
                : "=r" (cycles_high), "=r" (cycles_low)
                :: "%rax", "%rbx", "%rcx", "%rdx");
   return ((u64)cycles_high << 32) | (u64)cycles_low;
@@ -149,8 +149,8 @@ void one_line_test(FILE *fp, FILE *copy, u64 (*f)(), int iter, const char* name)
 
   for(int j=0; j < MITIGATION_STYLES; j++)
     fprintf(fp,"%12ld,", best[j]);
-  for(int j=0; j < MITIGATION_STYLES; j++)
-    fprintf(fp,"%12ld,", sum[j] / iter);
+  // for(int j=0; j < MITIGATION_STYLES; j++)
+  //   fprintf(fp,"%12ld,", sum[j] / iter);
 
   fprintf(fp,"\n");
 
@@ -193,8 +193,8 @@ void two_line_test(FILE *fp, FILE *copy, void (*f)(u64*,u64*), int iter, const c
 
   for(int j=0; j < MITIGATION_STYLES; j++)
     fprintf(fp,"%12ld,", bestParent[j]);
-  for(int j=0; j < MITIGATION_STYLES; j++)
-    fprintf(fp,"%12ld,", sumParent[j] / iter);
+  // for(int j=0; j < MITIGATION_STYLES; j++)
+  //   fprintf(fp,"%12ld,", sumParent[j] / iter);
   fprintf(fp, "\n");
 
   printf("%s-child,", name);
@@ -203,8 +203,8 @@ void two_line_test(FILE *fp, FILE *copy, void (*f)(u64*,u64*), int iter, const c
 
   for(int j=0; j < MITIGATION_STYLES; j++)
     fprintf(fp,"%12ld,", bestChild[j]);
-  for(int j=0; j < MITIGATION_STYLES; j++)
-    fprintf(fp,"%12ld,", sumChild[j] / iter);
+  // for(int j=0; j < MITIGATION_STYLES; j++)
+  //   fprintf(fp,"%12ld,", sumChild[j] / iter);
   fprintf(fp, "\n");
 
   return;

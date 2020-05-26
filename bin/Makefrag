@@ -79,6 +79,7 @@ UPROGS_BIN= \
 	spectrev2 \
 	spectrev2u \
 	qrc \
+	benchbarriers \
 
 # Binaries that are known to build on PLATFORM=native
 UPROGS_NATIVE := \

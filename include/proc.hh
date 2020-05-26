@@ -94,6 +94,9 @@ private:
   procstate_t state_;          // Process state
 public:
 
+  u64 transparent_barriers;
+  u64 intentional_barriers;
+
   char fpu_state[XSAVE_BYTES] __attribute__ ((aligned (64)));
 
 #if KERNEL_STRACE

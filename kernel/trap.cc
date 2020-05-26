@@ -55,6 +55,9 @@ ensure_secrets()
   if (cmdline_params.track_wbs && !had_secrets) {
     intentional_wb_rips.increment((u64)__builtin_return_address(0) - 1);
   }
+  if (!had_secrets && myproc()) {
+    myproc()->intentional_barriers++;
+  }
 }
 
 
@@ -93,6 +96,9 @@ do_pagefault(struct trapframe *tf, bool had_secrets)
       getcallerpcs((void *) tf->rbp, pc, NELEM(pc));
       u64 bt = (tf->rip & 0x1fffff) | ((pc[0] & 0x1fffff) << 21) | ((pc[1] & 0x1fffff) << 42);
       transparent_wb_rips.increment(bt);
+    }
+    if (!had_secrets && myproc()) {
+      myproc()->transparent_barriers++;
     }
     return 0;
   } else if (addr < USERTOP && tf->err & FEC_U) {
