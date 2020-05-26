@@ -24,6 +24,7 @@ vfs_new_fat32(disk *device)
 void
 vfs_enable_fat32_writeback(const sref<filesystem> &fs)
 {
+  ensure_secrets();
   auto ffs = dynamic_cast<fat32_filesystem *>(fs.get());
   assert(ffs);
   ffs->enable_writeback();

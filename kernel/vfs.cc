@@ -32,6 +32,23 @@ void
 initvfs()
 {
   assert(!mounts);
+
+  extern void mfsload();
+  extern void mfsloadfat(sref<filesystem> fs);
+
+  int root_disk_number = -1;
+  for (auto i = 0; i < disk_count(); i++) {
+    auto disk = disk_by_devno(i);
+    auto fat32fs = vfs_new_fat32(disk);
+    if (fat32fs) {
+      mfsloadfat(fat32fs);
+      root_disk_number = i;
+    }
+  }
+  if(root_disk_number == -1) {
+    mfsload();
+  }
+
   mounts = make_sref<virtual_filesystem>(vfs_get_mfs());
 
   auto mnt = mounts->root()->create_dir("mnt");
@@ -40,7 +57,7 @@ initvfs()
   if (r)
     panic("mnt: nullfs mount failed: %d\n", r);
 
-  for (auto i = 0; i < disk_count(); i++) {
+  for (auto i = root_disk_number+1; i < disk_count(); i++) {
     auto disk = disk_by_devno(i);
     auto fat32fs = vfs_new_fat32(disk);
     if (fat32fs) {

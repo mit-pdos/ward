@@ -30,7 +30,7 @@ param_metadata_t<bool> binary_params[] = {
   { "lazy_barrier",    &cmdline_params.lazy_barrier,    true,  apply_hotpatches },
   { "use_vga",         &cmdline_params.use_vga,         true,  initvga },
   { "use_cga",         &cmdline_params.use_cga,         false, NULL },
-  { "track_wbs",       &cmdline_params.track_wbs,       false, NULL },
+  { "track_wbs",       &cmdline_params.track_wbs,       true,  NULL },
   { "spectre_v2",      &cmdline_params.spectre_v2,      true,  apply_hotpatches },
   { "kpti",            &cmdline_params.kpti,            true,  apply_hotpatches },
   { "mds",             &cmdline_params.mds,             true,  apply_hotpatches },

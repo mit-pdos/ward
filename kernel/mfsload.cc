@@ -31,7 +31,7 @@ load_dir(linearhash<u64, sref<mnode>> *inum_to_mnode, sref<inode> i, sref<mnode>
 }
 
 static void
-load_file(linearhash<u64, sref<mnode>> *inum_to_mnode, sref<inode> i, sref<mnode> m)
+load_file(sref<inode> i, sref<mnode> m)
 {
   for (size_t pos = 0; pos < i->size; pos += PGSIZE) {
     char* p = zalloc("load_file");
@@ -73,7 +73,7 @@ load_inum(linearhash<u64, sref<mnode>> *inum_to_mnode, u32 dev, u64 inum)
 
   case T_FILE:
     m = mnode_alloc(inum_to_mnode, inum, mnode::types::file);
-    load_file(inum_to_mnode, i, m);
+    load_file(i, m);
     break;
 
   default:
@@ -92,4 +92,64 @@ mfsload()
   root_inum = load_inum(inum_to_mnode, disk_find_root(), 1)->inum_;
   /* the root inode gets an extra reference because of its own ".." */
   delete inum_to_mnode;
+}
+
+
+static void copy_directory(sref<mnode> dst_dir, sref<vnode> src_dir)
+{
+  strbuf<FILENAME_MAX> last("..");
+  strbuf<FILENAME_MAX> name;
+  while(src_dir->next_dirent(last.ptr(), &name)) {
+    last = name;
+
+    if(strcmp(name.ptr(), ".") == 0 || strcmp(name.ptr(), "..") == 0)
+      continue;
+
+    sref<vnode> f = src_dir->get_fs()->resolve(src_dir, name.ptr());
+    sref<mnode> m;
+
+    if(f->is_directory()) {
+      m = root_fs->alloc(mnode::types::dir).mn();
+      copy_directory(m, f);
+
+      mlinkref ilink(dst_dir);
+      ilink.acquire();
+      m->as_dir()->insert("..", &ilink);
+    } else if(f->is_regular_file()) {
+      m = root_fs->alloc(mnode::types::file).mn();
+
+      for (size_t pos = 0; pos < f->file_size(); pos += PGSIZE) {
+        char* p = zalloc("load_file");
+        assert(p);
+
+        auto pi = sref<page_info>::transfer(new (page_info::of(p)) page_info());
+
+        size_t nbytes = f->file_size() - pos;
+        if (nbytes > PGSIZE)
+          nbytes = PGSIZE;
+
+        assert(nbytes == f->read_at(p, pos, nbytes));
+        auto resize = m->as_file()->write_size();
+        resize.resize_append(pos + nbytes, pi);
+      }
+    } else {
+      panic("unknown file type");
+    }
+
+    mlinkref ilink(m);
+    ilink.acquire();
+    if(!strcmp(name.ptr(), "head"))
+      dst_dir->as_dir()->insert("HEAD", &ilink);
+    else
+      dst_dir->as_dir()->insert(name.ptr(), &ilink);
+  }
+}
+
+void mfsloadfat(sref<filesystem> fs)
+{
+  root_fs = new mfs();
+
+  auto m = root_fs->alloc(mnode::types::dir).mn();
+  root_inum = m->inum_;
+  copy_directory(m, fs->root());
 }

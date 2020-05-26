@@ -211,7 +211,7 @@ $(O)/fs.part: $(O)/tools/mkfs $(FSCONTENTS)
 	mv $@.tmp $@
 $(O)/boot.fat: $(O)/kernel.elf grub/grub.cfg grub/grub.efi $(O)/writeok
 	@echo "  GEN    $@"
-	$(Q)dd if=/dev/zero of=$@ bs=4096 count=66560 2> /dev/null
+	$(Q)dd if=/dev/zero of=$@ bs=4096 count=768000 2> /dev/null
 	$(Q)mkfs.fat -F 32 -s 8 -S 512 $@ > /dev/null
 	$(Q)mmd -i $@ ::EFI
 	$(Q)mmd -i $@ ::EFI/BOOT
@@ -219,15 +219,17 @@ $(O)/boot.fat: $(O)/kernel.elf grub/grub.cfg grub/grub.efi $(O)/writeok
 	$(Q)mcopy -i $@ grub/grub.cfg ::grub.cfg
 	$(Q)mcopy -i $@ $(O)/kernel.elf ::ward
 	$(Q)mcopy -i $@ $(O)/writeok ::writeok
+	$(Q)mcopy -s -i $@ ../noria ::noria
+	$(Q)mcopy -s -i $@ $(O)/fs/* ::
 $(O)/boot.img: $(O)/boot.fat $(O)/fs.part grub/boot.img grub/core.img
 	@echo "  GEN    $@"
-	$(Q)truncate -s "101M" $@
+	$(Q)truncate -s "4034M" $@
 	$(Q)PARTED_GPT_APPLE=0 parted -s --align minimal $@ mklabel gpt \
 		mkpart primary 32KiB 1MiB \
-		mkpart primary 1MiB 70MiB set 1 legacy_boot on set 1 esp on \
-		mkpart primary 70MiB 100MiB
-	$(Q)dd if=$(O)/boot.fat of=$@ conv=sparse obs=512 seek=2048 2> /dev/null
-	$(Q)dd if=$(O)/fs.part of=$@ conv=sparse obs=512 seek=143360 2> /dev/null
+		mkpart primary 1MiB 33MiB \
+		mkpart primary 33MiB 3033MiB set 1 legacy_boot on set 1 esp on
+	$(Q)dd if=$(O)/fs.part of=$@ conv=sparse obs=512 seek=2048 2> /dev/null
+	$(Q)dd if=$(O)/boot.fat of=$@ conv=sparse obs=512 seek=67584 2> /dev/null
 	$(Q)dd bs=440 count=1 conv=notrunc if=grub/boot.img of=$@ 2> /dev/null
 	$(Q)dd bs=512 seek=64 conv=notrunc if=grub/core.img of=$@ 2> /dev/null
 $(O)/boot.vhdx: $(O)/boot.img

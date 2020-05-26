@@ -60,9 +60,9 @@ public:
   }
 
   template <class VT> VT *cast() {
-    VT *out = try_cast<VT>();
-    assert(out != nullptr);
-    return out;
+    // VT *out = try_cast<VT>();
+    // assert(out != nullptr);
+    return static_cast<VT*>(this);
   }
 };
 
@@ -100,7 +100,7 @@ struct virtual_mount : public referenced {
   sref<filesystem> mountpoint_filesystem;
   sref<filesystem> mounted_filesystem;
 
-  NEW_DELETE_OPS(virtual_mount);
+  PUBLIC_NEW_DELETE_OPS(virtual_mount);
 };
 
 class virtual_filesystem : public step_resolved_filesystem {
@@ -116,7 +116,7 @@ public:
   int unmount(const sref<vnode>& mountpoint);
   int change_root(const sref<filesystem>& new_root, const sref<vnode>& mountpoint_for_old_root);
 
-  NEW_DELETE_OPS(virtual_filesystem);
+  PUBLIC_NEW_DELETE_OPS(virtual_filesystem);
 private:
   void onzero() override { delete this; }
   spinlock modifylock __mpalign__;

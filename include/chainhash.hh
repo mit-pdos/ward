@@ -9,8 +9,9 @@
 #include "lockwrap.hh"
 #include "hash.hh"
 #include "ilist.hh"
+#include "kalloc.hh"
 
-template<class K, class V>
+template<class K, class V, class Allocator = pmalloc_allocator<void>>
 class chainhash {
 private:
   struct item : public rcu_freed {
@@ -18,7 +19,7 @@ private:
       : rcu_freed("chainhash::item", this, sizeof(*this)),
         key(k), val(v) {}
     void do_gc() override { delete this; }
-    NEW_DELETE_OPS(item);
+    PUBLIC_NEW_DELETE_OPS(item);
 
     islink<item> link;
     seqcount<u32> seq;
@@ -29,6 +30,7 @@ private:
   struct bucket {
     spinlock lock __mpalign__;
     islist<item, &item::link> chain;
+    int t;
 
     ~bucket() {
       while (!chain.empty()) {
@@ -43,17 +45,22 @@ private:
   bool dead_;
   bucket* buckets_;
 
+  typename Allocator::template rebind<bucket>::other bucket_alloc_;
+
 public:
   chainhash(u64 nbuckets) : nbuckets_(nbuckets), dead_(false) {
-    buckets_ = new bucket[nbuckets_];
+    buckets_ = bucket_alloc_.allocate(nbuckets_);
+    for(auto i = 0; i < nbuckets_; i++)
+      new (&buckets_[i]) bucket;
     assert(buckets_);
   }
 
   ~chainhash() {
-    delete[] buckets_;
+    bucket_alloc_.free(buckets_, nbuckets_);
+    buckets_ = nullptr;
   }
 
-  NEW_DELETE_OPS(chainhash);
+  PUBLIC_NEW_DELETE_OPS(chainhash);
 
   bool insert(const K& k, const V& v) {
     if (dead_ || lookup(k))
@@ -143,7 +150,7 @@ public:
       if (i.key == kdst) {
         if (vpdst == nullptr || i.val != *vpdst)
           return false;
-        auto w = i.seq.write_begin(); 
+        auto w = i.seq.write_begin();
         i.val = vsrc;
         bsrc->chain.erase_after(srcprev);
         gc_delayed(&*srci);
@@ -183,9 +190,19 @@ public:
 
   bool lookup(const K& k, V* vptr = nullptr) const {
     scoped_gc_epoch rcu_read;
-
     bucket* b = &buckets_[hash(k) % nbuckets_];
-    for (const item& i: b->chain) {
+
+    __asm volatile("");
+    int m = *(volatile int*)b;
+    __asm volatile("");
+    *(volatile int*)&b->t = 0;
+    int m = *(volatile int*)&b->chain;
+    __asm volatile("");
+    islink<item> head = b->chain.head;
+    auto it = isiterator<item, &item::link>(head.next);
+
+    for (; it != b->chain.end(); it++) {
+      const item& i = *it;
       if (i.key != k)
         continue;
       if (vptr)

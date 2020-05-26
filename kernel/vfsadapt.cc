@@ -76,7 +76,7 @@ public:
 private:
   void onzero() override { delete this; }
   explicit filesystem_mfs() = default;
-  static filesystem_mfs _singleton;
+  static filesystem_mfs _singleton __attribute__((section (".qdata")));
 };
 
 vnode_mfs::vnode_mfs(sref<mnode> node)
@@ -106,8 +106,8 @@ vnode_mfs::stat(struct stat *st, enum stat_flags flags)
   st->st_mode = (stattype << __S_IFMT_SHIFT) | 0644;
   st->st_dev = (uintptr_t) node->fs_;
   st->st_ino = node->inum_;
-  if (!(flags & STAT_OMIT_NLINK))
-    st->st_nlink = node->nlink_.get_consistent();
+  // if (!(flags & STAT_OMIT_NLINK))
+  //   st->st_nlink = node->nlink_.get_consistent();
   st->st_size = 0;
   if (node->type() == mnode::types::file) {
     st->st_size = node->as_file()->size();
@@ -127,8 +127,10 @@ vnode_mfs::get_fs()
 bool
 vnode_mfs::is_same(const sref<vnode> &other)
 {
-  auto o = other->try_cast<vnode_mfs>();
-  return o && this->node == o->node;
+  if (get_fs() == other->get_fs()) {
+    return this->node == ((vnode_mfs*)other.get())->node;
+  }
+  return false;
 }
 
 bool

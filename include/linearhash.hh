@@ -9,35 +9,37 @@
 #include "lockwrap.hh"
 #include "hash.hh"
 
-template<class K, class V>
+template<class K, class V, class Allocator = new_delete_allocator<void>>
 class linearhash {
 private:
   struct slotdata {
     slotdata() : used(false), valid(false) {}
 
-    bool used;
-    bool valid;
     K key;
     V val;
+    bool used;
+    bool valid;
   };
 
   struct slot {
+    slotdata data;
     spinlock lock;
     seqcount<u32> seq;
-    slotdata data;
   };
 
   u64 nslots_;
   slot* slots_;
 
+  typename Allocator::template rebind<slot>::other slots_alloc_;
+
 public:
   linearhash(u64 nslots) : nslots_(nslots) {
-    slots_ = new slot[nslots_];
+    slots_ = slots_alloc_.allocate(nslots_);
     assert(slots_);
   }
 
   ~linearhash() {
-    delete[] slots_;
+    slots_alloc_.free(slots_, nslots_);
   }
 
   NEW_DELETE_OPS(linearhash);
@@ -76,7 +78,7 @@ public:
     return iterator(&slots_[nslots_]);
   }
 
-  void insert(const K& k, const V& v) {
+  bool insert(const K& k, const V& v) {
     u64 h = hash(k);
     for (u64 i = 0; i < nslots_; i++) {
       slot* s = &slots_[(h + i) % nslots_];
@@ -89,10 +91,22 @@ public:
       s->data.valid = true;
       s->data.key = k;
       s->data.val = v;
-      return;
+      return true;
     }
 
     panic("insert: out of slots");
+  }
+
+  bool enumerate(const K* prev, K* out) const {
+    bool prevbucket = prev != nullptr;
+
+    for(slot* s = prev ? (slot*)prev : slots_; s < slots_ + nslots_; s++) {
+      if(s->data.valid) {
+        *out = s->data.key;
+        return true;
+      }
+    }
+    return false;
   }
 
   bool remove(const K& k) {
@@ -111,6 +125,22 @@ public:
     return false;
   }
 
+  bool remove2(const K& k, const V& v) {
+    u64 h = hash(k);
+    for (u64 i = 0; i < nslots_; i++) {
+      slot* s = &slots_[(h + i) % nslots_];
+      scoped_acquire l(&s->lock);
+      if (!s->data.used)
+        break;
+      if (s->data.key == k && s->data.val == v) {
+        auto w = s->seq.write_begin();
+        s->data.valid = false;
+        return true;
+      }
+    }
+    return false;
+  }
+
   bool lookup(const K& k, V* vptr) const {
     u64 h = hash(k);
     for (u64 i = 0; i < nslots_; i++) {
@@ -119,7 +149,8 @@ public:
       if (!copy->used)
         break;
       if (copy->valid && copy->key == k) {
-        *vptr = copy->val;
+        if (vptr)
+          *vptr = copy->val;
         return true;
       }
     }

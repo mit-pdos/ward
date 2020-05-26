@@ -257,3 +257,27 @@ public:
     return p;
   }
 };
+
+template<class T>
+class new_delete_allocator
+{
+public:
+  template <class U> struct rebind { typedef new_delete_allocator<U> other; };
+
+  T* allocate(std::size_t n) { return new T[n]; }
+  void free(T* p, std::size_t n) { delete[] p; }
+};
+
+template<class T>
+class pmalloc_allocator
+{
+public:
+  template <class U> struct rebind { typedef new_delete_allocator<U> other; };
+
+  T* allocate(std::size_t n) { return pmalloc(sizeof(T) * n, "pmalloc_allocator"); }
+  void free(T* p, std::size_t n) {
+    for(auto i = 0; i < n; i++)
+      p[i].~T();
+
+    pmfree(p, sizeof(T) * n); }
+};

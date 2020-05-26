@@ -376,7 +376,10 @@ sys_stat(userptr_str path, userptr<struct stat> st)
 
   STRACE_PARAMS("\"%s\", %p", path_copy, st.unsafe_get());
 
-  sref<vnode> m = vfs_root()->resolve(myproc()->cwd, path_copy);
+  auto&& root = vfs_root();
+  auto&& cwd = myproc()->cwd;
+  auto&& root2 = *root;
+  sref<vnode> m = root2.resolve(cwd, path_copy);
   if(!m)
     return -ENOENT;
 

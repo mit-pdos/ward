@@ -129,6 +129,7 @@ FSCONTENTS := $(addprefix $(O)/fs/bin/, $(UPROGS_BIN)) \
               $(addprefix $(O)/fs/bin/, $(notdir $(wildcard git/root/bin/git))) \
               $(addprefix $(O)/fs/, $(notdir $(wildcard lwip))) \
               $(O)/fs/bin/unittests.sh \
+              $(O)/fs/bin/status.sh \
               $(O)/fs/intel-ucode \
 
 # (ULIBA will be empty for native builds)

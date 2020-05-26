@@ -265,8 +265,8 @@ cmain(u64 mbmagic, u64 mbaddr)
   inituser();      // first user process
 
   // XXX hack until mnodes can load from disk
-  extern void mfsload();
-  mfsload();
+  // extern void mfsload();
+  // mfsload();
   initvfs();
 
 #if CODEX
