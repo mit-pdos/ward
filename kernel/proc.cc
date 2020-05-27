@@ -12,6 +12,7 @@
 #include "vm.hh"
 #include "ns.hh"
 #include "filetable.hh"
+#include "nospec-branch.hh"
 #include <uk/fcntl.h>
 #include <uk/unistd.h>
 #include <uk/wait.h>
@@ -600,11 +601,11 @@ proc::deliver_signal(int signo)
   }
 
   pending_signals &= ~(1 << signo);
-  if (sig[signo].sa_handler == SIG_DFL) {
+  if (sig[array_index_nospec(signo, NSIG)].sa_handler == SIG_DFL) {
     // TODO: not all default handlers should kill the process.
     killed = 1;
     return true;
-  } else if (sig[signo].sa_handler == SIG_IGN) {
+  } else if (sig[array_index_nospec(signo, NSIG)].sa_handler == SIG_IGN) {
     return true;
   }
 
@@ -615,10 +616,10 @@ proc::deliver_signal(int signo)
     return false;
 
   tf->rsp -= 8;
-  if (putmem((void*) tf->rsp, &sig[signo].sa_restorer, 8) < 0)
+  if (putmem((void*) tf->rsp, &sig[array_index_nospec(signo, NSIG)].sa_restorer, 8) < 0)
     return false;
 
-  tf->rip = (u64) sig[signo].sa_handler;
+  tf->rip = (u64) sig[array_index_nospec(signo, NSIG)].sa_handler;
   tf->rdi = signo;
   return true;
 }

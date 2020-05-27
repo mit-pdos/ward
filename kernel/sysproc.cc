@@ -15,6 +15,7 @@
 #include "cpuid.hh"
 #include "cmdline.hh"
 #include "kmeta.hh"
+#include "nospec-branch.hh"
 
 #include <uk/mman.h>
 #include <uk/utsname.h>
@@ -355,9 +356,10 @@ sys_sigaction(int signo, userptr<struct sigaction> act, userptr<struct sigaction
 {
   if (signo < 0 || signo >= NSIG)
     return -1;
-  if (oact && !oact.store(&myproc()->sig[signo]))
+
+  if (oact && !oact.store(&myproc()->sig[array_index_nospec(signo, NSIG)]))
     return -1;
-  if (act && !act.load(&myproc()->sig[signo]))
+  if (act && !act.load(&myproc()->sig[array_index_nospec(signo, NSIG)]))
     return -1;
   return 0;
 }

@@ -41,7 +41,7 @@ static inline void barrier_nospec() {
 // ...if the CPU speculates past the bounds check then
 // array_index_nospec() will clamp the index within the range of [0,
 // size).
-static inline array_index_nospec(u64 index, u64 size) {
+static inline u64 array_index_nospec(u64 index, u64 size) {
   // Always calculate and emit the mask even if the compiler
   // thinks the mask is not needed. The compiler does not take
   // into account the value of @index under speculation.
