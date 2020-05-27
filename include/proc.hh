@@ -96,6 +96,8 @@ public:
 
   u64 transparent_barriers;
   u64 intentional_barriers;
+  u64 syscalls;
+  u64 pfaults;
 
   char fpu_state[XSAVE_BYTES] __attribute__ ((aligned (64)));
 

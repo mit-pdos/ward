@@ -97,7 +97,7 @@ do_pagefault(struct trapframe *tf, bool had_secrets)
       u64 bt = (tf->rip & 0x1fffff) | ((pc[0] & 0x1fffff) << 21) | ((pc[1] & 0x1fffff) << 42);
       transparent_wb_rips.increment(bt);
     }
-    if (!had_secrets && myproc()) {
+    if (myproc()) {
       myproc()->transparent_barriers++;
     }
     return 0;
@@ -105,6 +105,8 @@ do_pagefault(struct trapframe *tf, bool had_secrets)
     sti();
     int r = pagefault(myproc()->vmap.get(), addr, tf->err);
     cli();
+
+    myproc()->pfaults++;
 
     // XXX distinguish between SIGSEGV and SIGBUS?
     if(r >= 0 || myproc()->deliver_signal(SIGSEGV)){

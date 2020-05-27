@@ -32,7 +32,7 @@
   #include "sockutil.h"
   #include "sysstubs.h"
 
-  const int MITIGATION_STYLES = 3;
+  const int MITIGATION_STYLES = 4;
   const int SIGINT = 0;
   int kill(int pid, int sig) {
     return kill(pid);
@@ -46,26 +46,39 @@ void assert(bool b) {
   }
 }
 
+int barrier_style = 0;
+
 static inline u64 start_timer() {
-  u32 cycles_low, cycles_high;
-  asm volatile ("CPUID\n\t"
-                "RDTSC\n\t"
-                "mov %%edx, %0\n\t"
-                "mov %%eax, %1\n\t"
-                : "=r" (cycles_high), "=r" (cycles_low)
-                :: "%rax", "%rbx", "%rcx", "%rdx");
-  return ((u64)cycles_high << 32) | (u64)cycles_low;
+  return barrier_count(barrier_style);
+  // u32 cycles_low, cycles_high;
+  // asm volatile ("CPUID\n\t"
+  //               "RDTSC\n\t"
+  //               "mov %%edx, %0\n\t"
+  //               "mov %%eax, %1\n\t"
+  //               : "=r" (cycles_high), "=r" (cycles_low)
+  //               :: "%rax", "%rbx", "%rcx", "%rdx");
+  // return ((u64)cycles_high << 32) | (u64)cycles_low;
 }
 
 static inline u64 end_timer() {
-  u32 cycles_low, cycles_high;
-  asm volatile("RDTSCP\n\t"
-               "mov %%edx, %0\n\t"
-               "mov %%eax, %1\n\t"
-               "CPUID\n\t"
-               : "=r" (cycles_high), "=r" (cycles_low)
-               :: "%rax", "%rbx", "%rcx", "%rdx");
-  return ((u64)cycles_high << 32) | (u64)cycles_low;
+  u64 count;
+  asm volatile("movq %1, %%rdi\n"
+               "movq $479, %%rax\n"
+               "movq %%rcx, %%r10\n"
+               "syscall\n"
+               : "=a" (count)
+               : "r" ((u64)barrier_style) : "rdi", "rcx", "r10");
+  return count;
+
+  // return barrier_count(barrier_style);
+  // u32 cycles_low, cycles_high;
+  // asm volatile("RDTSCP\n\t"
+  //              "mov %%edx, %0\n\t"
+  //              "mov %%eax, %1\n\t"
+  //              "CPUID\n\t"
+  //              : "=r" (cycles_high), "=r" (cycles_low)
+  //              :: "%rax", "%rbx", "%rcx", "%rdx");
+  // return ((u64)cycles_high << 32) | (u64)cycles_low;
 }
 struct timespec *calc_diff(struct timespec *smaller, struct timespec *bigger)
 {
@@ -123,6 +136,7 @@ void set_mitigations(int style) {
 }
 
 void one_line_test(FILE *fp, FILE *copy, u64 (*f)(), int iter, const char* name){
+  // printf("[%ld:%ld]", barrier_count(0), barrier_count(1));
   printf("%s,", name);
   for(int i = 0; i < 18-strlen(name); i++)
     fprintf(fp, " ");
@@ -131,7 +145,8 @@ void one_line_test(FILE *fp, FILE *copy, u64 (*f)(), int iter, const char* name)
   u64 best[MITIGATION_STYLES];
 
   for(int j=0; j < MITIGATION_STYLES; j++) {
-    set_mitigations(j);
+    set_mitigations(2);
+    barrier_style = j;
 
     sum[j] = 0;
     best[j] = 999999999999999999ull;
@@ -147,10 +162,10 @@ void one_line_test(FILE *fp, FILE *copy, u64 (*f)(), int iter, const char* name)
     }
   }
 
-  for(int j=0; j < MITIGATION_STYLES; j++)
-    fprintf(fp,"%12ld,", best[j]);
   // for(int j=0; j < MITIGATION_STYLES; j++)
-  //   fprintf(fp,"%12ld,", sum[j] / iter);
+  //   fprintf(fp,"%12ld,", best[j]);
+  for(int j=0; j < MITIGATION_STYLES; j++)
+    fprintf(fp," %f,", (double)sum[j] / (double)iter);
 
   fprintf(fp,"\n");
 
@@ -168,7 +183,8 @@ void two_line_test(FILE *fp, FILE *copy, void (*f)(u64*,u64*), int iter, const c
   u64 bestChild[MITIGATION_STYLES];
 
   for(int j=0; j < MITIGATION_STYLES; j++) {
-    set_mitigations(j);
+    set_mitigations(2);
+    barrier_style = j;
 
     u64 timeParent=0, timeChild=0;
     sumParent[j] = 0;
@@ -191,20 +207,24 @@ void two_line_test(FILE *fp, FILE *copy, void (*f)(u64*,u64*), int iter, const c
     }
   }
 
-  for(int j=0; j < MITIGATION_STYLES; j++)
-    fprintf(fp,"%12ld,", bestParent[j]);
+  // for(int j=0; j < MITIGATION_STYLES; j++)
+  //   fprintf(fp,"%12ld,", bestParent[j]);
   // for(int j=0; j < MITIGATION_STYLES; j++)
   //   fprintf(fp,"%12ld,", sumParent[j] / iter);
+  for(int j=0; j < MITIGATION_STYLES; j++)
+    fprintf(fp," %f,", (double)sumParent[j] / (double)iter);
   fprintf(fp, "\n");
 
   printf("%s-child,", name);
   for(int i = 0; i < 12-strlen(name); i++)
     fprintf(fp, " ");
 
-  for(int j=0; j < MITIGATION_STYLES; j++)
-    fprintf(fp,"%12ld,", bestChild[j]);
+  // for(int j=0; j < MITIGATION_STYLES; j++)
+  //   fprintf(fp,"%12ld,", bestChild[j]);
   // for(int j=0; j < MITIGATION_STYLES; j++)
   //   fprintf(fp,"%12ld,", sumChild[j] / iter);
+  for(int j=0; j < MITIGATION_STYLES; j++)
+    fprintf(fp," %f,", (double)sumChild[j] / (double)iter);
   fprintf(fp, "\n");
 
   return;
@@ -213,11 +233,12 @@ void two_line_test(FILE *fp, FILE *copy, void (*f)(u64*,u64*), int iter, const c
 u64 *timeB;
 void forkTest(u64 *childTime, u64 *parentTime)
 {
-  timeB = (u64*)mmap((void*)0x900000000, 8, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-  *timeB = 0;
+  timeB = (u64*)mmap(nullptr, 8, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+  madvise(timeB, 8, MADV_WILLNEED);
 
   int status;
   u64 timeA = start_timer();
+  cmdline_change_param("track_wbs", "yes");
 
   int forkId = fork();
   if (forkId == 0){
@@ -227,6 +248,7 @@ void forkTest(u64 *childTime, u64 *parentTime)
   } else if (forkId > 0) {
     u64 timeC = end_timer();
     wait(&status);
+    cmdline_change_param("track_wbs", "no");
 	*childTime = *timeB - timeA;
 	*parentTime = timeC - timeA;
     munmap(timeB, 8);

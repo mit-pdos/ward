@@ -126,6 +126,7 @@ syscall(u64 a0, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 num)
     try {
 #endif
       if(num < nsyscalls) {
+        myproc()->syscalls++;
         auto fn = syscalls[array_index_nospec(num, nsyscalls)];
         if (fn) {
           u64 r;
@@ -141,7 +142,7 @@ syscall(u64 a0, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 num)
           mtstop(myproc());
           mtign();
 #if KERNEL_STRACE
-          if (strcmp(myproc()->name, "git") == 0) {
+          if (strcmp(myproc()->name, "lebench") == 0) {
             if (myproc()->syscall_param_string[0]) {
               cprintf("\033[33mCALL: %s(%s) = %lx\033[0m\n",
                       syscall_names[num], myproc()->syscall_param_string, r);

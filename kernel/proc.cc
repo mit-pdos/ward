@@ -38,7 +38,7 @@ proc::proc(int npid) :
   kstack(0), qstack(0), killed(0), tf(0), uaccess_(0), user_fs_(0), pid(npid),
   cv(nullptr), yield_(false), oncv(0), cv_wakeup(0), curcycles(0),
   tsc(0), cpuid(0), cpu_pin(0), context(nullptr), on_qstack(false), state_(EMBRYO),
-  transparent_barriers(0), intentional_barriers(0),
+  transparent_barriers(0), intentional_barriers(0), syscalls(0), pfaults(0),
   parent(0), unmap_tlbreq_(0), data_cpuid(-1), in_exec_(0),
   upath(nullptr), uargv(nullptr), exception_inuse(0), magic(PROC_MAGIC),
   blocked_signals(0), pending_signals(0)
@@ -378,8 +378,6 @@ doclone(clone_flags flags)
 {
   struct proc *np;
 
-  ensure_secrets();
-
   // cprintf("%d: fork\n", myproc()->pid);
 
   // Allocate process.
@@ -406,6 +404,10 @@ doclone(clone_flags flags)
   np->data_cpuid = myproc()->data_cpuid;
   np->run_cpuid_ = myproc()->run_cpuid_;
   np->user_fs_ = myproc()->user_fs_;
+  np->transparent_barriers = myproc()->transparent_barriers;
+  np->intentional_barriers = myproc()->intentional_barriers;
+  np->syscalls = myproc()->syscalls;
+  np->pfaults = myproc()->pfaults;
   memcpy(np->sig, myproc()->sig, sizeof(np->sig));
 
   // Clear %eax so that fork returns 0 in the child.

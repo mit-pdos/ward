@@ -539,6 +539,24 @@ sys_display_image(userptr<u32> data, unsigned int width, unsigned int height) {
   return 0;
 }
 
+//SYSCALL
+long
+sys_barrier_count(int kind)
+{
+  switch (kind) {
+  case 0:
+    return myproc()->transparent_barriers;
+  case 1:
+    return myproc()->intentional_barriers;
+  case 2:
+    return --myproc()->syscalls;
+  case 3:
+    return myproc()->pfaults;
+  default:
+    return -1;
+  }
+}
+
 static volatile int t = 0;
 
 //SYSCALL
