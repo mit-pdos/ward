@@ -226,18 +226,19 @@ public:
   T*
   allocate(std::size_t n, const void *hint = 0)
   {
-    if (n * sizeof(T) != PGSIZE)
+    if (n * sizeof(T) < PGSIZE)
       panic("%s cannot allocate %zu bytes", __PRETTY_FUNCTION__, n * sizeof(T));
-    return (T*)palloc(typeid(T).name());
+    return (T*)palloc(typeid(T).name(), round_up_to_pow2(n * sizeof(T)));
   }
 
   void
   deallocate(T* p, std::size_t n)
   {
-    if (n * sizeof(T) != PGSIZE)
-      panic("%s cannot deallocate %zu bytes", __PRETTY_FUNCTION__,
-            n * sizeof(T));
-    pfree(p);
+    if (n * sizeof(T) < PGSIZE)
+      panic("%s cannot deallocate %zu bytes", __PRETTY_FUNCTION__, n * sizeof(T));
+    if(n * sizeof(T) == PGSIZE)
+      pfree(p);
+    // TODO don't leak here
   }
 
   // ZAllocator methods
@@ -272,9 +273,12 @@ template<class T>
 class pmalloc_allocator
 {
 public:
-  template <class U> struct rebind { typedef new_delete_allocator<U> other; };
+  template <class U> struct rebind { typedef pmalloc_allocator<U> other; };
 
-  T* allocate(std::size_t n) { return pmalloc(sizeof(T) * n, "pmalloc_allocator"); }
+  T* allocate(std::size_t n) {
+    cprintf("pmalloc(%ld)\n", sizeof(T) * n);
+    return (T*)pmalloc(sizeof(T) * n, "pmalloc_allocator");
+  }
   void free(T* p, std::size_t n) {
     for(auto i = 0; i < n; i++)
       p[i].~T();

@@ -262,12 +262,12 @@ cmain(u64 mbmagic, u64 mbaddr)
   initinode();     // inode cache
   initmfs();
 
-  inituser();      // first user process
-
   // XXX hack until mnodes can load from disk
   // extern void mfsload();
   // mfsload();
   initvfs();
+
+  inituser();      // first user process
 
 #if CODEX
   initcodex();

@@ -126,11 +126,12 @@ extern void *__dso_handle;
                             std::align_val_t al,                    \
                             const std::nothrow_t&) noexcept {       \
     assert(nbytes == sizeof(classname));                            \
-    return classname::operator new(nbytes, std::nothrow);           \
+    return pmalloc(sizeof(classname), #classname);                  \
   }                                                                 \
                                                                     \
   static void* operator new(unsigned long nbytes) {                 \
-    void *p = classname::operator new(nbytes, std::nothrow);        \
+    assert(nbytes == sizeof(classname));                            \
+    void *p = pmalloc(sizeof(classname), #classname);               \
     if (p == nullptr)                                               \
       throw_bad_alloc();                                            \
     return p;                                                       \
@@ -138,8 +139,8 @@ extern void *__dso_handle;
                                                                     \
   static void* operator new(unsigned long nbytes,                   \
                             std::align_val_t al) noexcept {         \
-    assert((size_t)al == alignof(classname));                       \
-    return classname::operator new(nbytes);                         \
+    assert(nbytes == sizeof(classname));                            \
+    return pmalloc(sizeof(classname), #classname);                  \
   }                                                                 \
                                                                     \
   static void* operator new(unsigned long nbytes, classname *buf) { \
@@ -153,7 +154,7 @@ extern void *__dso_handle;
   }                                                                 \
                                                                     \
   static void operator delete(void *p) {                            \
-    classname::operator delete(p, std::nothrow);                    \
+    pmfree(p, sizeof(classname));                                   \
   }
 
 template<class T>

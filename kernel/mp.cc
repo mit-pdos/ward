@@ -14,7 +14,7 @@ abstract_lapic *lapic;
 // remotely before booting each CPU and the static initializer would
 // clear it.
 DEFINE_QPERCPU_NOINIT(struct cpu, cpus);
-int ncpu __mpalign__ = 0;
+int ncpu __mpalign__ __attribute__((section (".qdata"))) = 0;
 int nsocket __mpalign__ = 0;
 abstract_extpic *extpic;
 

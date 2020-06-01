@@ -109,6 +109,7 @@ static void copy_directory(sref<mnode> dst_dir, sref<vnode> src_dir)
     sref<mnode> m;
 
     if(f->is_directory()) {
+      cprintf("A:");
       m = root_fs->alloc(mnode::types::dir).mn();
       copy_directory(m, f);
 
@@ -149,6 +150,7 @@ void mfsloadfat(sref<filesystem> fs)
 {
   root_fs = new mfs();
 
+  cprintf("A:");
   auto m = root_fs->alloc(mnode::types::dir).mn();
   root_inum = m->inum_;
   copy_directory(m, fs->root());

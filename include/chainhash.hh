@@ -196,7 +196,7 @@ public:
     int m = *(volatile int*)b;
     __asm volatile("");
     *(volatile int*)&b->t = 0;
-    int m = *(volatile int*)&b->chain;
+    m = *(volatile int*)&b->chain;
     __asm volatile("");
     islink<item> head = b->chain.head;
     auto it = isiterator<item, &item::link>(head.next);

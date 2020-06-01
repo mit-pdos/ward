@@ -154,7 +154,9 @@ public:
 class mdir : public mnode {
 private:
   // ~32K cache
-  mdir(mfs* fs, u64 inum) : mnode(fs, inum), map_(1367), mount_data(nullptr) {}
+  mdir(mfs* fs, u64 inum) : mnode(fs, inum), map_(1367), mount_data(nullptr) {
+    cprintf("made mdir\n");
+  }
   PUBLIC_NEW_DELETE_OPS(mdir);
   friend class mnode;
   friend class mfs;

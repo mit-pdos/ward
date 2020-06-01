@@ -32,7 +32,7 @@ private:
       : rcu_freed("weakcache::item", this, sizeof(*this)),
         key_(k), weakref_(v), parent_(b) {}
     void do_gc() override { delete this; }
-    NEW_DELETE_OPS(item)
+    PUBLIC_NEW_DELETE_OPS(item)
   };
 
   class bucket
@@ -46,10 +46,10 @@ private:
     lookup(const K& k) const
     {
       scoped_gc_epoch reader;
-      for (auto &i: chain_) {
-        if (!(i.key_ == k))
+      for (auto i = chain_.begin(); i != chain_.end(); ++i) {
+        if (!(i->key_ == k))
           continue;
-        return i.weakref_.get();
+        return i->weakref_.get();
       }
       return sref<V>();
     }
@@ -108,7 +108,7 @@ public:
   weakcache(std::size_t size)
     : mask_(round_down_to_pow2(size / sizeof *buckets_) - 1)
   {
-    buckets_ = (bucket*)early_kalloc((mask_ + 1) * sizeof *buckets_, PGSIZE);
+    buckets_ = (bucket*)palloc("weakcache", (mask_ + 1) * sizeof *buckets_);
     if (!buckets_)
       throw_bad_alloc();
     new (buckets_) bucket[mask_ + 1];
