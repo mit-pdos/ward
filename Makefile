@@ -56,7 +56,7 @@ INCLUDES  = -nostdinc++ -isystem include -iquote $(O)/include -iquote libutil/in
 		 -include param.h -include libutil/include/compiler.h
 COMFLAGS  = -static -DXV6_HW=$(HW) -DXV6 \
 	    -fno-builtin -fno-strict-aliasing -fno-omit-frame-pointer -fms-extensions \
-	    -mno-red-zone -nostdlib -ffreestanding -fno-pie -fno-pic -DNDEBUG -funwind-tables -fasynchronous-unwind-tables
+	    -mno-red-zone -nostdlib -ffreestanding -fno-pie -fno-pic -funwind-tables -fasynchronous-unwind-tables
 LDFLAGS   = -m elf_x86_64 --eh-frame-hdr
 else
 INCLUDES := -include param.h -iquote libutil/include -I$(MTRACESRC)
@@ -134,7 +134,7 @@ LIBUNWIND_SRC_S_FILES := $(wildcard $(LIBUNWIND_SRC)/*.S)
 LIBUNWIND_OBJ_FILES := $(patsubst $(LIBUNWIND_SRC)/%.c,$(LIBUNWIND_OBJ)/%.o,$(LIBUNWIND_SRC_C_FILES)) \
 						$(patsubst $(LIBUNWIND_SRC)/%.cpp,$(LIBUNWIND_OBJ)/%.o,$(LIBUNWIND_SRC_CXX_FILES)) \
 						$(patsubst $(LIBUNWIND_SRC)/%.S,$(LIBUNWIND_OBJ)/%.o,$(LIBUNWIND_SRC_S_FILES))
-LIBUNWIND_FLAGS = -D_LIBUNWIND_IS_BAREMETAL -D_LIBUNWIND_HAS_NO_THREADS -Ilibunwind/include -mcmodel=kernel
+LIBUNWIND_FLAGS = -D_LIBUNWIND_IS_BAREMETAL -D_LIBUNWIND_HAS_NO_THREADS -DNDEBUG -Ilibunwind/include -mcmodel=kernel
 $(LIBUNWIND_OBJ)/%.o: $(LIBUNWIND_SRC)/%.cpp
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)

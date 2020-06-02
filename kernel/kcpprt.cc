@@ -369,8 +369,17 @@ extern "C" int32_t** __ctype_tolower_loc() { panic("__ctype_tolower_loc"); }
 extern "C" int fprintf(void*, const char* format, ...) { panic("fprintf"); }
 extern "C" int vfprintf(void*, const char* format, va_list vlist) { panic("vfprintf"); }
 
-extern "C" int posix_memalign(void **memptr, size_t alignment, size_t size) { panic("posix_memalign"); }
+extern "C" int posix_memalign(void **memptr, size_t alignment, size_t size) {
+  assert(alignment < size || alignment <= 16);
+  *memptr = kmalloc(size, "posix_memalign");
+  return 0;
+}
 extern "C" void* calloc( size_t num, size_t size ) { panic("calloc"); }
 
+extern "C" void __assert_fail(const char *assertion, const char *file, unsigned int line,
+                              const char *function) {
+  panic("Assertion failed: %s, function %s, file %s, line %d",
+        assertion, function, file, line);
+}
 // std::logic_error::logic_error(char const* s): __imp_(s) {}
 // std::runtime_error::runtime_error(char const* s): __imp_(s) {}
