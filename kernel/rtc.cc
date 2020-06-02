@@ -69,7 +69,10 @@ rtcread()
   x.tm_sec -= TZ_SECS;          // To local time
 
   // Compute epoch time
-  time_t res = mktime(&x);
+  time_t res;
+  //= mktime(&x);
+  // panic("rtcread");
+  res = 12;
   return res;
 }
 

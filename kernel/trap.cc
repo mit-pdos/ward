@@ -66,7 +66,7 @@ sysentry_c(u64 a0, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 num)
 {
   if(myproc()->killed) {
     mtstart(trap, myproc());
-    exit(-1);
+    procexit(-1);
   }
 
   trapframe *tf = (trapframe*) (myproc()->kstack + KSTACKSIZE - sizeof(*tf));
@@ -75,7 +75,7 @@ sysentry_c(u64 a0, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 num)
 
   if(myproc()->killed) {
     mtstart(trap, myproc());
-    exit(-1);
+    procexit(-1);
   }
 
   return r;
@@ -350,7 +350,7 @@ trap(struct trapframe *tf, bool had_secrets)
       return;
     } else if (tf->trapno == T_PGFLT && do_pagefault(tf, had_secrets) == 0) {
       if(myproc()->killed)
-        exit(-1);
+        procexit(-1);
       return;
     }
 
@@ -371,7 +371,7 @@ trap(struct trapframe *tf, bool had_secrets)
   // (If it is still executing in the kernel, let it keep running
   // until it gets to the regular system call return.)
   if(myproc() && myproc()->killed && (tf->cs&3) == 0x3)
-    exit(-1);
+    procexit(-1);
 
   // Force process to give up CPU on clock tick.
   // If interrupts were on while locks held, would need to check nlock.
@@ -382,7 +382,7 @@ trap(struct trapframe *tf, bool had_secrets)
 
   // Check if the process has been killed since we yielded
   if(myproc() && myproc()->killed && (tf->cs&3) == 0x3)
-    exit(-1);
+    procexit(-1);
 }
 
 void

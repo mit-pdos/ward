@@ -37,7 +37,7 @@ struct vmnode;
 struct inode;
 struct node;
 struct file;
-struct stat;
+struct kernel_stat;
 struct proc;
 struct vmap;
 struct pipe;
@@ -97,7 +97,7 @@ void            panic(const char*, ...)
                   __noret__ __attribute__((format(printf, 1, 2)));
 void            kerneltrap(struct trapframe *tf) __noret__;
 int             vsnprintf(char *buf, u32 n, const char *fmt, va_list ap);
-int             snprintf(char *buf, u32 n, const char *fmt, ...);
+extern "C" int  snprintf(char *buf, u32 n, const char *fmt, ...);
 void            printtrap(struct trapframe *, bool lock = true);
 void            printtrace(u64 rbp);
 void            consoleintr(int(*)(void));
@@ -118,7 +118,7 @@ void            iupdate(sref<inode>);
 void            iunlock(sref<inode>);
 void            itrunc(inode*);
 int             readi(sref<inode>, char*, u32, u32);
-void            stati(sref<inode>, struct stat*);
+void            stati(sref<inode>, struct kernel_stat*);
 int             writei(sref<inode>, const char*, u32, u32);
 sref<inode>     nameiparent(sref<inode> cwd, const char*, char*);
 int             dirlink(sref<inode>, const char*, u32);
@@ -215,7 +215,7 @@ enum clone_flags
 };
 ENUM_BITSET_OPS(clone_flags);
 void            finishproc(struct proc*);
-void            exit(int);
+void            procexit(int);
 struct proc*    doclone(clone_flags);
 int             growproc(int);
 void            pinit(void);
@@ -305,4 +305,6 @@ extern "C" {
   void threadstub(void);
   void threadhelper(void (*fn)(void *), void *arg);
   void sysentry(void);
+
+  bool safestrcpy(char *s, const char *t, size_t n);
 }

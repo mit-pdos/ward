@@ -10,8 +10,17 @@ SECTIONS
         *(.text .stub .text.* .gnu.linkonce.t.*)
         . = ALIGN(0x1000);
     }
+	.eh_frame_hdr   : { }
     .rodata : {
         *(.rodata .rodata.* .gnu.linkonce.r.* .sflag)
+
+		PROVIDE(__eh_frame_hdr_start = .);
+		*(.eh_frame_hdr) *(.eh_frame_entry .eh_frame_entry.*)
+		PROVIDE(__eh_frame_hdr_end = .);
+
+		PROVIDE(__eh_frame_start = .);
+		KEEP (*(.eh_frame)) *(.eh_frame.*)
+		PROVIDE(__eh_frame_end = .);
 
         . = ALIGN(0x1000);
         PROVIDE(__hotpatch_start = .);
@@ -70,5 +79,5 @@ SECTIONS
 
     /* 2MByte align, because we set NX on 2MByte super pages. */
     . = ALIGN(0x200000);
-    PROVIDE(end = .);
+    PROVIDE(_end = .);
 }

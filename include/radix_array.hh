@@ -19,10 +19,10 @@ void cprintf(const char*, ...) __attribute__((format(printf, 1, 2)));
 void cprintf(const char*, ...) {}
 #endif
 
-namespace std {
-  /** @internal Prototype standard allocator template. */
-  template <class T> class allocator;
-}
+// namespace std {
+//   /** @internal Prototype standard allocator template. */
+//   template <class T> class allocator;
+// }
 
 /**
  * An allocator that adapts a regular Allocator class to the
@@ -236,7 +236,7 @@ private:
   /**
    * Number of levels (both upper and leaf).
    */
-  static constexpr unsigned LEVELS = num_levels();
+  static constexpr unsigned LEVELS = num_levels(0);
 
   static constexpr size_t
   level_fanout(unsigned level)

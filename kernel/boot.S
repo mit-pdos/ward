@@ -35,7 +35,7 @@ multiboot_header:
     .long PADDR(multiboot_header)  # header address
     .long PADDR(multiboot_header)  # load address
     .long PADDR(edata)             # load end address
-    .long PADDR(end)               # bss end address
+    .long PADDR(_end)              # bss end address
     .long PADDR(start)             # entry address
 	.long 0                        # graphics mode
 	.long 800                      # x-resolution
@@ -60,7 +60,7 @@ multiboot2_header:
     .long PADDR(multiboot2_header) // header address
     .long PADDR(multiboot2_header) // load address
     .long PADDR(edata)             // load end address
-    .long PADDR(end)               // bss end address
+    .long PADDR(_end)              // bss end address
 
     .word 3                        // type = entry
     .word 1                        // flags = optional

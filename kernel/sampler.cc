@@ -679,7 +679,7 @@ readlog(char *dst, u32 off, u32 n)
 }
 
 static void
-sampstat(struct stat *st)
+sampstat(struct kernel_stat *st)
 {
   u64 sz = 0;
   

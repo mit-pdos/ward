@@ -103,7 +103,6 @@ public:
   char syscall_param_string[128];
 #endif
 
-  vmalloc_ptr<char[]> kstack_vm; // vmalloc'd kstack, if using vmalloc
   struct proc *parent;         // Parent process
   int status;                  // exit's returns status
   char name[16];               // Process name (debugging)

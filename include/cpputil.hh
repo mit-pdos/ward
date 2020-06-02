@@ -14,54 +14,54 @@ using std::make_pair;
 
 #ifdef XV6_KERNEL
 namespace std {
-  struct ostream { int next_width; };
-  extern ostream cout;
+  // struct ostream { int next_width; };
+  // extern ostream cout;
 
-  static inline
-  ostream& operator<<(ostream &s, const char *str) {
-    if (!str)
-      str = "(null)";
+  // static inline
+  // ostream& operator<<(ostream &s, const char *str) {
+  //   if (!str)
+  //     str = "(null)";
 
-    int len = strlen(str);
-    cprintf("%s", str);
-    while (len < s.next_width) {
-      cprintf(" ");
-      len++;
-    }
-    s.next_width = 0;
-    return s;
-  }
+  //   int len = strlen(str);
+  //   cprintf("%s", str);
+  //   while (len < s.next_width) {
+  //     cprintf(" ");
+  //     len++;
+  //   }
+  //   s.next_width = 0;
+  //   return s;
+  // }
 
-  static inline
-  ostream& operator<<(ostream &s, u32 v) {
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%d", v);
-    return s << buf;
-  }
+  // static inline
+  // ostream& operator<<(ostream &s, u32 v) {
+  //   char buf[32];
+  //   snprintf(buf, sizeof(buf), "%d", v);
+  //   return s << buf;
+  // }
 
-  static inline
-  ostream& operator<<(ostream &s, u64 v) {
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%ld", v);
-    return s << buf;
-  }
+  // static inline
+  // ostream& operator<<(ostream &s, u64 v) {
+  //   char buf[32];
+  //   snprintf(buf, sizeof(buf), "%ld", v);
+  //   return s << buf;
+  // }
 
-  static inline
-  ostream& operator<<(ostream &s, ostream& (*xform)(ostream&)) {
-    return xform(s);
-  }
+  // static inline
+  // ostream& operator<<(ostream &s, ostream& (*xform)(ostream&)) {
+  //   return xform(s);
+  // }
 
-  static inline ostream& endl(ostream &s) { s << "\n"; return s; }
-  static inline ostream& left(ostream &s) { return s; }
+  // static inline ostream& endl(ostream &s) { s << "\n"; return s; }
+  // static inline ostream& left(ostream &s) { return s; }
 
-  struct ssetw { int _n; };
-  static inline ssetw setw(int n) { return { n }; }
+  // struct ssetw { int _n; };
+  // static inline ssetw setw(int n) { return { n }; }
 
-  static inline
-  ostream& operator<<(ostream &s, const ssetw &sw) {
-    s.next_width = sw._n;
-    return s;
-  }
+  // static inline
+  // ostream& operator<<(ostream &s, const ssetw &sw) {
+  //   s.next_width = sw._n;
+  //   return s;
+  // }
 }
 #endif
 
@@ -190,6 +190,7 @@ throw_bad_alloc()
 #endif
 }
 
+extern "C" int strncpyok(char *s, const char *t, size_t n);
 
 template<int N>
 class strbuf {

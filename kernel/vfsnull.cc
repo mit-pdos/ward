@@ -19,7 +19,7 @@ private:
 
 class vnode_nullfs : public vnode {
 public:
-  void stat(struct stat *st, enum stat_flags flags) override {
+  void stat(struct kernel_stat *st, enum stat_flags flags) override {
     st->st_mode = T_DIR << __S_IFMT_SHIFT;
     st->st_dev = 0;
     st->st_ino = 1;

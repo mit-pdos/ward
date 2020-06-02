@@ -92,9 +92,9 @@ vnode_fat32::onzero()
 }
 
 void
-vnode_fat32::stat(struct stat *st, enum stat_flags flags)
+vnode_fat32::stat(struct kernel_stat *st, enum stat_flags flags)
 {
-  memset(st, 0, sizeof(struct stat));
+  memset(st, 0, sizeof(struct kernel_stat));
   st->st_mode = (directory ? T_DIR : T_FILE) << __S_IFMT_SHIFT;
 
   st->st_dev = cluster_cache->devno();

@@ -4,82 +4,11 @@ $(O)/bin/%.o: CFLAGS:=$(CFLAGS)
 $(O)/bin/%.o: CXXFLAGS:=$(CXXFLAGS)
 
 ifeq ($(PLATFORM),xv6)
-  $(O)/bin/%.o: CFLAGS:=$(CFLAGS) -DXV6_USER
-  $(O)/bin/%.o: CXXFLAGS:=$(CXXFLAGS) -DXV6_USER
+  $(O)/bin/%.o: CFLAGS:=$(CFLAGS) -isystem stdinc -DXV6_USER
+  $(O)/bin/%.o: CXXFLAGS:=$(CXXFLAGS) -isystem stdinc -DXV6_USER
 endif
 
 UPROGS_BIN= \
-	bench \
-	cat \
-	clear \
-	du \
-	echo \
-	exechack \
-	init \
-	forkexectree \
-	forkexecbench \
-	forktree \
-	login \
-	ls \
-	mapbench \
-	allocbench \
-	maptest \
-	mkdir \
-	sh \
-	nsh \
-	halt \
-	reboot \
-	time \
-	sleep \
-	dirbench \
-	usertests \
-	usertestsv1 \
-	lockstat \
-	cp \
-	perf \
-	xtime \
-	asharing \
-	rm \
-	avar \
-	schedbench \
-	filebench \
-	gcbench \
-	vmimbalbench \
-	appendtest \
-	linkbench \
-	tlstest \
-	crwpbench \
-	benchhdr \
-	monkstats \
-	countbench \
-	mv \
-	local_server \
-	local_client \
-	mailbench \
-	mailfilter\
-	base64 \
-	tee \
-	ln \
-	forktest \
-	fdbench \
-	mail-enqueue \
-	mail-qman \
-	mail-deliver \
-	disktest \
-	dd \
-	getpid \
-	anon \
-	memsetbench \
-	update_ucode \
-	sharedtest \
-	param \
-	smallfile \
-	lebench \
-	spectrev1 \
-	spectrev2 \
-	spectrev2u \
-	qrc \
-	benchbarriers \
 
 # Binaries that are known to build on PLATFORM=native
 UPROGS_NATIVE := \
@@ -116,9 +45,9 @@ UPROGS_NATIVE := \
 	smallfile \
 	lebench \
 
-ifeq ($(HAVE_LWIP),y)
-  UPROGS_BIN += telnetd httpd
-endif
+# ifeq ($(HAVE_LWIP),y)
+#   UPROGS_BIN += telnetd httpd
+# endif
 
 ifeq ($(HAVE_TESTGEN),y)
   UPROGS_BIN    += fstest

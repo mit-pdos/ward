@@ -11,7 +11,7 @@
 #include "elf.hh"
 #include "atomic_util.hh"
 
-const std::nothrow_t std::nothrow;
+// const std::nothrow_t std::nothrow;
 
 void* stdout = nullptr;
 void* stderr = nullptr;
@@ -65,27 +65,27 @@ operator delete[](void* p)
   kmfree(x-1, x[-1] + sizeof(u64));
 }
 
-void *
-operator new(std::size_t nbytes, void* buf) noexcept
-{
-  return buf;
-}
+// void *
+// operator new(std::size_t nbytes, void* buf) noexcept
+// {
+//   return buf;
+// }
 
-void
-operator delete(void* ptr, void*) noexcept
-{
-}
+// void
+// operator delete(void* ptr, void*) noexcept
+// {
+// }
 
-void*
-operator new[](std::size_t size, void* ptr) noexcept
-{
-  return ptr;
-}
+// void*
+// operator new[](std::size_t size, void* ptr) noexcept
+// {
+//   return ptr;
+// }
 
-void
-operator delete[](void* ptr, void*) noexcept
-{
-}
+// void
+// operator delete[](void* ptr, void*) noexcept
+// {
+// }
 
 void
 __cxa_pure_virtual(void)
@@ -141,7 +141,7 @@ __cxa_atexit(void (*f)(void*), void *p, void *d)
 
 extern "C" void abort(void);
 void
-abort(void)
+abort(void) throw()
 {
   panic("abort");
 }
@@ -175,18 +175,22 @@ cxx_unexpected(void)
 void *__dso_handle;
 
 namespace std {
-  std::ostream cout;
 
-  template<>
-  u128
-  atomic<u128>::load(memory_order __m) const noexcept
-  {
-    __sync_synchronize();
-    u128 v = _M_i;
-    __sync_synchronize();
+  void __terminate(void (*)()) { panic("__terminate"); }
+  void __unexpected(void (*)()) { panic("__unexpected"); }
 
-    return v;
-  }
+  // std::ostream cout;
+
+  // template<>
+  // u128
+  // atomic<u128>::load(memory_order __m) const noexcept
+  // {
+  //   __sync_synchronize();
+  //   u128 v = _M_i;
+  //   __sync_synchronize();
+
+  //   return v;
+  // }
 
 #if 0
   // XXX(sbw) If you enable this code, you might need to
@@ -212,7 +216,7 @@ namespace __cxxabiv1 {
 
 static bool malloc_proc = false;
 
-extern "C" void* malloc(size_t);
+// extern "C" void* malloc(size_t);
 void*
 malloc(size_t n)
 {
@@ -227,7 +231,7 @@ malloc(size_t n)
   return p+1;
 }
 
-extern "C" void free(void*);
+// extern "C" void free(void*);
 void
 free(void* vp)
 {
@@ -240,7 +244,7 @@ free(void* vp)
   kmfree(p-1, p[-1]+8);
 }
 
-extern "C" void* realloc(void*, size_t);
+//extern "C" void* realloc(void*, size_t);
 void*
 realloc(void* vp, size_t newsize) {
   free(vp);
@@ -358,3 +362,15 @@ extern "C" size_t fwrite(const void *buffer, size_t size, size_t count, void* st
 size_t fwrite(const void *buffer, size_t size, size_t count, void* stream) {
   panic("fwrite");
 }
+
+extern "C" const unsigned short ** __ctype_b_loc() { panic("__ctype_b_loc"); }
+extern "C" int32_t** __ctype_tolower_loc() { panic("__ctype_tolower_loc"); }
+
+extern "C" int fprintf(void*, const char* format, ...) { panic("fprintf"); }
+extern "C" int vfprintf(void*, const char* format, va_list vlist) { panic("vfprintf"); }
+
+extern "C" int posix_memalign(void **memptr, size_t alignment, size_t size) { panic("posix_memalign"); }
+extern "C" void* calloc( size_t num, size_t size ) { panic("calloc"); }
+
+// std::logic_error::logic_error(char const* s): __imp_(s) {}
+// std::runtime_error::runtime_error(char const* s): __imp_(s) {}

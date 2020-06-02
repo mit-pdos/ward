@@ -143,7 +143,7 @@ class page_info_ref
   void make_shared() const {
     if (is_unique()) {
       page_info* pi = new(ptr()) page_info();
-      new(&s) sref(std::move(sref<page_info>::transfer(pi)));
+      new(&s) sref<page_info>(std::move(sref<page_info>::transfer(pi)));
       assert(!is_unique());
     }
   }

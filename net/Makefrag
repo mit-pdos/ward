@@ -13,8 +13,8 @@ ifeq ($(HAVE_LWIP),y)
 LDEPS += $(O)/liblwip.a
 LFLAGS += -llwip
 
-CFLAGS   += -Ilwip/src/include -Inet -Ilwip/src/include/ipv4 -DLWIP
-CXXFLAGS += -Ilwip/src/include -Inet -Ilwip/src/include/ipv4 -DLWIP
+#CFLAGS   += -Ilwip/src/include -Inet -Ilwip/src/include/ipv4 -DLWIP
+#CXXFLAGS += -Ilwip/src/include -Inet -Ilwip/src/include/ipv4 -DLWIP
 
 LWIP_CFLAGS = -Wno-attributes \
 	    -Wno-address \

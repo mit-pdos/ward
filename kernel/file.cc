@@ -12,9 +12,9 @@ struct devsw __mpalign__ devsw[NDEV];
 
 
 int
-file_inode::stat(struct stat *st, enum stat_flags flags)
+file_inode::stat(struct kernel_stat *st, enum stat_flags flags)
 {
-  memset(st, 0, sizeof(struct stat));
+  memset(st, 0, sizeof(struct kernel_stat));
   ip->stat(st, flags);
   u16 major, minor;
   if (ip->as_device(&major, &minor) && major < NDEV && devsw[major].stat)
@@ -132,7 +132,7 @@ file_inode::getdents(linux_dirent* out_dirents, size_t bytes)
     for(i = 0; (i+1) * sizeof(linux_dirent) < bytes; i++) {
       const char* last = last_dirent ? last_dirent->ptr() : nullptr;
       if (!last_dirent) {
-        last_dirent = std::move(std::unique_ptr(new strbuf<FILENAME_MAX>("")));
+        last_dirent = std::move(std::unique_ptr<strbuf<FILENAME_MAX>>(new strbuf<FILENAME_MAX>("")));
       }
 
       if(!ip->next_dirent(last, last_dirent.get())) {
@@ -154,9 +154,9 @@ file_inode::getdents(linux_dirent* out_dirents, size_t bytes)
 }
 
 int
-file_pipe_reader::stat(struct stat *st, enum stat_flags flags)
+file_pipe_reader::stat(struct kernel_stat *st, enum stat_flags flags)
 {
-  memset(st, 0, sizeof(struct stat));
+  memset(st, 0, sizeof(struct kernel_stat));
   st->st_mode = (T_FIFO << __S_IFMT_SHIFT) | 0600;
   st->st_dev = 0;               // XXX ?
   st->st_ino = (uintptr_t)pipe;
@@ -180,9 +180,9 @@ file_pipe_reader::onzero(void)
 
 
 int
-file_pipe_writer::stat(struct stat *st, enum stat_flags flags)
+file_pipe_writer::stat(struct kernel_stat *st, enum stat_flags flags)
 {
-  memset(st, 0, sizeof(struct stat));
+  memset(st, 0, sizeof(struct kernel_stat));
   st->st_mode = (T_FIFO << __S_IFMT_SHIFT) | 0600;
   st->st_dev = 0;               // XXX ?
   st->st_ino = (uintptr_t)pipe;

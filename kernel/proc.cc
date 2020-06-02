@@ -143,7 +143,7 @@ forkret(void)
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
 void
-exit(int status)
+procexit(int status)
 {
   int wakeupinit;
 
@@ -507,7 +507,7 @@ threadhelper(void (*fn)(void *), void *arg)
   post_swtch();
   mtstart(fn, myproc());
   fn(arg);
-  exit(0);
+  procexit(0);
 }
 
 static struct proc*

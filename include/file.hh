@@ -26,7 +26,7 @@ struct file {
   // process.  This will always be paired with a dup().
   virtual void pre_close() { }
 
-  virtual int stat(struct stat*, enum stat_flags) { return -1; }
+  virtual int stat(struct kernel_stat*, enum stat_flags) { return -1; }
   virtual ssize_t read(char *addr, size_t n) { return -1; }
   virtual ssize_t write(const char *addr, size_t n) { return -1; }
   virtual ssize_t pread(char *addr, size_t n, off_t offset) { return -1; }
@@ -83,7 +83,7 @@ public:
   std::unique_ptr<strbuf<FILENAME_MAX>> last_dirent;
   sleeplock off_lock;
 
-  int stat(struct stat*, enum stat_flags) override;
+  int stat(struct kernel_stat*, enum stat_flags) override;
   ssize_t read(char *addr, size_t n) override;
   ssize_t write(const char *addr, size_t n) override;
   ssize_t pread(char* addr, size_t n, off_t off) override;
@@ -105,7 +105,7 @@ public:
   void inc() override { refcache::referenced::inc(); }
   void dec() override { refcache::referenced::dec(); }
 
-  int stat(struct stat*, enum stat_flags) override;
+  int stat(struct kernel_stat*, enum stat_flags) override;
   ssize_t read(char *addr, size_t n) override;
   void onzero() override;
 
@@ -154,7 +154,7 @@ public:
     return inner->dup();
   }
 
-  int stat(struct stat* st, enum stat_flags flags) override {
+  int stat(struct kernel_stat* st, enum stat_flags flags) override {
     return inner->stat(st, flags);
   }
 
@@ -205,7 +205,7 @@ public:
     return w ?: this;
   }
 
-  int stat(struct stat*, enum stat_flags) override;
+  int stat(struct kernel_stat*, enum stat_flags) override;
   ssize_t write(const char *addr, size_t n) override;
   void onzero() override;
 
@@ -280,7 +280,7 @@ struct devsw {
   int (*pread)(char*, u32, u32);
   int (*write)(const char*, u32);
   int (*pwrite)(const char*, u32, u32);
-  void (*stat)(struct stat*);
+  void (*stat)(struct kernel_stat*);
 };
 
 extern struct devsw devsw[];

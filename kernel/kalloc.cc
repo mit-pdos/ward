@@ -410,7 +410,7 @@ struct memory {
         // it.  We sort the list so we can merge it with the buddy
         // allocator list.
         kstats::inc(&kstats::kalloc_hot_list_flush_count);
-        std::sort(mem->hot_pages, mem->hot_pages + (KALLOC_HOT_PAGES / 2));
+        // std::sort(mem->hot_pages, mem->hot_pages + (KALLOC_HOT_PAGES / 2));
         // XXX make kfree_batch_pool to batch moving hot pages
         for (size_t i = 0; i < KALLOC_HOT_PAGES / 2; ++i) {
           void *ptr = mem->hot_pages[i];
@@ -966,7 +966,7 @@ void
 initphysmem()
 {
   // First address after kernel loaded from ELF file
-  extern char end[];
+  extern char _end[];
 
   if (multiboot.flags & MULTIBOOT2_FLAG_EFI_MMAP) {
     for (int i = 0; i < multiboot.efi_mmap_descriptor_count; i++) {
@@ -1000,7 +1000,7 @@ initphysmem()
   }
 
   // Reserve kernel ELF image
-  mem.remove(0, v2p(end));
+  mem.remove(0, v2p(_end));
 }
 
 // Initialize free list of physical pages.
@@ -1166,7 +1166,7 @@ kfree(void *v, size_t size)
       // it.  We sort the list so we can merge it with the buddy
       // allocator list, minimizing and batching our locks.
       kstats::inc(&kstats::kalloc_hot_list_flush_count);
-      std::sort(mem->hot_pages, mem->hot_pages + (KALLOC_HOT_PAGES / 2));
+      // std::sort(mem->hot_pages, mem->hot_pages + (KALLOC_HOT_PAGES / 2));
       locked_buddy *lb = nullptr;
       lock_guard<spinlock> lock;
       for (size_t i = 0; i < KALLOC_HOT_PAGES / 2; ++i) {

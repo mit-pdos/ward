@@ -39,19 +39,10 @@ else
 CODEXINC =
 endif
 
-ifdef USE_CLANG
 CC  = $(TOOLPREFIX)clang
 CXX = $(TOOLPREFIX)clang++
-CXXFLAGS = -Wno-delete-non-virtual-dtor -Wno-gnu-designator -Wno-tautological-compare -Wno-unused-private-field
-CFLAGS   = -no-integrated-as
-ASFLAGS  =
-else
-CC  = $(TOOLPREFIX)gcc
-CXX = $(TOOLPREFIX)g++
-CXXFLAGS = -Wno-delete-non-virtual-dtor
 CFLAGS   =
 ASFLAGS  =
-endif
 
 AR = $(TOOLPREFIX)ar
 LD = $(TOOLPREFIX)ld
@@ -61,46 +52,29 @@ OBJCOPY = $(TOOLPREFIX)objcopy
 STRIP = $(TOOLPREFIX)strip
 
 ifeq ($(PLATFORM),xv6)
-INCLUDES  = --sysroot=$(O)/sysroot \
-	-iquote include -iquote$(O)/include \
-	-iquote libutil/include \
-	-Istdinc $(CODEXINC) -I$(MTRACESRC) \
-	-include param.h -include libutil/include/compiler.h
+INCLUDES  = -nostdinc++ -isystem include -iquote $(O)/include -iquote libutil/include \
+		 -include param.h -include libutil/include/compiler.h
 COMFLAGS  = -static -DXV6_HW=$(HW) -DXV6 \
 	    -fno-builtin -fno-strict-aliasing -fno-omit-frame-pointer -fms-extensions \
-	    -mno-red-zone
-COMFLAGS  += -Wl,-m,elf_x86_64 -nostdlib -ffreestanding -fno-pie -fno-pic
-LDFLAGS   = -m elf_x86_64
+	    -mno-red-zone -nostdlib -ffreestanding -fno-pie -fno-pic -DNDEBUG -funwind-tables -fasynchronous-unwind-tables
+LDFLAGS   = -m elf_x86_64 --eh-frame-hdr
 else
 INCLUDES := -include param.h -iquote libutil/include -I$(MTRACESRC)
 COMFLAGS := -pthread -Wno-unused-result
 LDFLAGS := -pthread
 endif
 
-COMFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
-COMFLAGS += $(shell $(CC) -fcf-protection=none -E -x c /dev/null >/dev/null 2>&1 && echo -fcf-protection=none)
-COMFLAGS += -g -MD -MP -O3 -Wall -DHW_$(HW) $(INCLUDES) -mindirect-branch=thunk
-CFLAGS   := $(COMFLAGS) -std=c99 $(CFLAGS)
-CXXFLAGS := $(COMFLAGS) -std=c++17 -Wno-sign-compare -faligned-new $(CXXFLAGS)
-ASFLAGS  := $(ASFLAGS) -Iinclude -I$(O)/include -m64 -gdwarf-2 -MD -MP -DHW_$(HW) -include param.h
+# -mindirect-branch=thunk -fnothrow-opt -Wnoexcept -Wl,-m,elf_x86_64
 
-ifeq ($(EXCEPTIONS),y)
-  # Include C++ support libraries for stack unwinding and RTTI.  Some of
-  # the objects in these archives depend on symbols we don't define, but
-  # we provide our own definitions for any symbols we do use from such
-  # objects, so the linker ignores these objects entirely.  If you start
-  # getting "multiple definition" and "undefined reference" errors,
-  # there's probably a new ABI symbol we need to define ourselves.
-  CXXRUNTIME = $(shell $(CC) -print-file-name=libgcc_eh.a) \
-               $(shell $(CC) -print-file-name=libsupc++.a)
-  CXXFLAGS += -DEXCEPTIONS=1
-  ifndef USE_CLANG
-    CXXFLAGS += -fnothrow-opt -Wnoexcept
-  endif
-else
-  CXXRUNTIME =
-  CXXFLAGS += -fno-exceptions -fno-rtti -DEXCEPTIONS=0
-endif
+COMFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector) \
+			$(shell $(CC) -fcf-protection=none -E -x c /dev/null >/dev/null 2>&1 && echo -fcf-protection=none) \
+			-g -MD -MP -O3 -Wall -DHW_$(HW) $(INCLUDES) -msoft-float
+
+CFLAGS   := $(COMFLAGS) -std=c99 $(CFLAGS)
+CXXFLAGS := $(COMFLAGS) -std=c++14 -Wno-sign-compare -faligned-new -DEXCEPTIONS=1 -Wno-delete-non-virtual-dtor
+ASFLAGS  := $(ASFLAGS) -Iinclude -I$(O)/include -m64 -MD -MP -DHW_$(HW) -include param.h
+
+CXXRUNTIME =
 
 ALL :=
 all:
@@ -113,7 +87,7 @@ define SYSCALLGEN
 endef
 
 ifeq ($(PLATFORM),xv6)
-include net/Makefrag
+# include net/Makefrag
 include kernel/Makefrag
 include lib/Makefrag
 endif
@@ -150,6 +124,95 @@ $(O)/%.o: $(O)/%.S
 $(O)/bootx64.efi: $(O)/kernel.elf
 	objcopy --set-section-alignment *=4096 -j .text -j .rodata -j .stapsdt.base -j .kmeta -j .data -j .bss \
 		-O pei-x86-64 $< $@
+
+#libunwind
+LIBUNWIND_SRC = libunwind/src
+LIBUNWIND_OBJ = $(O)/libunwind
+LIBUNWIND_SRC_C_FILES := $(wildcard $(LIBUNWIND_SRC)/*.c)
+LIBUNWIND_SRC_CXX_FILES := $(wildcard $(LIBUNWIND_SRC)/*.cpp)
+LIBUNWIND_SRC_S_FILES := $(wildcard $(LIBUNWIND_SRC)/*.S)
+LIBUNWIND_OBJ_FILES := $(patsubst $(LIBUNWIND_SRC)/%.c,$(LIBUNWIND_OBJ)/%.o,$(LIBUNWIND_SRC_C_FILES)) \
+						$(patsubst $(LIBUNWIND_SRC)/%.cpp,$(LIBUNWIND_OBJ)/%.o,$(LIBUNWIND_SRC_CXX_FILES)) \
+						$(patsubst $(LIBUNWIND_SRC)/%.S,$(LIBUNWIND_OBJ)/%.o,$(LIBUNWIND_SRC_S_FILES))
+LIBUNWIND_FLAGS = -D_LIBUNWIND_IS_BAREMETAL -D_LIBUNWIND_HAS_NO_THREADS -Ilibunwind/include -mcmodel=kernel
+$(LIBUNWIND_OBJ)/%.o: $(LIBUNWIND_SRC)/%.cpp
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CXX) $(CXXFLAGS) $(LIBUNWIND_FLAGS) -c -o $@ $<
+$(LIBUNWIND_OBJ)/%.o: $(LIBUNWIND_SRC)/%.c
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(CFLAGS) $(LIBUNWIND_FLAGS) -c -o $@ $<
+$(LIBUNWIND_OBJ)/%.o: $(LIBUNWIND_SRC)/%.S
+	@echo "  CC     $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(ASFLAGS) -c -o $@ $<
+$(O)/libunwind.a: $(LIBUNWIND_OBJ_FILES)
+	@echo "  AR	   $@"
+	$(Q)$(AR) rcs $@ $^
+
+#libcxxabi
+LIBCXXABI_SRC = libcxxabi/src
+LIBCXXABI_OBJ = $(O)/libcxxabi
+LIBCXXABI_SRC_C_FILES := $(wildcard $(LIBCXXABI_SRC)/*.c)
+LIBCXXABI_SRC_CXX_FILES := $(wildcard $(LIBCXXABI_SRC)/*.cpp)
+LIBCXXABI_OBJ_FILES := $(patsubst $(LIBCXXABI_SRC)/%.c,$(LIBCXXABI_OBJ)/%.o,$(LIBCXXABI_SRC_C_FILES)) \
+						$(patsubst $(LIBCXXABI_SRC)/%.cpp,$(LIBCXXABI_OBJ)/%.o,$(LIBCXXABI_SRC_CXX_FILES))
+LIBCXXABI_FLAGS = -D_NOEXCEPT=noexcept -DLIBCXXABI_USE_LLVM_UNWINDER -Ilibcxx/include -Ilibcxxabi/include -mcmodel=kernel # -D_LIBCPP_BUILDING_LIBRARY
+$(LIBCXXABI_OBJ)/%.o: $(LIBCXXABI_SRC)/%.cpp
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CXX) $(LIBCXXABI_FLAGS) $(CXXFLAGS) -c -o $@ $<
+$(LIBCXXABI_OBJ)/%.o: $(LIBCXXABI_SRC)/%.c
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(CFLAGS) $(LIBCXXABI_FLAGS) -c -o $@ $<
+$(O)/libcxxabi.a: $(LIBCXXABI_OBJ_FILES)
+	@echo "  AR	   $@"
+	$(Q)$(AR) rcs $@ $^
+
+#libcxx
+LIBCXX_SRC = libcxx/src
+LIBCXX_OBJ = $(O)/libcxx
+LIBCXX_SRC_C_FILES := $(wildcard $(LIBCXX_SRC)/*.c)
+LIBCXX_SRC_CXX_FILES := $(wildcard $(LIBCXX_SRC)/*.cpp)
+LIBCXX_OBJ_FILES := $(patsubst $(LIBCXX_SRC)/%.c,$(LIBCXX_OBJ)/%.o,$(LIBCXX_SRC_C_FILES)) \
+						$(patsubst $(LIBCXX_SRC)/%.cpp,$(LIBCXX_OBJ)/%.o,$(LIBCXX_SRC_CXX_FILES))
+LIBCXX_FLAGS = -D_NOEXCEPT=noexcept -D_LIBCPP_BUILDING_LIBRARY -Ilibcxx/include -mcmodel=kernel # -D_LIBCPP_BUILDING_LIBRARY
+$(LIBCXX_OBJ)/%.o: $(LIBCXX_SRC)/%.cpp
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CXX) $(LIBCXX_FLAGS) $(CXXFLAGS) -c -o $@ $<
+$(LIBCXX_OBJ)/%.o: $(LIBCXX_SRC)/%.c
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(CFLAGS) $(LIBCXX_FLAGS) -c -o $@ $<
+$(O)/libcxx.a: $(LIBCXX_OBJ_FILES)
+	@echo "  AR	   $@"
+	$(Q)$(AR) rcs $@ $^
+
+
+#compiler-rt
+COMPILERRT_SRC = compiler-rt/lib/builtins
+COMPILERRT_OBJ = $(O)/compiler-rt
+COMPILERRT_SRC_C_FILES := $(wildcard $(COMPILERRT_SRC)/*.c)
+COMPILERRT_SRC_CXX_FILES := $(wildcard $(COMPILERRT_SRC)/*.cpp)
+COMPILERRT_OBJ_FILES := $(patsubst $(COMPILERRT_SRC)/%.c,$(COMPILERRT_OBJ)/%.o,$(COMPILERRT_SRC_C_FILES)) \
+						$(patsubst $(COMPILERRT_SRC)/%.cpp,$(COMPILERRT_OBJ)/%.o,$(COMPILERRT_SRC_CXX_FILES))
+COMPILERRT_FLAGS = -Ilibcxx/include
+$(COMPILERRT_OBJ)/%.o: $(COMPILERRT_SRC)/%.cpp
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CXX) $(COMPILERRT_FLAGS) $(CXXFLAGS) -c -o $@ $<
+$(COMPILERRT_OBJ)/%.o: $(COMPILERRT_SRC)/%.c
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(CFLAGS) $(COMPILERRT_FLAGS) -c -o $@ $<
+$(O)/compiler-rt.a: $(COMPILERRT_OBJ_FILES)
+	@echo "  AR	   $@"
+	$(Q)$(AR) rcs $@ $^
+
+
 
 # Construct an alternate "system include root" by copying headers from the host that are part of
 # C++'s freestanding implementation.  These headers are distributed across several directories, so

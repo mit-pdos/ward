@@ -232,7 +232,7 @@ public:
   explicit vnode_fat32(sref<class fat32_filesystem_weaklink> fs, u32 first_cluster_id, bool is_directory, sref<vnode_fat32> parent_dir, u32 file_size);
   u32 first_cluster_id();
 
-  void stat(struct stat *st, enum stat_flags flags) override;
+  void stat(struct kernel_stat *st, enum stat_flags flags) override;
   sref<filesystem> get_fs() override;
   bool is_same(const sref<vnode> &other) override;
 

@@ -106,7 +106,7 @@ fat32_dirent::short_filename(const char *name)
 
   fat32_dirent out = {};
 
-  char *dot = strchr(nbuf.ptr(), '.');
+  char *dot = (char*)strchr(nbuf.ptr(), '.');
   if (!dot) {
     memset((char*) out.extension, ' ', sizeof(out.extension));
   } else {
@@ -134,7 +134,7 @@ fat32_dirent::guard_filename(const char *name)
   strbuf<FILENAME_MAX> nbuf = name;
   strip_char(nbuf.buf_, '.');
   assert(*nbuf.ptr()); // non-empty
-  char *dot = strchr(nbuf.ptr(), '.');
+  char *dot = (char*)strchr(nbuf.ptr(), '.');
   if (dot)
     *dot = '\0';
   strbuf<sizeof(filename) + sizeof(extension) + 1> buf;

@@ -41,8 +41,8 @@ sys_fork_flags(int flags)
 void
 sys_exit(int status)
 {
-  exit(status);
-  panic("exit() returned");
+  procexit(status);
+  panic("procexit() returned");
 }
 
 //SYSCALL

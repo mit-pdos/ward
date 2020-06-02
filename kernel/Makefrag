@@ -67,13 +67,11 @@ OBJS = \
 	benchcodex.o \
 	iommu.o \
 	rtc.o \
-	timemath.o \
 	mnode.o \
 	mfs.o \
 	mfsload.o \
 	hpet.o \
 	cpuid.o \
-	ctype.o \
 	unixsock.o \
 	heapprof.o \
 	eager_refcache.o \
@@ -106,8 +104,8 @@ include kernel/Makefrag.acpica
 KERN = $(O)/kernel.elf
 ALL += $(KERN)
 
-$(O)/kernel/%.o: CFLAGS+=-mcmodel=kernel -DXV6_KERNEL -mno-sse
-$(O)/kernel/%.o: CXXFLAGS+=-mcmodel=kernel -DXV6_KERNEL -mno-sse
+$(O)/kernel/%.o: CFLAGS+=-mcmodel=kernel -Ilibcxx/include -DXV6_KERNEL -mno-sse
+$(O)/kernel/%.o: CXXFLAGS+=-mcmodel=kernel -Ilibcxx/include -DXV6_KERNEL -mno-sse
 
 UNAME := $(shell uname)
 ifeq ($(UNAME), Darwin)
@@ -116,11 +114,13 @@ else
 DDSTATUS := status=none
 endif
 
+LDEPS += $(O)/libunwind.a $(O)/libcxxabi.a $(O)/compiler-rt.a $(O)/libcxx.a
+
 $(KERN): tools/kmeta.py $(O)/kernel/boot.o $(OBJS) $(LDEPS) kernel/kernel.ld
 	@echo "  LD     $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(LD) $(LDFLAGS) -T kernel/kernel.ld -z max-page-size=4096 -e efi_main \
-		-o $@.tmp $(O)/kernel/boot.o $(OBJS) -L$(O) $(LFLAGS)
+		-o $@.tmp $(O)/kernel/boot.o $(OBJS) $(LDEPS) -L$(O) $(LFLAGS)
 	$(Q)$(NM) $@.tmp > $(O)/kernel/kernel.nm
 	$(Q)$(OBJDUMP) -d $@.tmp > $(O)/kernel/kernel.objdump
 	$(Q)$(OBJCOPY) --dump-section .kmeta=$(O)/kernel/kmeta.bin $@.tmp
@@ -154,7 +154,7 @@ $(O)/kernel/%.o: libutil/%.cc $(O)/sysroot
 $(O)/kernel/%.o: $(O)/kernel/%.cc $(O)/sysroot
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(Q)$(CXX) $(CXXFLAGS) -Ilibcxx/include -c -o $@ $<
 
 $(O)/kernel/incbin.o: ASFLAGS+=-DMAKE_OUT=$(O)
 $(O)/kernel/incbin.o: $(O)/kernel/initcode $(O)/kernel/bootother $(O)/fs.part
@@ -196,7 +196,7 @@ $(O)/kernel/kconfig.cc: param.h
 	$(Q)( \
 	echo "#define STR_1(x...) #x"; \
 	echo "#define STR(x...)   STR_1(x)"; \
-	echo "const char *kconfig ="; \
+	echo "const char *kconfig = \"\""; \
 	echo | $(CC) $(filter-out -MD -MP,$(CFLAGS)) -E -dN - -o - | \
 		awk '/^# /{P=0} P{print $$2} /^# 1.*param.h/{P=1}' | \
 		awk '!/^$$/{print "\"" $$1 "=\" STR(" $$1 ") \"\\n\""}'; \

@@ -285,9 +285,9 @@ sys_writev(int fd, const void* iov, int count) {
     return -1;
   auto cleanup = scoped_cleanup([b](){kfree(b);});
 
-  iovec v;
+  kernel_iovec v;
   for(int i = 0; i < count; i++) {
-    ((userptr<iovec>)(iovec*)iov).load(&v);
+    ((userptr<kernel_iovec>)(kernel_iovec*)iov).load(&v);
     if (v.len == 0)
       continue;
     if (v.len > PGSIZE)
@@ -336,9 +336,9 @@ sys_getdents64(int fd, const userptr<void> p, size_t total_bytes) {
 
 //SYSCALL
 long
-sys_fstatx(int fd, userptr<struct stat> st, enum stat_flags flags)
+sys_fstatx(int fd, userptr<struct kernel_stat> st, enum stat_flags flags)
 {
-  struct stat st_buf;
+  struct kernel_stat st_buf;
   sref<file> f = getfile(fd);
   if (!f)
     return -1;
@@ -351,11 +351,11 @@ sys_fstatx(int fd, userptr<struct stat> st, enum stat_flags flags)
 
 //SYSCALL
 long
-sys_fstat(int fd, userptr<struct stat> st)
+sys_fstat(int fd, userptr<struct kernel_stat> st)
 {
   STRACE_PARAMS("0x%x, %p", fd, st.unsafe_get());
 
-  struct stat st_buf;
+  struct kernel_stat st_buf;
   sref<file> f = getfile(fd);
   if (!f)
     return -1;
@@ -368,7 +368,7 @@ sys_fstat(int fd, userptr<struct stat> st)
 
 //SYSCALL
 long
-sys_stat(userptr_str path, userptr<struct stat> st)
+sys_stat(userptr_str path, userptr<struct kernel_stat> st)
 {
   char path_copy[PATH_MAX];
   if (!path.load(path_copy, sizeof path_copy))
@@ -380,7 +380,7 @@ sys_stat(userptr_str path, userptr<struct stat> st)
   if(!m)
     return -ENOENT;
 
-  struct stat st_buf;
+  struct kernel_stat st_buf;
   m->stat(&st_buf, STAT_NO_FLAGS);
   if (!st.store(&st_buf)) {
     return -EINVAL;
@@ -390,7 +390,7 @@ sys_stat(userptr_str path, userptr<struct stat> st)
 
 //SYSCALL
 long
-sys_lstat(userptr_str path, userptr<struct stat> st)
+sys_lstat(userptr_str path, userptr<struct kernel_stat> st)
 {
   // We don't support symlinks
   return sys_stat(path, st);

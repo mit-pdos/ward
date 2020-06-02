@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "bits/move.h"
+//#include "bits/move.h"
 #include "types.h"              // For size_t
 #include <type_traits>
 
@@ -45,28 +45,28 @@ namespace std {
   //     swap(a[n], b[n]);
   // }
 
-  template<class A, class B>
-  struct pair {
-    typedef A first_type;
-    typedef B second_type;
+  // template<class A, class B>
+  // struct pair {
+  //   typedef A first_type;
+  //   typedef B second_type;
 
-    A first;
-    B second;
+  //   A first;
+  //   B second;
 
-    pair(const pair&) = default;
-    pair(pair&&) = default;
-    constexpr pair() : first(), second() {}
-    pair(const A &a, const B &b) : first(a), second(b) {}
+  //   pair(const pair&) = default;
+  //   pair(pair&&) = default;
+  //   constexpr pair() : first(), second() {}
+  //   pair(const A &a, const B &b) : first(a), second(b) {}
 
-    bool operator==(const pair<A, B> &other) const {
-      return first == other.first && second == other.second;
-    }
-  };
+  //   bool operator==(const pair<A, B> &other) const {
+  //     return first == other.first && second == other.second;
+  //   }
+  // };
 
-  template<class A, class B>
-  pair<A, B>
-  make_pair(const A &a, const B &b)
-  {
-    return pair<A, B>(a, b);
-  }
+  // template<class A, class B>
+  // pair<A, B>
+  // make_pair(const A &a, const B &b)
+  // {
+  //   return pair<A, B>(a, b);
+  // }
 }

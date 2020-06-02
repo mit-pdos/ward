@@ -98,7 +98,7 @@ vsnprintf(char *buf, u32 n, const char *fmt, va_list ap)
   return bs.total;
 }
 
-int
+extern "C" int
 snprintf(char *buf, u32 n, const char *fmt, ...)
 {
   int total;

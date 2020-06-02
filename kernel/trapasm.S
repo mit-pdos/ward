@@ -6,7 +6,7 @@
 #define NOEC pushq $0
 #define EC
 
-#define PADDR(x) ((x) - KCODE)
+#define PADDR(x) ((x) - 0xFFFFFFFFC0000000)
 
 #define _TRAP(x, code) \
         .globl trap ## x; \

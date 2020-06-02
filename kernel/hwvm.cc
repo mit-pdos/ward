@@ -53,7 +53,7 @@ struct tlb_state {
 };
 percpu<tlb_state> tlb_states;
 
-atomic<u64> next_asid = 1;
+atomic<u64> next_asid;
 
 DEFINE_PERCPU(const MMU_SCHEME::page_map_cache*, cur_page_map_cache);
 
@@ -413,6 +413,8 @@ initpg(struct cpu *c)
 
   if (!kpml4_initialized) {
     kpml4_initialized = true;
+
+    next_asid.store(1);
 
     int level = pgmap::L_2M;
     pgmap::iterator it;

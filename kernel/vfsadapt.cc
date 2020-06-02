@@ -10,7 +10,7 @@ class vnode_mfs : public vnode {
 public:
   explicit vnode_mfs(sref<mnode> node);
 
-  void stat(struct stat *st, enum stat_flags flags) override;
+  void stat(struct kernel_stat *st, enum stat_flags flags) override;
   sref<class filesystem> get_fs() override;
   bool is_same(const sref<vnode> &other) override;
 
@@ -91,7 +91,7 @@ vnode_mfs::get_page_info(u64 page_idx)
 }
 
 void
-vnode_mfs::stat(struct stat *st, enum stat_flags flags)
+vnode_mfs::stat(struct kernel_stat *st, enum stat_flags flags)
 {
   u64 stattype = 0;
   switch (node->type()) {
@@ -102,7 +102,7 @@ vnode_mfs::stat(struct stat *st, enum stat_flags flags)
     default: panic("unknown inode type %d", node->type());
   }
 
-  memset(st, 0, sizeof(struct stat));
+  memset(st, 0, sizeof(struct kernel_stat));
   st->st_mode = (stattype << __S_IFMT_SHIFT) | 0644;
   st->st_dev = (uintptr_t) node->fs_;
   st->st_ino = node->inum_;

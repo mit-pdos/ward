@@ -17,7 +17,7 @@
 class vnode : public pageable {
 public:
   // general operations
-  virtual void stat(struct stat *st, enum stat_flags flags) = 0;
+  virtual void stat(struct kernel_stat *st, enum stat_flags flags) = 0;
   virtual sref<class filesystem> get_fs() = 0; // may return sref() if filesystem no longer exists
   virtual bool is_same(const sref<vnode> &other) = 0;
 
