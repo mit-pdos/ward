@@ -13,7 +13,7 @@
 #define BSIZE 4096  // block size
 
 // File system super block
-struct superblock {
+struct ward_superblock {
   u32 size;         // Size of file system image (blocks)
   u32 nblocks;      // Number of data blocks
   u32 ninodes;      // Number of inodes.
@@ -25,7 +25,7 @@ struct superblock {
 
 // On-disk inode structure
 // (BSIZE % sizeof(dinode)) == 0
-struct dinode {
+struct ward_dinode {
   short type;           // File type
   short major;          // Major device number (T_DEV only)
   short minor;          // Minor device number (T_DEV only)
@@ -36,7 +36,7 @@ struct dinode {
 };
 
 // Inodes per block.
-#define IPB           (BSIZE / sizeof(struct dinode))
+#define IPB           (BSIZE / sizeof(struct ward_dinode))
 
 // Block containing inode i
 #define IBLOCK(i)     ((i) / IPB + 2)
@@ -50,7 +50,7 @@ struct dinode {
 // Directory is a file containing a sequence of dirent structures.
 #define DIRSIZ 126
 
-struct dirent {
+struct ward_dirent {
   u16 inum;
   char name[DIRSIZ];
 };
@@ -63,9 +63,9 @@ struct linux_dirent {
   char d_name[256];
 };
 
-// XXX(Austin) PATH_MAX sucks.  It would be nice if we didn't need it
+// XXX(Austin) WARD_PATH_MAX sucks.  It would be nice if we didn't need it
 // to size kernel copy buffers.
-#define PATH_MAX 256
+#define WARD_PATH_MAX 256
 
 #if defined(XV6_USER) || defined(XV6_KERNEL) // cannot be defined on linux; conflicts with builtin name
 // across all possible filesystems

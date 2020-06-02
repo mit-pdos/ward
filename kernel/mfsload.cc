@@ -13,7 +13,7 @@ static sref<mnode> load_inum(linearhash<u64, sref<mnode>> *inum_to_mnode, u32 de
 static void
 load_dir(linearhash<u64, sref<mnode>> *inum_to_mnode, sref<inode> i, sref<mnode> m)
 {
-  dirent de;
+  ward_dirent de;
   for (size_t pos = 0; pos < i->size; pos += sizeof(de)) {
     assert(sizeof(de) == readi(i, (char*) &de, pos, sizeof(de)));
     if (!de.inum)

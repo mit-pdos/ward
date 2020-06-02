@@ -1,3 +1,6 @@
+#include "include/types.h"
+#include "include/fs.h"
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -6,21 +9,11 @@
 #include <assert.h>
 #include <dirent.h>
 
-#include "include/types.h"
-
-// Hack to allow Linux's and Ward's dirent structs to co-exist.
-namespace ward {
-#undef PATH_MAX
-#include "include/fs.h"
-}
-using ward::superblock;
-using ward::dinode;
-
 int ninodes = 2400;
 int size = 8192;
 
 int fsfd;
-ward::superblock sb;
+ward_superblock sb;
 char zeroes[BSIZE];
 u32 freeblock;
 u32 usedblocks;
@@ -29,8 +22,8 @@ u32 freeinode = 1;
 
 void balloc(int);
 void wsect(u32, void*);
-void winode(u32, ward::dinode*);
-void rinode(u32 inum, ward::dinode *ip);
+void winode(u32, ward_dinode*);
+void rinode(u32 inum, ward_dinode *ip);
 void rsect(u32 sec, void *buf);
 u32 ialloc(u16 type);
 void iappend(u32 inum, void *p, int n);
@@ -70,12 +63,12 @@ copy_files(u16 dir_inode, DIR* dir_dir, int dir_fd)
         exit(1);
       }
 
-      ward::dirent wde;
+      ward_dirent wde;
       u16 inum = ialloc(T_FILE);
-      bzero(&wde, sizeof(ward::dirent));
+      bzero(&wde, sizeof(ward_dirent));
       wde.inum = xshort(inum);
       strncpy(wde.name, de->d_name, DIRSIZ);
-      iappend(dir_inode, &wde, sizeof(ward::dirent));
+      iappend(dir_inode, &wde, sizeof(ward_dirent));
 
       int cc;
       char buf[BSIZE];
@@ -96,19 +89,19 @@ copy_files(u16 dir_inode, DIR* dir_dir, int dir_fd)
 
       DIR* dir = fdopendir(fd2);
 
-      ward::dirent wde;
+      ward_dirent wde;
       u16 inum = ialloc(T_DIR);
-      bzero(&wde, sizeof(ward::dirent));
+      bzero(&wde, sizeof(ward_dirent));
       wde.inum = xshort(inum);
       strncpy(wde.name, de->d_name, DIRSIZ);
-      iappend(dir_inode, &wde, sizeof(ward::dirent));
+      iappend(dir_inode, &wde, sizeof(ward_dirent));
 
-      bzero(&wde, sizeof(ward::dirent));
+      bzero(&wde, sizeof(ward_dirent));
       wde.inum = xshort(inum);
       strcpy(wde.name, ".");
       iappend(inum, &wde, sizeof(wde));
 
-      bzero(&wde, sizeof(ward::dirent));
+      bzero(&wde, sizeof(ward_dirent));
       wde.inum = xshort(dir_inode);
       strcpy(wde.name, "..");
       iappend(inum, &wde, sizeof(wde));
@@ -124,9 +117,9 @@ int
 main(int argc, char *argv[])
 {
   u32 rootino, off;
-  ward::dirent de;
+  ward_dirent de;
   char buf[BSIZE];
-  ward::dinode din;
+  ward_dinode din;
   int nblocks;
 
   if(argc < 3){
@@ -134,8 +127,8 @@ main(int argc, char *argv[])
     exit(1);
   }
 
-  assert((BSIZE % sizeof(ward::dinode)) == 0);
-  assert((BSIZE % sizeof(ward::dirent)) == 0);
+  assert((BSIZE % sizeof(ward_dinode)) == 0);
+  assert((BSIZE % sizeof(ward_dirent)) == 0);
 
   fsfd = open(argv[1], O_RDWR|O_CREAT|O_TRUNC, 0666);
   if(fsfd < 0){
@@ -210,29 +203,29 @@ i2b(u32 inum)
 }
 
 void
-winode(u32 inum, ward::dinode *ip)
+winode(u32 inum, ward_dinode *ip)
 {
   char buf[BSIZE];
   u32 bn;
-  ward::dinode *dip;
+  ward_dinode *dip;
 
   bn = i2b(inum);
   rsect(bn, buf);
-  dip = ((ward::dinode*)buf) + (inum % IPB);
+  dip = ((ward_dinode*)buf) + (inum % IPB);
   *dip = *ip;
   wsect(bn, buf);
 }
 
 void
-rinode(u32 inum, ward::dinode *ip)
+rinode(u32 inum, ward_dinode *ip)
 {
   char buf[BSIZE];
   u32 bn;
-  ward::dinode *dip;
+  ward_dinode *dip;
 
   bn = i2b(inum);
   rsect(bn, buf);
-  dip = ((ward::dinode*)buf) + (inum % IPB);
+  dip = ((ward_dinode*)buf) + (inum % IPB);
   *ip = *dip;
 }
 
@@ -253,7 +246,7 @@ u32
 ialloc(u16 type)
 {
   u32 inum = freeinode++;
-  ward::dinode din;
+  ward_dinode din;
 
   bzero(&din, sizeof(din));
   din.type = xshort(type);
@@ -291,7 +284,7 @@ iappend(u32 inum, void *xp, int n)
 {
   char *p = (char*)xp;
   u32 fbn, off, n1;
-  ward::dinode din;
+  ward_dinode din;
   char buf[BSIZE];
   u32 indirect[NINDIRECT];
   u32 x;

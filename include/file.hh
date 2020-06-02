@@ -257,7 +257,7 @@ struct inode : public referenced, public rcu_freed
 
   // ??? what's the concurrency control plan?
   struct localsock *localsock;
-  char socketpath[PATH_MAX];
+  char socketpath[WARD_PATH_MAX];
 
 private:
   inode(u32 dev, u32 inum);

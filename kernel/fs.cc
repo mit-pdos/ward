@@ -51,7 +51,7 @@ static sref<inode> the_root;
 
 // Read the super block.
 static void
-readsb(int dev, struct superblock *sb)
+readsb(int dev, struct ward_superblock *sb)
 {
   sref<buf> bp = buf::get(dev, 1);
   auto copy = bp->read();
@@ -92,7 +92,7 @@ throw_out_of_blocks()
 static u32
 balloc(u32 dev)
 {
-  superblock sb;
+  ward_superblock sb;
   readsb(dev, &sb);
 
   for(int b = 0; b < sb.size; b += BPB){
@@ -120,7 +120,7 @@ bfree(int dev, u64 x)
   u32 b = x;
   bzero(dev, b);
 
-  struct superblock sb;
+  struct ward_superblock sb;
   readsb(dev, &sb);
 
   sref<buf> bp = buf::get(dev, BBLOCK(b, sb.ninodes));
@@ -187,7 +187,7 @@ initinode(void)
   the_root->init();
 
   if (VERBOSE) {
-    struct superblock sb;
+    struct ward_superblock sb;
     u64 blocks;
 
     readsb(devnum, &sb);
@@ -351,7 +351,7 @@ ialloc(u32 dev, short type)
 
   scoped_gc_epoch e;
 
-  superblock sb;
+  ward_superblock sb;
   sref<inode> ip;
   int inum;
 
@@ -400,7 +400,7 @@ iupdate(struct inode *ip)
     sref<buf> bp = buf::get(ip->dev, IBLOCK(ip->inum));
     auto locked = bp->write();
 
-    dinode *dip = (struct dinode*)locked->data + ip->inum%IPB;
+    ward_dinode *dip = (struct ward_dinode*)locked->data + ip->inum%IPB;
     dip->type = ip->type;
     dip->major = ip->major;
     dip->minor = ip->minor;
@@ -510,7 +510,7 @@ inode::init(void)
   scoped_gc_epoch e;
   sref<buf> bp = buf::get(dev, IBLOCK(inum));
   auto copy = bp->read();
-  const dinode *dip = (const struct dinode*)copy->data + inum%IPB;
+  const ward_dinode *dip = (const struct ward_dinode*)copy->data + inum%IPB;
 
   type = dip->type;
   major = dip->major;
@@ -957,8 +957,8 @@ dir_init(sref<inode> dp)
       panic("dir_init: out of blocks");
     }
     auto copy = bp->read();
-    for (const struct dirent *de = (const struct dirent *) copy->data;
-	 de < (const struct dirent *) (copy->data + BSIZE);
+    for (const struct ward_dirent *de = (const struct ward_dirent *) copy->data;
+	 de < (const struct ward_dirent *) (copy->data + BSIZE);
 	 de++) {
       if (de->inum)
         dir->insert(strbuf<DIRSIZ>(de->name), de->inum);
@@ -981,7 +981,7 @@ dir_flush(sref<inode> dp)
 
   u32 off = 0;
   dp->dir.load()->enumerate([dp, &off](const strbuf<DIRSIZ> &name, const u32 &inum)->bool{
-      struct dirent de;
+      struct ward_dirent de;
       strncpy(de.name, name.buf_, DIRSIZ);
       de.inum = inum;
       if(writei(dp, (char*)&de, off, sizeof(de)) != sizeof(de))

@@ -370,7 +370,7 @@ sys_fstat(int fd, userptr<struct kernel_stat> st)
 long
 sys_stat(userptr_str path, userptr<struct kernel_stat> st)
 {
-  char path_copy[PATH_MAX];
+  char path_copy[WARD_PATH_MAX];
   if (!path.load(path_copy, sizeof path_copy))
     return -EINVAL;
 
@@ -400,7 +400,7 @@ sys_lstat(userptr_str path, userptr<struct kernel_stat> st)
 long
 sys_access(userptr_str path, int mode)
 {
-  char path_copy[PATH_MAX];
+  char path_copy[WARD_PATH_MAX];
   if (!path.load(path_copy, sizeof path_copy))
     return -1;
 
@@ -419,7 +419,7 @@ sys_access(userptr_str path, int mode)
 long
 sys_link(userptr_str old_path, userptr_str new_path)
 {
-  char old[PATH_MAX], newn[PATH_MAX];
+  char old[WARD_PATH_MAX], newn[WARD_PATH_MAX];
   if (!old_path.load(old, sizeof old) || !new_path.load(newn, sizeof newn))
     return -1;
 
@@ -430,7 +430,7 @@ sys_link(userptr_str old_path, userptr_str new_path)
 long
 sys_rename(userptr_str old_path, userptr_str new_path)
 {
-  char old[PATH_MAX], newn[PATH_MAX];
+  char old[WARD_PATH_MAX], newn[WARD_PATH_MAX];
   if (!old_path.load(old, sizeof old) || !new_path.load(newn, sizeof newn))
     return -1;
 
@@ -441,7 +441,7 @@ sys_rename(userptr_str old_path, userptr_str new_path)
 long
 sys_unlink(userptr_str path)
 {
-  char path_copy[PATH_MAX];
+  char path_copy[WARD_PATH_MAX];
   if (!path.load(path_copy, sizeof path_copy))
     return -1;
 
@@ -467,7 +467,7 @@ sys_openat(int dirfd, userptr_str path, int omode, ...)
     cwd = fdiri->ip;
   }
 
-  char path_copy[PATH_MAX];
+  char path_copy[WARD_PATH_MAX];
   if (!path.load(path_copy, sizeof(path_copy)))
     return -EINVAL;
 
@@ -512,7 +512,7 @@ sys_mkdirat(int dirfd, userptr_str path, mode_t mode)
     cwd = fdiri->ip;
   }
 
-  char path_copy[PATH_MAX];
+  char path_copy[WARD_PATH_MAX];
   if (!path.load(path_copy, sizeof(path_copy)))
     return -1;
 
@@ -526,7 +526,7 @@ sys_mkdirat(int dirfd, userptr_str path, mode_t mode)
 long
 sys_mkdir(userptr_str path, mode_t mode)
 {
-  char path_copy[PATH_MAX];
+  char path_copy[WARD_PATH_MAX];
   if (!path.load(path_copy, sizeof(path_copy)))
     return -1;
 
@@ -540,7 +540,7 @@ sys_mkdir(userptr_str path, mode_t mode)
 long
 sys_mknod(userptr_str path, int major, int minor)
 {
-  char path_copy[PATH_MAX];
+  char path_copy[WARD_PATH_MAX];
   if (!path.load(path_copy, sizeof(path_copy)))
     return -1;
 
@@ -554,7 +554,7 @@ sys_mknod(userptr_str path, int major, int minor)
 long
 sys_utime(userptr_str path, userptr<time_t> times)
 {
-  char path_copy[PATH_MAX];
+  char path_copy[WARD_PATH_MAX];
   if (!path.load(path_copy, sizeof(path_copy)))
     return -EINVAL;
 
@@ -582,7 +582,7 @@ sys_utime(userptr_str path, userptr<time_t> times)
 long
 sys_chdir(userptr_str path)
 {
-  char path_copy[PATH_MAX];
+  char path_copy[WARD_PATH_MAX];
   if (!path.load(path_copy, sizeof(path_copy)))
     return -1;
 
@@ -599,7 +599,7 @@ long
 sys_getcwd(userptr<void> out_path, size_t out_len)
 {
   size_t path_len = 1;
-  char path[PATH_MAX] = { 0 };
+  char path[WARD_PATH_MAX] = { 0 };
 
   sref<vnode> node = myproc()->cwd;
   while(1) {
@@ -619,7 +619,7 @@ sys_getcwd(userptr<void> out_path, size_t out_len)
     node = parent;
 
     size_t name_len = strlen(name.ptr());
-    assert(name_len + path_len + 1 < PATH_MAX);
+    assert(name_len + path_len + 1 < WARD_PATH_MAX);
 
     memmove(path+name_len+1, path, path_len+1);
     memmove(path+1, name.ptr(), name_len);
