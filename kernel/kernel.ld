@@ -10,17 +10,20 @@ SECTIONS
         *(.text .stub .text.* .gnu.linkonce.t.*)
         . = ALIGN(0x1000);
     }
-	.eh_frame_hdr   : { }
+
+    .eh_frame : {
+        __eh_frame_start = .;
+        KEEP (*(.eh_frame))
+        __eh_frame_end = .;
+    }
+    .eh_frame_hdr   : {
+        KEEP(*(.eh_frame_hdr))
+    }
+    __eh_frame_hdr_start = SIZEOF(.eh_frame_hdr) > 0 ? ADDR(.eh_frame_hdr) : 0;
+    __eh_frame_hdr_end = SIZEOF(.eh_frame_hdr) > 0 ? . : 0;
+
     .rodata : {
         *(.rodata .rodata.* .gnu.linkonce.r.* .sflag)
-
-		PROVIDE(__eh_frame_hdr_start = .);
-		*(.eh_frame_hdr) *(.eh_frame_entry .eh_frame_entry.*)
-		PROVIDE(__eh_frame_hdr_end = .);
-
-		PROVIDE(__eh_frame_start = .);
-		KEEP (*(.eh_frame)) *(.eh_frame.*)
-		PROVIDE(__eh_frame_end = .);
 
         . = ALIGN(0x1000);
         PROVIDE(__hotpatch_start = .);

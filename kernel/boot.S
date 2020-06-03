@@ -257,13 +257,3 @@ pdptbase:
 pdptcode:
     .space 4096 - 8
     .quad PADDR(pdtcode) + (1<<0) + (1<<1)  // present, read/write
-
-.section .eh_frame
-.globl __EH_FRAME_BEGIN__
-__EH_FRAME_BEGIN__:
-
-.section .eh_frame_end
-.globl __EH_FRAME_END__
-__EH_FRAME_END__:
-    .long 0     // see gcc/crtstuff.c __FRAME_END__
-

@@ -322,8 +322,8 @@ void
 initcpprt(void)
 {
 #if EXCEPTIONS
-  extern u8 __EH_FRAME_BEGIN__[];
-  __register_frame(__EH_FRAME_BEGIN__);
+  extern u8 __eh_frame_start[];
+  __register_frame(__eh_frame_start);
 
   // Initialize lazy exception handling data structures
   try {
