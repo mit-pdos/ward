@@ -344,7 +344,7 @@ steal(void)
 void
 initsched(void)
 {
-  static_assert(sizeof(schedule) <= PGSIZE);
+  static_assert(sizeof(schedule) <= PGSIZE, "schedule too small");
   for (int i = 0; i < NCPU; i++) {
     thesched_dir.schedule_[i] = new ((schedule*)palloc("schedule")) schedule;
   }

@@ -417,7 +417,6 @@ initpg(struct cpu *c)
     next_asid.store(1);
 
     int level = pgmap::L_2M;
-    pgmap::iterator it;
 
     // Can we use 1GB mappings?
     if (cpuid::features().page1GB) {

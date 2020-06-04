@@ -66,7 +66,7 @@ mfs::alloc(u8 type)
 }
 
 mnode::mnode(mfs* fs, u64 inum)
-  : fs_(fs), inum_(inum), cache_pin_(false), valid_(false), mtime_(0)
+  : fs_(fs), inum_(inum), mtime_(0), cache_pin_(false), valid_(false)
 {
   kstats::inc(&kstats::mnode_alloc);
 }

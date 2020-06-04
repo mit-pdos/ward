@@ -21,13 +21,13 @@ class e1000 : public netdev, irq_handler
 {
   const struct e1000_model * const model_;
   const u32 membase_;
-  const u32 iobase_;
+  const u32 iobase_ __attribute__((unused));
 
   volatile u32 txclean_;
   volatile u32 txinuse_;
 
   volatile u32 rxclean_;
-  volatile u32 rxuse_;
+  volatile u32 rxuse_ __attribute__((unused));
 
   u8 hwaddr_[6];
 
@@ -88,18 +88,18 @@ struct eerd {
 };
 
 static const struct eerd eerd_default = {
-  data_shift: 16,
-  addr_shift: 8,
-  done_bit:   0x00000010,
-  start_bit:  0x00000001,
+  .data_shift = 16,
+  .addr_shift = 8,
+  .done_bit = 0x00000010,
+  .start_bit = 0x00000001,
 };
 
 // 82541xx, 82571xx, 82572xx, all PCI-E
 static const struct eerd eerd_large = {
-  data_shift: 16,
-  addr_shift: 2,
-  done_bit:   0x00000002,
-  start_bit:  0x00000001
+  .data_shift = 16,
+  .addr_shift = 2,
+  .done_bit = 0x00000002,
+  .start_bit = 0x00000001
 };
 
 enum {

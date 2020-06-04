@@ -888,7 +888,7 @@ writei(sref<inode> ip, const char *src, u32 off, u32 n)
 
   if(off > ip->size || off + n < off)
     return -1;
-  if(off + n > MAXFILE*BSIZE)
+  if((u64)off + n > MAXFILE*BSIZE)
     n = MAXFILE*BSIZE - off;
 
   for(tot=0; tot<n; tot+=m, off+=m, src+=m){

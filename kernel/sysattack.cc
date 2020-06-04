@@ -7,7 +7,7 @@
 
 #include <uk/unistd.h>
 
-char *secret = "The Magic Words are Please Make My Code Work.";
+char *secret = (char*)"The Magic Words are Please Make My Code Work.";
 const int secret_len = 45;
 
 //SYSCALL

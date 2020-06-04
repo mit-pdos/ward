@@ -96,7 +96,7 @@ class page_holder
   batch *cur;
   size_t curmax;
   batch first;
-  char first_buf[NLOCAL * sizeof(page_info_ref)];
+  char first_buf[NLOCAL * sizeof(page_info_ref)] __attribute__((unused));
 
 public:
   page_holder(vmap* v) : vmap_(v), cur(&first), curmax(NLOCAL) {
@@ -134,7 +134,7 @@ public:
 sref<vmap>
 vmap::alloc(void)
 {
-  static_assert(sizeof(vmap) <= PGSIZE);
+  static_assert(sizeof(vmap) <= PGSIZE, "vmap too small");
   vmap* page = (vmap*)zalloc("vmap::alloc");
   sref<vmap> v = sref<vmap>::transfer(new (page) vmap());
 
@@ -159,8 +159,7 @@ vmap::alloc(void)
 }
 
 vmap::vmap() :
-  brk_(0), cache(this), vpfs_(this), brklock_("brk_lock", LOCKSTAT_VM),
-  unmapped_hint(0)
+  brk_(0), cache(this), vpfs_(this), unmapped_hint(0), brklock_("brk_lock", LOCKSTAT_VM)
 {
 }
 
@@ -790,7 +789,7 @@ vmap::ensure_page(const vmap::vpf_array::iterator &it, vmap::access_type type,
     if (need_copy)
       desc.flags &= ~vmdesc::FLAG_COW;
   } else {
-    vmdesc n(std::move(desc.dup()));
+    vmdesc n(desc.dup());
     n.page = std::move(page);
     if (need_copy)
       n.flags &= ~vmdesc::FLAG_COW;

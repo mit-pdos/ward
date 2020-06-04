@@ -39,7 +39,7 @@ operator new(std::size_t nbytes, std::align_val_t al)
 }
 
 void
-operator delete(void* p)
+operator delete(void* p) noexcept
 {
   panic("global operator delete");
 
@@ -59,7 +59,7 @@ operator new[](std::size_t nbytes)
 }
 
 void
-operator delete[](void* p)
+operator delete[](void* p) noexcept
 {
   u64* x = (u64*) p;
   kmfree(x-1, x[-1] + sizeof(u64));

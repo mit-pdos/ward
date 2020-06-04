@@ -24,7 +24,6 @@ public:
 private:
   u8 *disk;
   size_t length;
-  u32 index;
 };
 
 void
@@ -36,7 +35,7 @@ initmemide(void)
 }
 
 memdisk::memdisk(u8 *disk, size_t length, u32 diskindex)
-  : disk(disk), length(length), index(diskindex)
+  : disk(disk), length(length)
 {
   dk_nbytes = length;
   snprintf(dk_model, sizeof(dk_model), "SV6 MEMDISK");

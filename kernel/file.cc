@@ -123,7 +123,6 @@ file_inode::getdents(linux_dirent* out_dirents, size_t bytes)
 
   int i;
   lock_guard<sleeplock> l;
-  u16 major, minor;
   if (!ip->is_directory()) {
     return -ENOTDIR;
   } else {
@@ -132,7 +131,7 @@ file_inode::getdents(linux_dirent* out_dirents, size_t bytes)
     for(i = 0; (i+1) * sizeof(linux_dirent) < bytes; i++) {
       const char* last = last_dirent ? last_dirent->ptr() : nullptr;
       if (!last_dirent) {
-        last_dirent = std::move(std::unique_ptr<strbuf<FILENAME_MAX>>(new strbuf<FILENAME_MAX>("")));
+        last_dirent = std::unique_ptr<strbuf<FILENAME_MAX>>(new strbuf<FILENAME_MAX>(""));
       }
 
       if(!ip->next_dirent(last, last_dirent.get())) {

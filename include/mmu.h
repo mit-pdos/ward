@@ -134,7 +134,7 @@ typedef struct hwid {
   uint32_t num;
 } hwid_t;
 
-#define HWID(xnum) (struct hwid){ num: (uint32_t)(xnum) }
+#define HWID(xnum) (struct hwid){ .num = (uint32_t)(xnum) }
 #endif
 
 #define INT_P      (1<<7)      /* interrupt descriptor present */

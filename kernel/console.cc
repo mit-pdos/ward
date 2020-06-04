@@ -230,7 +230,7 @@ printtrap(struct trapframe *tf, bool lock)
     l = cons.lock.guard();
 
   if (myproc() != nullptr) {
-    if (myproc()->name && myproc()->name[0] != 0)
+    if (myproc()->name[0] != 0)
       name = myproc()->name;
     pid = myproc()->pid;
     kstack = myproc()->kstack;

@@ -52,7 +52,7 @@ OBJCOPY = $(TOOLPREFIX)objcopy
 STRIP = $(TOOLPREFIX)strip
 
 ifeq ($(PLATFORM),xv6)
-INCLUDES  = -nostdinc++ -isystem include -iquote $(O)/include -iquote libutil/include \
+INCLUDES  = -isystem include -iquote $(O)/include -iquote libutil/include \
 		 -include param.h -include libutil/include/compiler.h
 COMFLAGS  = -static -DXV6_HW=$(HW) -DXV6 \
 	    -fno-builtin -fno-strict-aliasing -fno-omit-frame-pointer -fms-extensions \
@@ -71,7 +71,7 @@ COMFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1
 			-g -MD -MP -O3 -Wall -DHW_$(HW) $(INCLUDES) -msoft-float
 
 CFLAGS   := $(COMFLAGS) -std=c99 $(CFLAGS)
-CXXFLAGS := $(COMFLAGS) -std=c++14 -Wno-sign-compare -faligned-new -DEXCEPTIONS=1 -Wno-delete-non-virtual-dtor
+CXXFLAGS := $(COMFLAGS) -std=c++14 -Wno-sign-compare -faligned-new -DEXCEPTIONS=1 -Wno-delete-non-virtual-dtor -nostdinc++
 ASFLAGS  := $(ASFLAGS) -Iinclude -I$(O)/include -m64 -MD -MP -DHW_$(HW) -include param.h
 
 CXXRUNTIME =
@@ -148,7 +148,7 @@ $(LIBUNWIND_OBJ)/%.o: $(LIBUNWIND_SRC)/%.S
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) $(ASFLAGS) -c -o $@ $<
 $(O)/libunwind.a: $(LIBUNWIND_OBJ_FILES)
-	@echo "  AR	   $@"
+	@echo "  AR     $@"
 	$(Q)$(AR) rcs $@ $^
 
 #libcxxabi
@@ -168,7 +168,7 @@ $(LIBCXXABI_OBJ)/%.o: $(LIBCXXABI_SRC)/%.c
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) $(CFLAGS) $(LIBCXXABI_FLAGS) -c -o $@ $<
 $(O)/libcxxabi.a: $(LIBCXXABI_OBJ_FILES)
-	@echo "  AR	   $@"
+	@echo "  AR     $@"
 	$(Q)$(AR) rcs $@ $^
 
 #libcxx
@@ -188,7 +188,7 @@ $(LIBCXX_OBJ)/%.o: $(LIBCXX_SRC)/%.c
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) $(CFLAGS) $(LIBCXX_FLAGS) -c -o $@ $<
 $(O)/libcxx.a: $(LIBCXX_OBJ_FILES)
-	@echo "  AR	   $@"
+	@echo "  AR     $@"
 	$(Q)$(AR) rcs $@ $^
 
 
@@ -209,7 +209,7 @@ $(COMPILERRT_OBJ)/%.o: $(COMPILERRT_SRC)/%.c
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) $(CFLAGS) $(COMPILERRT_FLAGS) -c -o $@ $<
 $(O)/compiler-rt.a: $(COMPILERRT_OBJ_FILES)
-	@echo "  AR	   $@"
+	@echo "  AR     $@"
 	$(Q)$(AR) rcs $@ $^
 
 
@@ -219,11 +219,11 @@ $(O)/compiler-rt.a: $(COMPILERRT_OBJ_FILES)
 # we reproduce that directory tree here and let GCC use its standard (large) include path, but
 # re-rooted at this new directory.
 $(O)/sysroot: include/host_hdrs.hh
-	rm -rf $@.tmp $@
-	mkdir -p $@.tmp
-	tar c $$($(CXX) -E -H -std=c++0x -ffreestanding $< -o /dev/null 2>&1 \
+	$(Q)rm -rf $@.tmp $@
+	$(Q)mkdir -p $@.tmp
+	$(Q)tar c $$($(CXX) -E -H -std=c++0x -ffreestanding $< -o /dev/null 2>&1 \
 		| awk '/^[.]/ {print $$2}') | tar xC $@.tmp
-	mv $@.tmp $@
+	$(Q)mv $@.tmp $@
 
 ##
 ## qemu
@@ -271,7 +271,7 @@ $(O)/writeok:
 $(O)/fs.part: $(O)/tools/mkfs $(FSCONTENTS)
 	@echo "  GEN    $@"
 	$(Q)$(O)/tools/mkfs $@.tmp $(O)/fs
-	mv $@.tmp $@
+	$(Q)mv $@.tmp $@
 $(O)/boot.fat: $(O)/kernel.elf grub/grub.cfg grub/grub.efi $(O)/writeok
 	@echo "  GEN    $@"
 	$(Q)dd if=/dev/zero of=$@ bs=4096 count=66560 2> /dev/null

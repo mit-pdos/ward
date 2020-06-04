@@ -356,7 +356,7 @@ procdumpall(void)
     else
       state = "???";
     
-    if (p->name && p->name[0] != 0)
+    if (p->name[0] != 0)
       name = p->name;
     
     cprintf("\n%-3d %-10s %8s %2u  %lu\n",
@@ -417,7 +417,7 @@ doclone(clone_flags flags)
     np->ftable = myproc()->ftable->copy();
   }
 
-  static_assert(sizeof(filetable) >= PGSIZE);
+  static_assert(sizeof(filetable) >= PGSIZE, "filetable too small");
   np->vmap->qinsert(np->ftable.get(), np->ftable.get(), PGROUNDUP(sizeof(filetable)));
 
   np->cwd = myproc()->cwd;

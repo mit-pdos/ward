@@ -172,7 +172,7 @@ $(O)/kernel/%: kernel/%.S $(O)/sysroot
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) $(CFLAGS) -nostdinc -I. -c $< -o $@.o
-	$(Q)$(LD) $(LDFLAGS) -N -e efi_main -Ttext $(TTEXT) -o $@.out $@.o $(LDEXTRA)
+	$(Q)$(LD) $(LDFLAGS) -N -e start -Ttext $(TTEXT) -o $@.out $@.o $(LDEXTRA)
 	$(Q)$(OBJCOPY) -S -O binary $@.out $@
 
 $(O)/kernel/asmdefines.S: kernel/asmdefines.cc $(O)/sysroot
@@ -197,7 +197,7 @@ $(O)/kernel/kconfig.cc: param.h
 	echo "#define STR_1(x...) #x"; \
 	echo "#define STR(x...)   STR_1(x)"; \
 	echo "const char *kconfig = \"\""; \
-	echo | $(CC) $(filter-out -MD -MP,$(CFLAGS)) -E -dN - -o - | \
+	echo | $(CC) $(filter-out -MD -MP,$(CFLAGS)) -E - -o - | \
 		awk '/^# /{P=0} P{print $$2} /^# 1.*param.h/{P=1}' | \
 		awk '!/^$$/{print "\"" $$1 "=\" STR(" $$1 ") \"\\n\""}'; \
 	echo ";" \

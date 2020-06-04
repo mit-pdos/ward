@@ -79,7 +79,7 @@ bool uncaught_exception() _NOEXCEPT { return uncaught_exceptions() > 0; }
 
 int uncaught_exceptions() _NOEXCEPT
 {
-#warning uncaught_exception not yet implemented
+// #warning uncaught_exception not yet implemented
   fprintf(stderr, "uncaught_exceptions not yet implemented\n");
   ::abort();
 }
