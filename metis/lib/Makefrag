@@ -37,7 +37,7 @@ $(O)/lib/%.o: lib/%.c
 	@echo "CC	$<"
 	$(Q)$(CC) $(CFLAGS) -o $@ -c $<
 
-$(O)/lib/umalloc.o: INCLUDE+=-iquote../include -iquote../libutil/include
+$(O)/lib/umalloc.o: INCLUDE+=-iquote../include
 $(O)/lib/umalloc.o: CXXFLAGS+=-std=c++11
 $(O)/lib/%.o: lib/%.cc
 	$(Q)mkdir -p $(@D)

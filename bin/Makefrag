@@ -5,7 +5,7 @@ $(O)/bin/%.o: CXXFLAGS:=$(CXXFLAGS)
 
 ifeq ($(PLATFORM),xv6)
   $(O)/bin/%.o: CFLAGS:=-std=c11 -g -MD -MP -O3 -Wall -DHW_$(HW) -iquote $(O)/include -DXV6_USER
-  $(O)/bin/%.o: CXXFLAGS:=-std=c++14 -g -MD -MP -O3 -Wall -DHW_$(HW) -iquote $(O)/include -isystem include -include libutil/include/compiler.h -include param.h -DXV6_USER
+  $(O)/bin/%.o: CXXFLAGS:=-std=c++14 -g -MD -MP -O3 -Wall -DHW_$(HW) -iquote $(O)/include -isystem include -include include/compiler.h -include param.h -DXV6_USER
 endif
 
 UPROGS_BIN= \

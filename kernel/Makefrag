@@ -144,11 +144,6 @@ $(O)/kernel/%.o: lib/zlib/%.c
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) $(CFLAGS) -c -o $@ $<
 
-$(O)/kernel/%.o: libutil/%.cc
-	@echo "  CXX    $@"
-	$(Q)mkdir -p $(@D)
-	$(Q)$(CXX) $(CXXFLAGS) -c -o $@ $<
-
 $(O)/kernel/%.o: $(O)/kernel/%.cc
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)

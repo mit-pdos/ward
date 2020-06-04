@@ -52,14 +52,14 @@ OBJCOPY = $(TOOLPREFIX)objcopy
 STRIP = $(TOOLPREFIX)strip
 
 ifeq ($(PLATFORM),xv6)
-INCLUDES  = -isystem include -iquote $(O)/include -iquote libutil/include \
-		 -include param.h -include libutil/include/compiler.h
+INCLUDES  = -isystem include -iquote $(O)/include \
+		 -include param.h -include include/compiler.h
 COMFLAGS  = -static -DXV6_HW=$(HW) -DXV6 \
 	    -fno-builtin -fno-strict-aliasing -fno-omit-frame-pointer -fms-extensions \
 	    -mno-red-zone -nostdlib -ffreestanding -fno-pie -fno-pic -funwind-tables -fasynchronous-unwind-tables
 LDFLAGS   = -m elf_x86_64 --eh-frame-hdr
 else
-INCLUDES := -include param.h -iquote libutil/include -I$(MTRACESRC)
+INCLUDES := -include param.h -I$(MTRACESRC)
 COMFLAGS := -pthread -Wno-unused-result
 LDFLAGS := -pthread
 endif
