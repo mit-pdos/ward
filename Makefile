@@ -96,17 +96,17 @@ include bin/Makefrag
 include tools/Makefrag
 include metis/Makefrag
 
-$(O)/%.o: %.c $(O)/sysroot
+$(O)/%.o: %.c
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) $(CFLAGS) -c -o $@ $<
 
-$(O)/%.o: %.cc $(O)/sysroot
+$(O)/%.o: %.cc
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-$(O)/%.o: $(O)/%.cc $(O)/sysroot
+$(O)/%.o: $(O)/%.cc
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CXX) $(CXXFLAGS) -c -o $@ $<
@@ -213,17 +213,6 @@ $(O)/compiler-rt.a: $(COMPILERRT_OBJ_FILES)
 	$(Q)$(AR) rcs $@ $^
 
 
-
-# Construct an alternate "system include root" by copying headers from the host that are part of
-# C++'s freestanding implementation.  These headers are distributed across several directories, so
-# we reproduce that directory tree here and let GCC use its standard (large) include path, but
-# re-rooted at this new directory.
-$(O)/sysroot: include/host_hdrs.hh
-	$(Q)rm -rf $@.tmp $@
-	$(Q)mkdir -p $@.tmp
-	$(Q)tar c $$($(CXX) -E -H -std=c++0x -ffreestanding $< -o /dev/null 2>&1 \
-		| awk '/^[.]/ {print $$2}') | tar xC $@.tmp
-	$(Q)mv $@.tmp $@
 
 ##
 ## qemu

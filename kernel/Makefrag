@@ -131,27 +131,27 @@ $(KERN): tools/kmeta.py $(O)/kernel/boot.o $(OBJS) $(LDEPS) kernel/kernel.ld
 	$(Q)tools/check-stack $@.tmp
 	$(Q)mv $@.tmp $@
 
-$(O)/kernel/%.o: lib/%.cc $(O)/sysroot
+$(O)/kernel/%.o: lib/%.cc
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-$(O)/kernel/%.o: lib/%.c $(O)/sysroot
+$(O)/kernel/%.o: lib/%.c
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) $(CFLAGS) -c -o $@ $<
 
-$(O)/kernel/%.o: lib/zlib/%.c $(O)/sysroot
+$(O)/kernel/%.o: lib/zlib/%.c
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) $(CFLAGS) -c -o $@ $<
 
-$(O)/kernel/%.o: libutil/%.cc $(O)/sysroot
+$(O)/kernel/%.o: libutil/%.cc
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-$(O)/kernel/%.o: $(O)/kernel/%.cc $(O)/sysroot
+$(O)/kernel/%.o: $(O)/kernel/%.cc
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CXX) $(CXXFLAGS) -Ilibcxx/include -c -o $@ $<
@@ -168,14 +168,14 @@ $(O)/kernel/bootother: TTEXT = 0x7000
 
 $(O)/kernel/swtch.o: $(O)/include/asmdefines.h
 
-$(O)/kernel/%: kernel/%.S $(O)/sysroot
+$(O)/kernel/%: kernel/%.S
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) $(CFLAGS) -nostdinc -I. -c $< -o $@.o
 	$(Q)$(LD) $(LDFLAGS) -N -e start -Ttext $(TTEXT) -o $@.out $@.o $(LDEXTRA)
 	$(Q)$(OBJCOPY) -S -O binary $@.out $@
 
-$(O)/kernel/asmdefines.S: kernel/asmdefines.cc $(O)/sysroot
+$(O)/kernel/asmdefines.S: kernel/asmdefines.cc
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CXX) -S $(CXXFLAGS) -o $@ $<
