@@ -257,3 +257,29 @@ public:
     return p;
   }
 };
+
+template<class T>
+class kmalloc_allocator : public allocator_base<T>
+{
+public:
+  template <class U> struct rebind { typedef kmalloc_allocator<U> other; };
+
+  kmalloc_allocator() = default;
+  kmalloc_allocator(const kmalloc_allocator&) = default;
+  template<class U> kmalloc_allocator(const kmalloc_allocator<U>&) noexcept { }
+
+  T*
+  allocate(std::size_t n, const void *hint = 0)
+  {
+    return (T*)kmalloc(round_up_to_pow2(n * sizeof(T)), typeid(T).name());
+  }
+
+  void
+  deallocate(T* p, std::size_t n)
+  {
+    kmfree(p, round_up_to_pow2(n * sizeof(T)));
+  }
+
+  bool operator==(kmalloc_allocator<T>) { return true; }
+  bool operator!=(kmalloc_allocator<T>) { return false; }
+};

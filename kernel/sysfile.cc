@@ -647,9 +647,9 @@ sys_getcwd(userptr<void> out_path, size_t out_len)
 // exec.
 static int
 load_str_list(userptr<userptr_str> list, size_t listmax, size_t strmax,
-              std::vector<std::unique_ptr<char[]> > *out)
+              std::vector<std::unique_ptr<char[]>, kmalloc_allocator<std::unique_ptr<char[]>>> *out)
 {
-  std::vector<std::unique_ptr<char[]> > argv;
+  std::vector<std::unique_ptr<char[]>, kmalloc_allocator<std::unique_ptr<char[]>>> argv;
   for (int i = 0; ; ++i) {
     if (i == listmax)
       return -1;
@@ -674,11 +674,11 @@ doexec(userptr_str upath, userptr<userptr_str> uargv)
   if (!(path = upath.load_alloc(FILENAME_MAX+1)))
     return -1;
 
-  std::vector<std::unique_ptr<char[]> > xargv;
+  std::vector<std::unique_ptr<char[]>, kmalloc_allocator<std::unique_ptr<char[]>>> xargv;
   if (load_str_list(uargv, MAXARG, MAXARGLEN, &xargv) < 0)
     return -1;
 
-  std::vector<char*> argv;
+  std::vector<char*, kmalloc_allocator<char*>> argv;
   for (auto &p : xargv)
     argv.push_back(p.get());
   argv.push_back(nullptr);
@@ -848,10 +848,10 @@ sys_spawn(userptr_str upath, userptr<userptr_str> uargv,
     std::unique_ptr<char[]> path;
     if (!(path = upath.load_alloc(FILENAME_MAX+1)))
       return -1;
-    std::vector<std::unique_ptr<char[]> > xargv;
+    std::vector<std::unique_ptr<char[]>, kmalloc_allocator<std::unique_ptr<char[]>> > xargv;
     if (load_str_list(uargv, MAXARG, MAXARGLEN, &xargv) < 0)
       return -1;
-    std::vector<char*> argv;
+    std::vector<char*, kmalloc_allocator<char*>> argv;
     for (auto &p : xargv)
       argv.push_back(p.get());
     argv.push_back(nullptr);
