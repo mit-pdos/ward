@@ -102,8 +102,8 @@ include kernel/Makefrag.acpica
 KERN = $(O)/kernel.elf
 ALL += $(KERN)
 
-$(O)/kernel/%.o: CFLAGS+=-mcmodel=kernel -Ilibcxx/include -DXV6_KERNEL -mno-sse
-$(O)/kernel/%.o: CXXFLAGS+=-mcmodel=kernel -Ilibcxx/include -DXV6_KERNEL -mno-sse
+$(O)/kernel/%.o: CFLAGS+=-mcmodel=kernel -Ithird_party/libcxx/include -DXV6_KERNEL -mno-sse
+$(O)/kernel/%.o: CXXFLAGS+=-mcmodel=kernel -Ithird_party/libcxx/include -DXV6_KERNEL -mno-sse
 
 UNAME := $(shell uname)
 ifeq ($(UNAME), Darwin)
@@ -147,7 +147,7 @@ $(O)/kernel/%.o: lib/zlib/%.c
 $(O)/kernel/%.o: $(O)/kernel/%.cc
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)$(CXX) $(CXXFLAGS) -Ilibcxx/include -c -o $@ $<
+	$(Q)$(CXX) $(CXXFLAGS) -Ithird_party/libcxx/include -c -o $@ $<
 
 $(O)/kernel/incbin.o: ASFLAGS+=-DMAKE_OUT=$(O)
 $(O)/kernel/incbin.o: $(O)/kernel/initcode $(O)/kernel/bootother $(O)/fs.part

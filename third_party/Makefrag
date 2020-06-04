@@ -1,4 +1,90 @@
+# -*- makefile-gmake -*-
 
 $(O)/third_party/zlib/crc32.o: CFLAGS:=$(CFLAGS) -mcmodel=kernel -mno-sse -DXV6_KERNEL
 
+#libunwind
+LIBUNWIND_SRC = third_party/libunwind/src
+LIBUNWIND_OBJ = $(O)/libunwind
+LIBUNWIND_SRC_C_FILES := $(wildcard $(LIBUNWIND_SRC)/*.c)
+LIBUNWIND_SRC_CXX_FILES := $(wildcard $(LIBUNWIND_SRC)/*.cpp)
+LIBUNWIND_SRC_S_FILES := $(wildcard $(LIBUNWIND_SRC)/*.S)
+LIBUNWIND_OBJ_FILES := $(patsubst $(LIBUNWIND_SRC)/%.c,$(LIBUNWIND_OBJ)/%.o,$(LIBUNWIND_SRC_C_FILES)) \
+						$(patsubst $(LIBUNWIND_SRC)/%.cpp,$(LIBUNWIND_OBJ)/%.o,$(LIBUNWIND_SRC_CXX_FILES)) \
+						$(patsubst $(LIBUNWIND_SRC)/%.S,$(LIBUNWIND_OBJ)/%.o,$(LIBUNWIND_SRC_S_FILES))
+LIBUNWIND_FLAGS = -D_LIBUNWIND_IS_BAREMETAL -D_LIBUNWIND_HAS_NO_THREADS -DNDEBUG -Ithird_party/libunwind/include -mcmodel=kernel
+$(LIBUNWIND_OBJ)/%.o: $(LIBUNWIND_SRC)/%.cpp
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CXX) $(CXXFLAGS) $(LIBUNWIND_FLAGS) -c -o $@ $<
+$(LIBUNWIND_OBJ)/%.o: $(LIBUNWIND_SRC)/%.c
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(CFLAGS) $(LIBUNWIND_FLAGS) -c -o $@ $<
+$(LIBUNWIND_OBJ)/%.o: $(LIBUNWIND_SRC)/%.S
+	@echo "  CC     $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(ASFLAGS) -c -o $@ $<
+$(O)/libunwind.a: $(LIBUNWIND_OBJ_FILES)
+	@echo "  AR     $@"
+	$(Q)$(AR) rcs $@ $^
 
+#libcxxabi
+LIBCXXABI_SRC = third_party/libcxxabi/src
+LIBCXXABI_OBJ = $(O)/libcxxabi
+LIBCXXABI_SRC_C_FILES := $(wildcard $(LIBCXXABI_SRC)/*.c)
+LIBCXXABI_SRC_CXX_FILES := $(wildcard $(LIBCXXABI_SRC)/*.cpp)
+LIBCXXABI_OBJ_FILES := $(patsubst $(LIBCXXABI_SRC)/%.c,$(LIBCXXABI_OBJ)/%.o,$(LIBCXXABI_SRC_C_FILES)) \
+						$(patsubst $(LIBCXXABI_SRC)/%.cpp,$(LIBCXXABI_OBJ)/%.o,$(LIBCXXABI_SRC_CXX_FILES))
+LIBCXXABI_FLAGS = -D_NOEXCEPT=noexcept -DLIBCXXABI_USE_LLVM_UNWINDER -Ithird_party/libcxx/include -Ithird_party/libcxxabi/include -mcmodel=kernel # -D_LIBCPP_BUILDING_LIBRARY
+$(LIBCXXABI_OBJ)/%.o: $(LIBCXXABI_SRC)/%.cpp
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CXX) $(LIBCXXABI_FLAGS) $(CXXFLAGS) -c -o $@ $<
+$(LIBCXXABI_OBJ)/%.o: $(LIBCXXABI_SRC)/%.c
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(CFLAGS) $(LIBCXXABI_FLAGS) -c -o $@ $<
+$(O)/libcxxabi.a: $(LIBCXXABI_OBJ_FILES)
+	@echo "  AR     $@"
+	$(Q)$(AR) rcs $@ $^
+
+#libcxx
+LIBCXX_SRC = third_party/libcxx/src
+LIBCXX_OBJ = $(O)/libcxx
+LIBCXX_SRC_C_FILES := $(wildcard $(LIBCXX_SRC)/*.c)
+LIBCXX_SRC_CXX_FILES := $(wildcard $(LIBCXX_SRC)/*.cpp)
+LIBCXX_OBJ_FILES := $(patsubst $(LIBCXX_SRC)/%.c,$(LIBCXX_OBJ)/%.o,$(LIBCXX_SRC_C_FILES)) \
+						$(patsubst $(LIBCXX_SRC)/%.cpp,$(LIBCXX_OBJ)/%.o,$(LIBCXX_SRC_CXX_FILES))
+LIBCXX_FLAGS = -D_NOEXCEPT=noexcept -D_LIBCPP_BUILDING_LIBRARY -Ithird_party/libcxx/include -mcmodel=kernel # -D_LIBCPP_BUILDING_LIBRARY
+$(LIBCXX_OBJ)/%.o: $(LIBCXX_SRC)/%.cpp
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CXX) $(LIBCXX_FLAGS) $(CXXFLAGS) -c -o $@ $<
+$(LIBCXX_OBJ)/%.o: $(LIBCXX_SRC)/%.c
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(CFLAGS) $(LIBCXX_FLAGS) -c -o $@ $<
+$(O)/libcxx.a: $(LIBCXX_OBJ_FILES)
+	@echo "  AR     $@"
+	$(Q)$(AR) rcs $@ $^
+
+
+#compiler-rt
+COMPILERRT_SRC = third_party/compiler-rt/lib/builtins
+COMPILERRT_OBJ = $(O)/compiler-rt
+COMPILERRT_SRC_C_FILES := $(wildcard $(COMPILERRT_SRC)/*.c)
+COMPILERRT_SRC_CXX_FILES := $(wildcard $(COMPILERRT_SRC)/*.cpp)
+COMPILERRT_OBJ_FILES := $(patsubst $(COMPILERRT_SRC)/%.c,$(COMPILERRT_OBJ)/%.o,$(COMPILERRT_SRC_C_FILES)) \
+						$(patsubst $(COMPILERRT_SRC)/%.cpp,$(COMPILERRT_OBJ)/%.o,$(COMPILERRT_SRC_CXX_FILES))
+COMPILERRT_FLAGS = -Ithird_party/libcxx/include
+$(COMPILERRT_OBJ)/%.o: $(COMPILERRT_SRC)/%.cpp
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CXX) $(COMPILERRT_FLAGS) $(CXXFLAGS) -c -o $@ $<
+$(COMPILERRT_OBJ)/%.o: $(COMPILERRT_SRC)/%.c
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(CFLAGS) $(COMPILERRT_FLAGS) -c -o $@ $<
+$(O)/compiler-rt.a: $(COMPILERRT_OBJ_FILES)
+	@echo "  AR     $@"
+	$(Q)$(AR) rcs $@ $^
