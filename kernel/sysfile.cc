@@ -35,7 +35,7 @@ fdalloc(sref<file>&& f, int omode)
   if (!f)
     return -1;
   return myproc()->ftable->allocfd(
-    std::move(f), omode & O_ANYFD, omode & O_CLOEXEC);
+    std::move(f), 0, omode & O_ANYFD, omode & O_CLOEXEC);
 }
 
 //SYSCALL
@@ -287,7 +287,7 @@ sys_writev(int fd, const void* iov, int count) {
 
   kernel_iovec v;
   for(int i = 0; i < count; i++) {
-    ((userptr<kernel_iovec>)(kernel_iovec*)iov).load(&v);
+    ((userptr<kernel_iovec>)((kernel_iovec*)iov) + i).load(&v);
     if (v.len == 0)
       continue;
     if (v.len > PGSIZE)
@@ -298,6 +298,38 @@ sys_writev(int fd, const void* iov, int count) {
   }
   return 0;
 }
+
+//SYSCALL
+ssize_t
+sys_readv(int fd, const void* iov, int count) {
+  sref<file> f = getfile(fd);
+  if (!f)
+    return -1;
+  char *b = kalloc("readbuf");
+  if (!b)
+    return -1;
+  auto cleanup = scoped_cleanup([b](){kfree(b);});
+
+  kernel_iovec v;
+  for(int i = 0; i < count; i++) {
+    ((userptr<kernel_iovec>)((kernel_iovec*)iov) + i).load(&v);
+    if (v.len == 0)
+      continue;
+    if (v.len > PGSIZE)
+      v.len = PGSIZE;
+
+    ssize_t ret = f->read(b, v.len);
+    if (ret <= 0)
+      return ret;
+
+    if (!userptr<void>(v.base).store_bytes(b, ret))
+      return -EIO;
+    return ret;
+
+  }
+  return 0;
+}
+
 
 //SYSCALL
 ssize_t
@@ -492,6 +524,13 @@ sys_openat(int dirfd, userptr_str path, int omode, ...)
   sref<file> f = make_sref<file_inode>(
     m, !(rwmode == O_WRONLY), !(rwmode == O_RDONLY), !!(omode & O_APPEND));
   return fdalloc(std::move(f), omode);
+}
+
+//SYSCALL
+long
+sys_open(userptr_str path, int omode)
+{
+  return sys_openat(AT_FDCWD, path, omode);
 }
 
 //SYSCALL
@@ -694,6 +733,15 @@ sys_execv(userptr_str upath, userptr<userptr_str> uargv)
   return doexec(upath, uargv);
 }
 
+//SYSCALL {"uargs":["const char *upath", "char * const uargv[]"]}
+long
+sys_execve(userptr_str upath, userptr<userptr_str> uargv, char *const envp[])
+{
+  // TODO: actually pass env.
+  myproc()->data_cpuid = myid();
+  return doexec(upath, uargv);
+}
+
 //SYSCALL
 long
 sys_pipe2(userptr<int> fd, int flags)
@@ -878,8 +926,35 @@ sys_fcntl(int fd, int cmd, u64 arg)
   switch(cmd) {
   case F_GETFL:
     return O_RDWR;
-
+  case F_DUPFD:
+  {
+    auto f = getfile(fd);
+    if (!f)
+      return -EBADFD;
+    return myproc()->ftable->allocfd(std::move(f), arg, false, false);
+  }
   default:
     return -EINVAL;
   };
+}
+
+//SYSCALL
+long
+sys_ioctl(int fd, int request, void* argp)
+{
+  if (request == 0x5413) { // TIOCGWINSZ
+    struct winsize {
+      u16 rows;
+      u16 cols;
+      u16 xpixel;
+      u16 ypixel;
+    };
+
+    userptr<winsize> window((winsize*)argp);
+    auto output = winsize { .rows = 24, .cols = 80, .xpixel = 24*8, .ypixel = 80*16 };
+    window.store(&output);
+    return 0;
+  }
+
+  return -EINVAL;
 }

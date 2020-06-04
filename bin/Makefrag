@@ -4,11 +4,12 @@ $(O)/bin/%.o: CFLAGS:=$(CFLAGS)
 $(O)/bin/%.o: CXXFLAGS:=$(CXXFLAGS)
 
 ifeq ($(PLATFORM),xv6)
-  $(O)/bin/%.o: CFLAGS:=$(CFLAGS) -isystem stdinc -DXV6_USER
-  $(O)/bin/%.o: CXXFLAGS:=$(CXXFLAGS) -isystem stdinc -DXV6_USER
+  $(O)/bin/%.o: CFLAGS:=-std=c11 -g -MD -MP -O3 -Wall -DHW_$(HW) -iquote $(O)/include -DXV6_USER
+  $(O)/bin/%.o: CXXFLAGS:=-std=c++14 -g -MD -MP -O3 -Wall -DHW_$(HW) -iquote $(O)/include -isystem include -include libutil/include/compiler.h -include param.h -DXV6_USER
 endif
 
 UPROGS_BIN= \
+	init \
 
 # Binaries that are known to build on PLATFORM=native
 UPROGS_NATIVE := \
@@ -59,9 +60,10 @@ FSCONTENTS := $(addprefix $(O)/fs/bin/, $(UPROGS_BIN)) \
               $(addprefix $(O)/fs/, $(notdir $(wildcard lwip))) \
               $(O)/fs/bin/unittests.sh \
               $(O)/fs/intel-ucode \
+              $(O)/fs/bin/busybox \
 
 # (ULIBA will be empty for native builds)
-UPROGS_LIBS := $(ULIBA) $(LIBUTIL_A)
+UPROGS_LIBS := $(ULIBA)
 
 ifeq ($(PLATFORM),native)
   ALL += $(addprefix $(O)/bin/, $(UPROGS_NATIVE))
@@ -85,10 +87,10 @@ else
   LINK_CMD_END :=  --start-group $(UPROGS_LIBS) --end-group $(ULIB_END)
 endif
 
-$(O)/bin/%.unstripped: $(O)/bin/%.o $(ULIB_BEGIN) $(ULIB_END) $(UPROGS_LIBS)
+$(O)/bin/%.unstripped: $(O)/bin/%.o $(O)/lib/sysstubs.o
 	@echo "  LD     $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)$(LINK_CMD_BEGIN) -o $@ $(ULIB_BEGIN) $< $(LINK_CMD_END)
+	$(Q)$(CXX) -static -o $@ $^
 $(O)/fs/bin/%: $(O)/bin/%.unstripped
 	@echo "  STRIP  $@"
 	$(Q)mkdir -p $(@D)

@@ -2,6 +2,7 @@
 #include "kernel.hh"
 #include "vfs.hh"
 #include "cmdline.hh"
+#include "major.h"
 
 static sref<virtual_filesystem> mounts __attribute__((section (".qdata")));
 
@@ -55,6 +56,20 @@ initvfs()
       }
     }
   }
+
+  auto dev = mounts->root()->create_dir("dev");
+  dev->create_device("netif", MAJ_NETIF, 0);
+  dev->create_device("sampler", MAJ_SAMPLER, 0);
+  dev->create_device("lockstat", MAJ_LOCKSTAT, 0);
+  dev->create_device("stat", MAJ_STAT, 0);
+  dev->create_device("cmdline", MAJ_CMDLINE, 0);
+  dev->create_device("gc", MAJ_GC, 0);
+  dev->create_device("kconfig", MAJ_KCONFIG, 0);
+  dev->create_device("kstats", MAJ_KSTATS, 0);
+  dev->create_device("kmemstats", MAJ_KMEMSTATS, 0);
+  dev->create_device("mfsstats", MAJ_MFSSTATS, 0);
+  dev->create_device("qstats", MAJ_QSTATS, 0);
+  dev->create_device("null", MAJ_NULL, 0);
 }
 
 int

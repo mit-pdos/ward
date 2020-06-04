@@ -429,8 +429,8 @@ def main():
 .globl SYS_%(uname)s
 SYS_%(uname)s = %(num)d
 
-.globl %(uname)s
-%(uname)s:
+.globl ward_%(uname)s
+ward_%(uname)s:
   movq $%(num)d, %%rax
   movq %%rcx, %%r10
   syscall
@@ -438,8 +438,8 @@ SYS_%(uname)s = %(num)d
 """ % syscall.__dict__)
         print()
         print("""\
-.globl syscall
-syscall:
+.globl ward_syscall
+ward_syscall:
         movq %rdi, %rax /* Syscall number -> rax.  */
         movq %rsi, %rdi /* shift arg1 - arg5.  */
         movq %rdx, %rsi
@@ -464,7 +464,7 @@ syscall:
             extra = ""
             if syscall.flags.get("noret"):
                 extra = " __attribute__((noreturn))"
-            print("%s %s(%s)%s;" % (syscall.rettype, syscall.uname,
+            print("%s ward_%s(%s)%s;" % (syscall.rettype, syscall.uname,
                                     ", ".join(syscall.uargs), extra))
         print("u64 syscall(u64, ...);")
         print()

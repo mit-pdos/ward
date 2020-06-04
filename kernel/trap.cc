@@ -26,6 +26,28 @@ struct intdesc idt[256] __attribute__((section (".qdata"), aligned(4096)));
 
 char fpu_initial_state[XSAVE_BYTES]  __attribute__((section (".qdata")));
 
+
+struct segdesc  __attribute__((aligned(16))) bootgdt[NSEGS] = {
+  // null
+  SEGDESC(0, 0, 0),
+  // 32-bit kernel code
+  SEGDESC(0, 0xfffff, SEG_R|SEG_CODE|SEG_S|SEG_DPL(0)|SEG_P|SEG_D|SEG_G),
+  // 64-bit kernel code
+  SEGDESC(0, 0, SEG_R|SEG_CODE|SEG_S|SEG_DPL(0)|SEG_P|SEG_L|SEG_G),
+  // kernel data
+  SEGDESC(0, 0xfffff, SEG_W|SEG_S|SEG_DPL(0)|SEG_P|SEG_D|SEG_G),
+  // unused
+  {0},
+  // unused
+  {0},
+  // The order of the user data and user code segments is
+  // important for syscall instructions.  See initseg.
+  // 64-bit user data
+  SEGDESC(0, 0xfffff, SEG_W|SEG_S|SEG_DPL(3)|SEG_P|SEG_D|SEG_G),
+  // 64-bit user code
+  SEGDESC(0, 0, SEG_R|SEG_CODE|SEG_S|SEG_DPL(3)|SEG_P|SEG_L|SEG_G),
+};
+
 DEFINE_PERCPU(char*, nmistacktop);
 
 // boot.S

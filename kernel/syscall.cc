@@ -143,11 +143,11 @@ syscall(u64 a0, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 num)
 #if KERNEL_STRACE
           if (strcmp(myproc()->name, "git") == 0) {
             if (myproc()->syscall_param_string[0]) {
-              cprintf("\033[33mCALL: %s(%s) = %lx\033[0m\n",
-                      syscall_names[num], myproc()->syscall_param_string, r);
+              cprintf("\033[33m%d %s: %s(%s) = %lx\033[0m\n",
+                      myproc()->pid, myproc()->name, syscall_names[num], myproc()->syscall_param_string, r);
             } else {
-              cprintf("\033[33mCALL: %s(%lx, %lx, %lx, %lx) = %lx\033[0m\n",
-                      syscall_names[num], a0, a1, a2, a3, r);
+              cprintf("\033[33m%d %s: %s(%lx, %lx, %lx, %lx) = %lx\033[0m\n",
+                      myproc()->pid, myproc()->name, syscall_names[num], a0, a1, a2, a3, r);
             }
           }
 #endif

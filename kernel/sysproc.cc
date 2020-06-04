@@ -37,10 +37,26 @@ sys_fork_flags(int flags)
   return p->pid;
 }
 
+//SYSCALL
+pid_t
+sys_fork(void)
+{
+  return sys_fork_flags(0);
+}
+
 //SYSCALL {"noret":true}
 void
 sys_exit(int status)
 {
+  procexit(status);
+  panic("procexit() returned");
+}
+
+//SYSCALL {"noret":true}
+void
+sys_exit_group(int status)
+{
+  // TODO: exit other threads in group
   procexit(status);
   panic("procexit() returned");
 }
@@ -57,6 +73,14 @@ pid_t
 sys_wait(userptr<int> status)
 {
   return wait(-1, status);
+}
+
+//SYSCALL
+pid_t
+sys_wait4(pid_t pid, userptr<int> wstatus, int options, void* rusage)
+{
+  // TODO: actually consider options and rusage
+  return wait(pid, wstatus);
 }
 
 //SYSCALL

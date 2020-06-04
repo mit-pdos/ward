@@ -1,24 +1,11 @@
 // init: The initial user-level program
 
-#ifdef XV6_USER
-#include "user.h"
-#include "major.h"
-#endif
-
-#include <fcntl.h>
-#include <time.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
+#include <time.h>
+#include <fcntl.h>
 
-#ifndef XV6_USER
-#include <errno.h>
-#include <sys/mount.h>
-#endif
-
-#include "libutil.h"
+#include "sysstubs.h"
 
 static const char *sh_argv[] = { "sh", 0 };
 static const char *app_argv[][MAXARG] = {
@@ -28,38 +15,25 @@ static const char *app_argv[][MAXARG] = {
 #endif
 };
 
-#ifdef XV6_USER
-static struct {
-  const char* name;
-  int major;
-} dev[] = {
-  { "/dev/netif",     MAJ_NETIF },
-  { "/dev/sampler",   MAJ_SAMPLER },
-  { "/dev/lockstat",  MAJ_LOCKSTAT },
-  { "/dev/stat",      MAJ_STAT },
-  { "/dev/cmdline",   MAJ_CMDLINE},
-  { "/dev/gc",   MAJ_GC},
-  { "/dev/kconfig",   MAJ_KCONFIG},
-  { "/dev/kstats",    MAJ_KSTATS},
-  { "/dev/kmemstats",    MAJ_KMEMSTATS},
-  { "/dev/mfsstats",    MAJ_MFSSTATS},
-  { "/dev/qstats", MAJ_QSTATS},
-  { "/dev/null", MAJ_NULL},
-};
-#endif
+static const char* busybox_aliases[] = {
+  "/bin/cat", "/bin/cp", "/bin/clear", "/bin/du", "/bin/echo", "/bin/ls", "/bin/mkdir", "/bin/sh",
+  "/bin/nsh", "/bin/time", "/bin/sleep", "/bin/cp", "/bin/rm", "/bin/mv", "/bin/tee", "/bin/ln",
+  "/bin/dd", 0 };
 
 static int
 startone(const char * const *argv)
 {
   int pid;
 
-  pid = fork();
+  pid = ward_fork_flags(0);
   if(pid < 0){
-    die("init: fork failed");
+    fprintf(stderr, "init: fork failed");
+    ward_exit(-1);
   }
   if(pid == 0){
-    execv(argv[0], const_cast<char * const *>(argv));
-    die("init: exec %s failed", argv[0]);
+    ward_execv(argv[0], const_cast<char * const *>(argv));
+    fprintf(stderr, "init: exec %s failed", argv[0]);
+    ward_exit(-1);
   }
   return pid;
 }
@@ -73,21 +47,18 @@ runcmdline(void)
   long r;
   int fd;
 
-#ifdef XV6_USER
-  fd = open("/dev/cmdline", O_RDONLY);
-#else
-  fd = open("/proc/cmdline", O_RDONLY);
-#endif
+  fd = ward_openat(0, "/dev/cmdline", O_RDONLY);
+
   if (fd < 0)
     return;
 
-  r = read(fd, buf, sizeof(buf)-1);
+  r = ward_read(fd, buf, sizeof(buf)-1);
   if (r < 0)
     return;
   buf[r] = 0;
 
-  close(fd);
-  
+  ward_close(fd);
+
   if ((b = strchr(buf, '%'))) {
     argv[2] = b+1;
     printf("init: Starting %s\n", argv[2]);
@@ -100,47 +71,33 @@ main(void)
 {
   int pid, wpid;
 
-#ifdef XV6_USER
-  if(open("console", O_RDWR) < 0){
-    mknod("console", 1, 1);
-    open("console", O_RDWR);
+  if(ward_open("console", O_RDWR) < 0){
+    ward_mknod("console", 1, 1);
+    ward_open("console", O_RDWR);
   }
-  dup(0);  // stdout
-  dup(0);  // stderr
+  ward_dup(0);  // stdout
+  ward_dup(0);  // stderr
 
-  mkdir("dev", 0777);
-  for (auto &d : dev)
-    if (mknod(d.name, d.major, 1) < 0)
-      fprintf(stderr, "init: mknod %s failed\n", d.name);
+  ward_mkdir("etc", 0777);
+  int fd = ward_openat(0, "/etc/gitconfig", O_RDWR | O_CREAT);
+  if(fd >= 0) ward_close(fd);
 
-  mkdir("etc", 0777);
-  int fd = open("etc/gitconfig", O_RDWR | O_CREAT);
-  if(fd >= 0) close(fd);
-
-#else
-  mkdir("/proc", 0555);
-  int r = mount("x", "/proc", "proc", 0, "");
-  if (r < 0)
-    edie("mount /proc failed");
-  mkdir("/dev", 0555);
-  r = mount("x", "/dev", "devtmpfs", 0, "");
-  if (r < 0) {
-    fprintf(stderr, "Warning: mount /dev failed: %s\n", strerror (errno));
-    fprintf(stderr, "(Is CONFIG_DEVTMPFS=y in your kernel configuration?)\n");
+  for(const char** a = busybox_aliases; *a; a++) {
+    ward_link("/bin/busybox", *a);
   }
-#endif
 
   for (auto &argv : app_argv)
     startone(argv);
 
-  time_t now = time(nullptr);
+  time_t now = ward_time(nullptr);
   printf("init complete at %s", ctime(&now));
+  fflush(stdout);
 
   runcmdline();
 
   for(;;){
     pid = startone(sh_argv);
-    while((wpid=wait(NULL)) >= 0 && wpid != pid)
+    while((wpid=ward_wait(NULL)) >= 0 && wpid != pid)
       fprintf(stderr, "zombie!\n");
   }
   return 0;

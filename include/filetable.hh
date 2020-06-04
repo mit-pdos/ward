@@ -69,14 +69,14 @@ public:
 
   // Allocate a FD and point it to f.  This takes over the reference
   // to f from the caller.
-  int allocfd(sref<file>&& f, bool percpu = false, bool cloexec = false) {
+  int allocfd(sref<file>&& f, int minfd, bool percpu, bool cloexec) {
     int cpu = percpu ? myid() : 0;
     fdinfo none(nullptr, false);
     // Transfer f to manual reference counting since we can't store
     // sref's in the info table.
     file *fptr = f->dup();
     fdinfo newinfo(fptr, cloexec, true);
-    for (int fd = 0; fd < NOFILE; fd++) {
+    for (int fd = minfd; fd < NOFILE; fd++) {
       // Note that we skip over locked FDs because that means they're
       // either non-null or about to be.
       if (info_[cpu][fd].load(std::memory_order_relaxed) == none &&
