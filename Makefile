@@ -91,7 +91,6 @@ ifeq ($(PLATFORM),xv6)
 include third_party/Makefrag
 include kernel/Makefrag
 endif
-include libutil/Makefrag
 include bin/Makefrag
 include tools/Makefrag
 include metis/Makefrag
