@@ -66,11 +66,7 @@ SECTIONS
         *(.qdata)
         . = ALIGN(0x1000);
         PROVIDE(__qdata_end = .);
-    }
-    PROVIDE(edata = .);
-    .bss : {
-        *(.bss .bss.* .gnu.linkonce.b.*)
-        . = ALIGN(0x1000);
+
         PROVIDE(__percpu_start = .);
         PROVIDE(__qpercpu_start = .);
         *(.qpercpu)
@@ -78,6 +74,11 @@ SECTIONS
         PROVIDE(__qpercpu_end = .);
         *(.percpu)
         PROVIDE(__percpu_end = .);
+    }
+    PROVIDE(edata = .);
+    .bss : {
+        *(.bss .bss.* .gnu.linkonce.b.*)
+        . = ALIGN(0x1000);
     }
 
     /* 2MByte align, because we set NX on 2MByte super pages. */

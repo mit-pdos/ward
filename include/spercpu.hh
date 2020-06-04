@@ -34,7 +34,7 @@
 // constructor.  This is for special cases like cpus that must be
 // initialized remotely.
 #define DEFINE_PERCPU_NOINIT(type, name, ...)                           \
-  type __##name##_key __attribute__((__section__(".percpu,\"aw\",@nobits#"))); \
+  type __##name##_key __attribute__((__section__(".percpu")));          \
   static_percpu<type, &__##name##_key, ##__VA_ARGS__> name
 
 // Variants of DEFINE_PERCPU that makes the variable Q-visible.
@@ -44,7 +44,7 @@
   static void (*__##name##_initp)(size_t)                               \
     __attribute__((section(".percpuinit_array"),used)) = __##name##_init;
 #define DEFINE_QPERCPU_NOINIT(type, name, ...)                          \
-  type __##name##_key __attribute__((__section__(".qpercpu,\"aw\",@nobits#"))); \
+  type __##name##_key __attribute__((__section__(".qpercpu")));         \
   static_percpu<type, &__##name##_key, ##__VA_ARGS__> name
 
 #define DECLARE_PERCPU(type, name, ...) \
