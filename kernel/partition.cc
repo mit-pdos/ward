@@ -3,7 +3,7 @@
 #include "cpputil.hh"
 #include "vector.hh"
 #include "disk.hh"
-#include "../lib/zlib/zlib.h"
+#include "../third_party/zlib/zlib.h"
 
 #define SECTOR_SIZE 512
 

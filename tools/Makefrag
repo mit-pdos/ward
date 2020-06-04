@@ -8,4 +8,9 @@ $(O)/tools/perf-report: tools/perf-report.cc include/sampler.h
 	$(Q)mkdir -p $(@D)
 	$(Q)g++ -std=c++0x -m64 -Werror -Wall -I. -o $@ $<
 
+$(O)/lib/sysstubs.S: tools/syscalls.py kernel/*.cc
+	$(call SYSCALLGEN,--ustubs)
+$(O)/include/sysstubs.h: tools/syscalls.py kernel/*.cc
+	$(call SYSCALLGEN,--udecls)
+
 ALL += $(O)/tools/perf-report

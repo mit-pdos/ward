@@ -1,0 +1,4 @@
+
+$(O)/third_party/zlib/crc32.o: CFLAGS:=$(CFLAGS) -mcmodel=kernel -mno-sse -DXV6_KERNEL
+
+

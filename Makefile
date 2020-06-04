@@ -88,8 +88,8 @@ endef
 
 ifeq ($(PLATFORM),xv6)
 # include net/Makefrag
+include third_party/Makefrag
 include kernel/Makefrag
-include lib/Makefrag
 endif
 include libutil/Makefrag
 include bin/Makefrag
@@ -211,8 +211,6 @@ $(COMPILERRT_OBJ)/%.o: $(COMPILERRT_SRC)/%.c
 $(O)/compiler-rt.a: $(COMPILERRT_OBJ_FILES)
 	@echo "  AR     $@"
 	$(Q)$(AR) rcs $@ $^
-
-
 
 ##
 ## qemu

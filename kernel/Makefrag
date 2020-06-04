@@ -78,7 +78,6 @@ OBJS = \
 	multiboot.o \
 	vga.o \
 	partition.o \
-	crc32.o \
 	vfs.o \
 	vfsadapt.o \
 	vfsnull.o \
@@ -113,7 +112,7 @@ else
 DDSTATUS := status=none
 endif
 
-LDEPS += $(O)/libunwind.a $(O)/libcxxabi.a $(O)/compiler-rt.a $(O)/libcxx.a
+LDEPS += $(O)/libunwind.a $(O)/libcxxabi.a $(O)/compiler-rt.a $(O)/libcxx.a $(O)/third_party/zlib/crc32.o
 
 $(KERN): tools/kmeta.py $(O)/kernel/boot.o $(OBJS) $(LDEPS) kernel/kernel.ld
 	@echo "  LD     $@"
