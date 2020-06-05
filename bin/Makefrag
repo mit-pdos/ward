@@ -10,6 +10,7 @@ endif
 
 UPROGS_BIN= \
 	init \
+	lebench \
 
 # Binaries that are known to build on PLATFORM=native
 UPROGS_NATIVE := \
@@ -90,7 +91,7 @@ endif
 $(O)/bin/%.unstripped: $(O)/bin/%.o $(O)/lib/sysstubs.o
 	@echo "  LD     $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)$(CXX) -static -o $@ $^
+	$(Q)$(CXX) -static -pthread -o $@ $^
 $(O)/fs/bin/%: $(O)/bin/%.unstripped
 	@echo "  STRIP  $@"
 	$(Q)mkdir -p $(@D)

@@ -16,6 +16,7 @@
 #include "cmdline.hh"
 #include "kmeta.hh"
 #include "nospec-branch.hh"
+#include "errno.h"
 
 #include <uk/mman.h>
 #include <uk/utsname.h>
@@ -26,11 +27,11 @@ pid_t
 sys_fork_flags(int flags)
 {
   ensure_secrets();
-  clone_flags cflags = clone_flags::CLONE_ALL;
+  clone_flags cflags = clone_flags::WARD_CLONE_ALL;
   if (flags & FORK_SHARE_VMAP)
-    cflags |= CLONE_SHARE_VMAP;
+    cflags |= WARD_CLONE_SHARE_VMAP;
   if (flags & FORK_SHARE_FD)
-    cflags |= CLONE_SHARE_FTABLE;
+    cflags |= WARD_CLONE_SHARE_FTABLE;
   proc *p = doclone(cflags);
   if (!p)
     return -1;
@@ -42,6 +43,68 @@ pid_t
 sys_fork(void)
 {
   return sys_fork_flags(0);
+}
+
+//SYSCALL
+long sys_clone(unsigned long flags, void* stack, userptr<int> parent_tid, uintptr_t child_tid, unsigned long tls)
+{
+  STRACE_PARAMS("0x%lx, %p, %p, %p, 0x%lx", flags, stack, parent_tid, child_tid, tls);
+
+  // Stack argument not supported
+  if (stack)
+    return -EINVAL;
+
+  // fork process:
+  // CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID
+
+  // fork thread:
+  // CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND |
+  // CLONE_PARENT_SETTID | CLONE_CHILD_CLEARTID | CLONE_SETTLS | CLONE_THREAD
+
+  if (flags & CLONE_THREAD) {
+    // TODO
+  }
+
+  if (flags & CLONE_SIGHAND) {
+    // TODO
+  }
+
+  if (flags & CLONE_FS) {
+    // TODO
+  }
+
+  if (flags & CLONE_CHILD_CLEARTID) {
+    // TODO
+  }
+
+  ensure_secrets();
+  clone_flags cflags = clone_flags::WARD_CLONE_ALL;
+  if (flags & CLONE_VM)
+    cflags |= WARD_CLONE_SHARE_VMAP;
+  if (flags & CLONE_FILES)
+    cflags |= WARD_CLONE_SHARE_FTABLE;
+
+  proc *p = doclone(cflags | WARD_CLONE_NO_RUN);
+  if (!p)
+    return -EINVAL;
+
+  if (flags & CLONE_SETTLS)
+    p->user_fs_ = tls;
+
+  if (flags & CLONE_CHILD_SETTID) {
+    static_assert(sizeof(int) == sizeof(pid_t), "'pid_t' is not 'int'");
+    if(p->vmap->safe_write(child_tid, (char*)&p->pid, sizeof(int)) < sizeof(int))
+      return -EFAULT;
+  }
+
+  if (flags & CLONE_PARENT_SETTID && !parent_tid.store((int*)&p->pid))
+    return -EFAULT;
+
+  acquire(&p->lock);
+  addrun(p);
+  release(&p->lock);
+
+  return p->pid;
 }
 
 //SYSCALL {"noret":true}
@@ -155,6 +218,9 @@ sys_mmap(userptr<void> addr, size_t len, int prot, int flags, int fd,
          off_t offset)
 {
   sref<pageable> m;
+
+  // TODO: handle unmapped regions
+  prot |= PROT_READ;
 
   if (!(prot & (PROT_READ | PROT_WRITE))) {
     cprintf("not implemented: !(prot & (PROT_READ | PROT_WRITE))\n");

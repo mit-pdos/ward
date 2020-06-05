@@ -392,9 +392,9 @@ doclone(clone_flags flags)
     freeproc(np);
   });
 
-  if (flags & CLONE_SHARE_VMAP) {
+  if (flags & WARD_CLONE_SHARE_VMAP) {
     np->vmap = myproc()->vmap;
-  } else if (!(flags & CLONE_NO_VMAP)) {
+  } else if (!(flags & WARD_CLONE_NO_VMAP)) {
     // Copy process state from p.
     np->vmap = myproc()->vmap->copy();
   }
@@ -411,9 +411,9 @@ doclone(clone_flags flags)
   // Clear %eax so that fork returns 0 in the child.
   np->tf->rax = 0;
 
-  if (flags & CLONE_SHARE_FTABLE) {
+  if (flags & WARD_CLONE_SHARE_FTABLE) {
     np->ftable = myproc()->ftable;
-  } else if (!(flags & CLONE_NO_FTABLE)) {
+  } else if (!(flags & WARD_CLONE_NO_FTABLE)) {
     np->ftable = myproc()->ftable->copy();
   }
 
@@ -427,7 +427,7 @@ doclone(clone_flags flags)
   release(&myproc()->lock);
 
   np->cpuid = mycpu()->id;
-  if (!(flags & CLONE_NO_RUN)) {
+  if (!(flags & WARD_CLONE_NO_RUN)) {
     acquire(&np->lock);
     addrun(np);
     release(&np->lock);

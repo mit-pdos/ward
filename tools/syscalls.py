@@ -466,7 +466,7 @@ ward_syscall:
                 extra = " __attribute__((noreturn))"
             print("%s ward_%s(%s)%s;" % (syscall.rettype, syscall.uname,
                                     ", ".join(syscall.uargs), extra))
-        print("u64 syscall(u64, ...);")
+        print("u64 ward_syscall(u64, ...);")
         print()
         for syscall in syscalls:
             print("#define SYS_%s %s" % (syscall.uname, syscall.num))

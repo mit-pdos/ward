@@ -887,7 +887,7 @@ sys_spawn(userptr_str upath, userptr<userptr_str> uargv,
   }
 
   // Create the new process
-  proc *p = doclone(CLONE_NO_VMAP | CLONE_NO_FTABLE | CLONE_NO_RUN);
+  proc *p = doclone(WARD_CLONE_NO_VMAP | WARD_CLONE_NO_FTABLE | WARD_CLONE_NO_RUN);
   if (!p)
     return -1;
 

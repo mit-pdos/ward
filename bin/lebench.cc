@@ -28,14 +28,11 @@
   typedef uint64_t u64;
   const int MITIGATION_STYLES = 1;
 #else /* HW_linux */
-  #include "libutil.h"
-  #include "sockutil.h"
   #include "sysstubs.h"
 
   const int MITIGATION_STYLES = 3;
-  const int SIGINT = 0;
   int kill(int pid, int sig) {
-    return kill(pid);
+    return ward_kill(pid);
   }
 #endif /* HW_linux */
 
@@ -101,31 +98,32 @@ void set_mitigations(int style) {
 #else
   switch(style) {
   case 0:
-    cmdline_change_param("lazy_barrier", "yes");
-    cmdline_change_param("spectre_v2", "no");
-    cmdline_change_param("kpti", "no");
-    cmdline_change_param("mds", "no");
+    ward_cmdline_change_param("lazy_barrier", "yes");
+    ward_cmdline_change_param("spectre_v2", "no");
+    ward_cmdline_change_param("kpti", "no");
+    ward_cmdline_change_param("mds", "no");
     break;
   case 1:
-    cmdline_change_param("lazy_barrier", "no");
-    cmdline_change_param("spectre_v2", "yes");
-    cmdline_change_param("kpti", "yes");
-    cmdline_change_param("mds", "yes");
+    ward_cmdline_change_param("lazy_barrier", "no");
+    ward_cmdline_change_param("spectre_v2", "yes");
+    ward_cmdline_change_param("kpti", "yes");
+    ward_cmdline_change_param("mds", "yes");
     break;
   case 2:
-    cmdline_change_param("lazy_barrier", "yes");
-    cmdline_change_param("spectre_v2", "yes");
-    cmdline_change_param("kpti", "yes");
-    cmdline_change_param("mds", "yes");
+    ward_cmdline_change_param("lazy_barrier", "yes");
+    ward_cmdline_change_param("spectre_v2", "yes");
+    ward_cmdline_change_param("kpti", "yes");
+    ward_cmdline_change_param("mds", "yes");
     break;
   };
 #endif
 }
 
-void one_line_test(FILE *fp, FILE *copy, u64 (*f)(), int iter, const char* name){
+void one_line_test(u64 (*f)(), int iter, const char* name){
   printf("%s,", name);
   for(int i = 0; i < 18-strlen(name); i++)
-    fprintf(fp, " ");
+    printf(" ");
+  fflush(stdout);
 
   u64 sum[MITIGATION_STYLES];
   u64 best[MITIGATION_STYLES];
@@ -148,19 +146,21 @@ void one_line_test(FILE *fp, FILE *copy, u64 (*f)(), int iter, const char* name)
   }
 
   for(int j=0; j < MITIGATION_STYLES; j++)
-    fprintf(fp,"%12ld,", best[j]);
+    printf("%12ld,", best[j]);
   // for(int j=0; j < MITIGATION_STYLES; j++)
-  //   fprintf(fp,"%12ld,", sum[j] / iter);
+  //   printf("%12ld,", sum[j] / iter);
 
-  fprintf(fp,"\n");
+  printf("\n");
+  fflush(stdout);
 
   return;
 }
 
-void two_line_test(FILE *fp, FILE *copy, void (*f)(u64*,u64*), int iter, const char* name) {
+void two_line_test(void (*f)(u64*,u64*), int iter, const char* name) {
   printf("%s,", name);
   for(int i = 0; i < 18-strlen(name); i++)
-    fprintf(fp, " ");
+    printf(" ");
+  fflush(stdout);
 
   u64 sumParent[MITIGATION_STYLES];
   u64 sumChild[MITIGATION_STYLES];
@@ -192,20 +192,21 @@ void two_line_test(FILE *fp, FILE *copy, void (*f)(u64*,u64*), int iter, const c
   }
 
   for(int j=0; j < MITIGATION_STYLES; j++)
-    fprintf(fp,"%12ld,", bestParent[j]);
+    printf("%12ld,", bestParent[j]);
   // for(int j=0; j < MITIGATION_STYLES; j++)
-  //   fprintf(fp,"%12ld,", sumParent[j] / iter);
-  fprintf(fp, "\n");
+  //   printf("%12ld,", sumParent[j] / iter);
+  printf("\n");
 
   printf("%s-child,", name);
   for(int i = 0; i < 12-strlen(name); i++)
-    fprintf(fp, " ");
+    printf(" ");
 
   for(int j=0; j < MITIGATION_STYLES; j++)
-    fprintf(fp,"%12ld,", bestChild[j]);
+    printf("%12ld,", bestChild[j]);
   // for(int j=0; j < MITIGATION_STYLES; j++)
-  //   fprintf(fp,"%12ld,", sumChild[j] / iter);
-  fprintf(fp, "\n");
+  //   printf("%12ld,", sumChild[j] / iter);
+  printf("\n");
+  fflush(stdout);
 
   return;
 }
@@ -475,13 +476,11 @@ int main(int argc, char *argv[])
   startCycles = start_timer();
   clock_gettime(CLOCK_MONOTONIC, &startTime);
 
-  FILE *fp = stdout;
-  FILE *copy = stdout;
-
 #ifdef HW_linux
   fprintf(fp, "Benchmark (linux),         Best,     Average,\n");
 #else
-  fprintf(fp, "Benchmark (ward),     Off  Best,    On  Best,  Fast  Best, Off Average,  On Average,    Fast Avg,\n");
+  printf("Benchmark (ward),     Off  Best,    On  Best,  Fast  Best, Off Average,  On Average,    Fast Avg,\n");
+  fflush(stdout);
 #endif
 
   int base_iter = 200;
@@ -495,9 +494,9 @@ int main(int argc, char *argv[])
     mask = 1ull << atoi(argv[2]);
   }
 
-  if(mask & (1ull<<0)) one_line_test(fp, copy, ref_test, base_iter * 1000, "ref");
-  if(mask & (1ull<<1)) one_line_test(fp, copy, getpid_test, base_iter * 500, "getpid");
-  if(mask & (1ull<<2)) one_line_test(fp, copy, context_switch_test, base_iter, "context switch");
+  if(mask & (1ull<<0)) one_line_test(ref_test, base_iter * 1000, "ref");
+  if(mask & (1ull<<1)) one_line_test(getpid_test, base_iter * 500, "getpid");
+  if(mask & (1ull<<2)) one_line_test(context_switch_test, base_iter, "context switch");
 
 
   /*****************************************/
@@ -507,22 +506,22 @@ int main(int argc, char *argv[])
   // curr_iter_limit = 50;
   // printf("msg size: %d.\n", msg_size);
   // printf("curr iter limit: %d.\n", curr_iter_limit);
-  // one_line_test(fp, copy, send_test, base_iter * 10, "send");
-  // one_line_test(fp, copy, recv_test, base_iter * 10, "recv");
+  // one_line_test(send_test, base_iter * 10, "send");
+  // one_line_test(recv_test, base_iter * 10, "recv");
 
   // msg_size = 96000;	// This size 96000 would cause blocking on older kernels!
   // curr_iter_limit = 1;
   // printf("msg size: %d.\n", msg_size);
   // printf("curr iter limit: %d.\n", curr_iter_limit);
-  // one_line_test(fp, copy, send_test, base_iter, "big send");
-  // one_line_test(fp, copy, recv_test, base_iter, "big recv");
+  // one_line_test(send_test, base_iter, "big send");
+  // one_line_test(recv_test, base_iter, "big recv");
 
 
   /*****************************************/
   /*         FORK & THREAD CREATE          */
   /*****************************************/
-  if(mask & (1ull<<3)) two_line_test(fp, copy, forkTest, base_iter * 2, "fork");
-  if(mask & (1ull<<4)) two_line_test(fp, copy, threadTest, base_iter * 5, "thr create");
+  if(mask & (1ull<<3)) two_line_test(forkTest, base_iter * 2, "fork");
+  if(mask & (1ull<<4)) two_line_test(threadTest, base_iter * 5, "thr create");
 
   if(mask & (1ull<<5)) {
     int page_count = 6000;
@@ -530,7 +529,7 @@ int main(int argc, char *argv[])
     for (int i = 0; i < page_count; i++) {
       pages[i] = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     }
-    two_line_test(fp, copy, forkTest, base_iter / 2, "big fork");
+    two_line_test(forkTest, base_iter / 2, "big fork");
     for (int i = 0; i < page_count; i++) {
       munmap(pages[i], PAGE_SIZE);
     }
@@ -543,7 +542,7 @@ int main(int argc, char *argv[])
     for (int i = 0; i < page_count; i++) {
       pages[i] = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     }
-    two_line_test(fp, copy, forkTest, base_iter / 2, "huge fork");
+    two_line_test(forkTest, base_iter / 2, "huge fork");
     for (int i = 0; i < page_count; i++) {
       munmap(pages[i], PAGE_SIZE);
     }
@@ -558,41 +557,41 @@ int main(int argc, char *argv[])
   file_size = PAGE_SIZE;
   if(mask & (0x1f<<7)) read_warmup();
 
-  if(mask & (1ull<<7)) one_line_test(fp, copy, write_test, base_iter * 10, "small write");
-  if(mask & (1ull<<8)) one_line_test(fp, copy, read_test, base_iter * 10, "small read");
-  if(mask & (1ull<<9)) one_line_test(fp, copy, mmap_test, base_iter * 10, "small mmap");
-  if(mask & (1ull<<10)) one_line_test(fp, copy, munmap_test, base_iter * 10, "small munmap");
-  if(mask & (1ull<<11)) one_line_test(fp, copy, page_fault_test, base_iter * 5, "small page fault");
+  if(mask & (1ull<<7)) one_line_test(write_test, base_iter * 10, "small write");
+  if(mask & (1ull<<8)) one_line_test(read_test, base_iter * 10, "small read");
+  if(mask & (1ull<<9)) one_line_test(mmap_test, base_iter * 10, "small mmap");
+  if(mask & (1ull<<10)) one_line_test(munmap_test, base_iter * 10, "small munmap");
+  if(mask & (1ull<<11)) one_line_test(page_fault_test, base_iter * 5, "small page fault");
 
   /****** MID ******/
   file_size = PAGE_SIZE * 10;
   if(mask & (0x1f<<12)) read_warmup();
 
-  if(mask & (1ull<<12)) one_line_test(fp, copy, read_test, base_iter * 10, "mid read");
-  if(mask & (1ull<<13)) one_line_test(fp, copy, write_test, base_iter * 10, "mid write");
-  if(mask & (1ull<<14)) one_line_test(fp, copy, mmap_test, base_iter * 10, "mid mmap");
-  if(mask & (1ull<<15)) one_line_test(fp, copy, munmap_test, base_iter * 10, "mid munmap");
-  if(mask & (1ull<<16)) one_line_test(fp, copy, page_fault_test, base_iter * 5, "mid page fault");
+  if(mask & (1ull<<12)) one_line_test(read_test, base_iter * 10, "mid read");
+  if(mask & (1ull<<13)) one_line_test(write_test, base_iter * 10, "mid write");
+  if(mask & (1ull<<14)) one_line_test(mmap_test, base_iter * 10, "mid mmap");
+  if(mask & (1ull<<15)) one_line_test(munmap_test, base_iter * 10, "mid munmap");
+  if(mask & (1ull<<16)) one_line_test(page_fault_test, base_iter * 5, "mid page fault");
 
   /****** BIG ******/
   file_size = PAGE_SIZE * 1000;
   if(mask & (0x1f<<17)) read_warmup();
 
-  if(mask & (1ull<<17)) one_line_test(fp, copy, read_test, base_iter, "big read");
-  if(mask & (1ull<<18)) one_line_test(fp, copy, write_test, base_iter / 2, "big write");
-  if(mask & (1ull<<19)) one_line_test(fp, copy, mmap_test, base_iter * 10, "big mmap");
-  if(mask & (1ull<<20)) one_line_test(fp, copy, munmap_test, base_iter / 4, "big munmap");
-  if(mask & (1ull<<21)) one_line_test(fp, copy, page_fault_test, base_iter * 5, "big page fault");
+  if(mask & (1ull<<17)) one_line_test(read_test, base_iter, "big read");
+  if(mask & (1ull<<18)) one_line_test(write_test, base_iter / 2, "big write");
+  if(mask & (1ull<<19)) one_line_test(mmap_test, base_iter * 10, "big mmap");
+  if(mask & (1ull<<20)) one_line_test(munmap_test, base_iter / 4, "big munmap");
+  if(mask & (1ull<<21)) one_line_test(page_fault_test, base_iter * 5, "big page fault");
 
   /****** HUGE ******/
   file_size = PAGE_SIZE * 10000;
   if(mask & (0x1f<<22)) read_warmup();
 
-  if(mask & (1ull<<22)) one_line_test(fp, copy, read_test, base_iter, "huge read");
-  if(mask & (1ull<<23)) one_line_test(fp, copy, write_test, base_iter / 4, "huge write");
-  if(mask & (1ull<<24)) one_line_test(fp, copy, mmap_test, base_iter * 10, "huge mmap");
-  if(mask & (1ull<<25)) one_line_test(fp, copy, munmap_test, base_iter / 4, "huge munmap");
-  if(mask & (1ull<<26)) one_line_test(fp, copy, page_fault_test, base_iter * 5, "huge page fault");
+  if(mask & (1ull<<22)) one_line_test(read_test, base_iter, "huge read");
+  if(mask & (1ull<<23)) one_line_test(write_test, base_iter / 4, "huge write");
+  if(mask & (1ull<<24)) one_line_test(mmap_test, base_iter * 10, "huge mmap");
+  if(mask & (1ull<<25)) one_line_test(munmap_test, base_iter / 4, "huge munmap");
+  if(mask & (1ull<<26)) one_line_test(page_fault_test, base_iter * 5, "huge page fault");
 
   clock_gettime(CLOCK_MONOTONIC, &endTime);
   endCycles = end_timer();
@@ -600,6 +599,7 @@ int main(int argc, char *argv[])
   printf("Test took: %d.%09ld seconds\n", (int)diffTime->tv_sec, diffTime->tv_nsec);
   printf("CPU frequency: %f cycles/ns\n", (double)(endCycles - startCycles)
          / (1e9 * (double)diffTime->tv_sec + (double)diffTime->tv_nsec));
+  fflush(stdout);
   free(diffTime);
   return(0);
 }

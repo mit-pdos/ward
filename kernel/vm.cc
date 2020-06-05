@@ -826,6 +826,21 @@ vmap::safe_read(void *dst, uintptr_t src, size_t n)
 }
 
 size_t
+vmap::safe_write(uintptr_t dst, char *src, size_t n)
+{
+  for (size_t i = 0; i < n; ++i) {
+    auto it = vpfs_.find((dst + i) / PGSIZE);
+    if (!it.is_set())
+      return i;
+    if (!it->page)
+      return i;
+    void *page = it->page.va();
+    ((char*)page)[(dst + i) % PGSIZE] = src[i];
+  }
+  return n;
+}
+
+size_t
 safe_read_vm(void *dst, uintptr_t src, size_t n)
 {
   if (src >= KBASE && src + n < KBASEEND) {

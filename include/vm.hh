@@ -188,6 +188,9 @@ struct vmap : public referenced {
   // into @c dst.
   size_t safe_read(void *dst, uintptr_t src, size_t n);
 
+  // Slowly by carefully write n bytes from src into dst.
+  size_t safe_write(uintptr_t dst, char *src, size_t n);
+
   // Report the number of internal pages used by the page map cache.
   u64 internal_pages() const { return cache.internal_pages(); }
 
