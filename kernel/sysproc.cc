@@ -373,6 +373,33 @@ sys_setaffinity(int cpu)
 
 //SYSCALL
 long
+sys_sched_setaffinity(pid_t pid, size_t cpusetsize, userptr<char> mask)
+{
+  u8 mask_copy[NCPU / 8] = { 0 };
+
+  if (cpusetsize > NCPU / 8)
+    cpusetsize = NCPU / 8;
+  mask.load((char*)mask_copy, cpusetsize);
+
+  int nset = 0;
+  int cpu = -1;
+  for (int i = 0; i < ncpu; i++) {
+    if (mask_copy[i/8] & (1 << (i%8))) {
+      cpu = i;
+      nset++;
+    }
+  }
+
+  if (nset == ncpu)
+    return myproc()->set_cpu_pin(-1);
+  else if (nset == 1)
+    return myproc()->set_cpu_pin(cpu);
+  else
+    panic("Pinning to multiple cores unsupported");
+}
+
+//SYSCALL
+long
 sys_futex(const u32* addr, int op, u32 val, u64 timer)
 {
   futexkey_t key;
