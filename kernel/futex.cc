@@ -12,34 +12,81 @@
 #include "vm.hh"
 #include "hash.hh"
 
-int futexkey(const u32* useraddr, vmap* vmap, futexkey_t* key)
-{
-  if (((u64)useraddr & 0x3) != 0)
-    return -1;
+#define FUTEX_HASH_BUCKETS 257
 
-  *key = (futexkey_t)useraddr;
-  return 0;
+struct futex_list_bucket {
+  ilist<proc, &proc::futex_link> items;
+  spinlock lock;
+};
+
+struct futex_list {
+  futex_list_bucket buckets[FUTEX_HASH_BUCKETS];
+};
+
+futex_list futex_waiters __attribute__((section (".qdata")));
+
+futexkey::futexkey(uintptr_t useraddr, const sref<class vmap>& vmap_, bool priv) : ptr(nullptr) {
+  if ((useraddr & 0x3) != 0)
+    panic("misaligned futex address");
+
+  u64 pageidx;
+  if (!priv && (pageable = vmap_->lookup_pageable(useraddr, &pageidx))) {
+    shared = true;
+    address = pageidx * PGSIZE + useraddr % PGSIZE;
+  } else {
+    shared = false;
+    vmap = vmap_.get();
+    address = useraddr;
+  }
 }
 
-u32 futexval(vmap* vmap, futexkey_t key)
+futexkey::futexkey(futexkey&& other) : futexkey() { *this = std::move(other); }
+
+futexkey& futexkey::operator=(futexkey&& other) noexcept {
+  shared = other.shared;
+  address = other.address;
+  ptr = other.ptr;
+  other.ptr = nullptr;
+  return *this;
+}
+
+futexkey::~futexkey() {
+  if (shared)
+    pageable.reset();
+}
+
+bool futexkey::operator==(const futexkey& other) {
+  return address == other.address && ptr == other.ptr && shared == other.shared;
+}
+
+u64 futex_bucket(futexkey* key) {
+  return (hash(key->address) ^ hash(key->ptr)) % FUTEX_HASH_BUCKETS;
+}
+
+u32 futexval(futexkey* key)
 {
+  if (key->shared) {
+    auto p = key->pageable->get_page_info(PGROUNDDOWN(key->address));
+    return *(u32*)((char*)p->va() + (key->address % PGSIZE));
+  }
+
   u32 val;
-  if (!fetchmem_ncli(&val, (const void*)key, 4))
+  if (key->vmap == myproc()->vmap.get() && !fetchmem_ncli(&val, (const void*)(key->address), 4))
     return val;
 
-  u32* kva = (u32*)vmap->pagelookup((uptr)key);
+  u32* kva = (u32*)key->vmap->pagelookup(key->address);
   return kva ? *kva : 0;
 }
 
-long futexwait(futexkey_t key, u32 val, u64 timer)
+long futexwait(futexkey&& key, u32 val, u64 timer)
 {
-  futex_list_bucket* bucket = &myproc()->vmap->futex_waiters_.buckets[hash(key) % FUTEX_HASH_BUCKETS];
+  futex_list_bucket* bucket = &futex_waiters.buckets[futex_bucket(&key)];
   scoped_acquire l(&bucket->lock);
 
-  if (futexval(myproc()->vmap.get(), key) != val)
+  if (futexval(&key) != val)
     return -EWOULDBLOCK;
 
-  myproc()->futex_key = key;
+  myproc()->futex_key = std::move(key);
   bucket->items.push_back(myproc());
 
   u64 nsecto = timer == 0 ? 0 : timer+nsectime();
@@ -49,13 +96,13 @@ long futexwait(futexkey_t key, u32 val, u64 timer)
   return 0;
 }
 
-long futexwake(futexkey_t key, u64 nwake)
+long futexwake(futexkey&& key, u64 nwake)
 {
   if (nwake == 0) {
-    return -1;
+    return -EINVAL;
   }
 
-  futex_list_bucket* bucket = &myproc()->vmap->futex_waiters_.buckets[hash(key) % FUTEX_HASH_BUCKETS];
+  futex_list_bucket* bucket = &futex_waiters.buckets[futex_bucket(&key)];
   scoped_acquire l(&bucket->lock);
 
   u64 nwoke = 0;
@@ -67,8 +114,4 @@ long futexwake(futexkey_t key, u64 nwake)
   }
 
   return nwoke;
-}
-
-void initfutex(void)
-{
 }

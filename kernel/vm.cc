@@ -584,6 +584,26 @@ pagelookup(vmap* vmap, uptr va)
   }
 }
 
+sref<pageable>
+vmap::lookup_pageable(uptr va, u64* pageidx)
+{
+  if (va >= USERTOP)
+    return sref<pageable>();
+
+  // XXX(austin) Should we do lock-free lookup here?  vmdescs are not
+  // atomically assignable, so I could observe a half-updated vmdesc
+  // if I try.  Could use a seqlock.
+
+  scoped_acquire l(&vpfs_lock_);
+  auto it = vpfs_.find(va / PGSIZE);
+  if (!it.is_set() || it->flags & vmdesc::FLAG_ANON)
+    return sref<pageable>();
+
+  assert(it->start % PGSIZE == 0);
+  *pageidx = (PGROUNDDOWN(va) - it->start) / PGSIZE;
+  return it->inode;
+}
+
 int
 vmap::copyout(uptr va, const void *p, u64 len)
 {

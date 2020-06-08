@@ -52,7 +52,6 @@ void initsched(void);
 void initlockstat(void);
 void initidle(void);
 void initcpprt(void);
-void initfutex(void);
 void initcmdline(void);
 void initrefcache(void);
 void initacpitables(void);
@@ -244,7 +243,6 @@ cmain(u64 mbmagic, u64 mbaddr)
   initgc();        // gc epochs and threads
   initrefcache();  // Requires initsched
   initconsole();
-  initfutex();
   initsamp();
   initlockstat();
   initacpi();              // Requires initacpitables, initkalloc?

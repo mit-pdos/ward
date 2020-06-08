@@ -399,27 +399,19 @@ sys_sched_setaffinity(pid_t pid, size_t cpusetsize, userptr<char> mask)
 
 //SYSCALL
 long
-sys_futex(const u32* addr, int op, u32 val, u64 timer)
+sys_futex(uintptr_t addr, int op, u32 val, u64 timer)
 {
-  futexkey_t key;
+  if ((addr & 3) != 0)
+    return -EINVAL;
 
-  if (!(op & FUTEX_PRIVATE_FLAG)) {
-    cprintf("WARN: non-private futexes are not supported!");
-    return -1;
-  }
-
-  if (futexkey(addr, myproc()->vmap.get(), &key) < 0)
-    return -1;
-
-  mt_ascope ascope("%s(%p,%d,%lu,%lu)", __func__, addr, op, val, timer);
-
+  futexkey key(addr, myproc()->vmap, op & FUTEX_PRIVATE_FLAG);
   switch(op & 1) {
   case FUTEX_WAIT:
-    return futexwait(key, val, timer);
+    return futexwait(std::move(key), val, timer);
   case FUTEX_WAKE:
-    return futexwake(key, val);
+    return futexwake(std::move(key), val);
   default:
-    return -1;
+    return -EINVAL;
   }
 }
 

@@ -126,10 +126,9 @@ void            dir_init(sref<inode> dp);
 void	        dir_flush(sref<inode> dp);
 
 // futex.cc
-typedef u64 futexkey_t;
-int             futexkey(const u32* useraddr, vmap* vmap, futexkey_t* key);
-long            futexwait(futexkey_t key, u32 val, u64 timer);
-long            futexwake(futexkey_t key, u64 nwake);
+struct futexkey;
+long            futexwait(futexkey&& key, u32 val, u64 timer);
+long            futexwake(futexkey&& key, u64 nwake);
 
 // hotpatch.cc
 extern char*    qtext;

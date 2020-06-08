@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include "vmalloc.hh"
 #include "bitset.hh"
+#include "futex.hh"
 
 struct gc_handle;
 class filetable;
@@ -85,7 +86,7 @@ struct proc {
   struct condvar *cv;          // for waiting till children exit
 
   ilink<proc> futex_link;
-  futexkey_t futex_key;
+  futexkey futex_key;
 
   bool yield_;                 // yield cpu up when returning to user space
   struct spinlock lock;

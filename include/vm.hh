@@ -175,6 +175,10 @@ struct vmap : public referenced {
   // say, this mapping is only valid within the returned page.
   void* pagelookup(uptr va);
 
+  // Return the pageable and page index associated with the given virtual
+  // address (or null if the region is anonymous memory or unmapped).
+  sref<pageable> lookup_pageable(uptr va, u64* pageidx);
+
   // Copy len bytes from p to user address va in vmap.  Most useful
   // when vmap is not the current page table.
   int copyout(uptr va, const void *p, u64 len);
@@ -204,8 +208,6 @@ struct vmap : public referenced {
   void unmap_temporary(void* page);
 
   uptr brk_;                    // Top of heap
-
-  futex_list futex_waiters_;
 
 private:
   vmap();
