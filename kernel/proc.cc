@@ -38,7 +38,7 @@ proc::proc(int npid) :
   kstack(0), qstack(0), killed(0), tf(0), uaccess_(0), user_fs_(0), pid(npid),
   cv(nullptr), yield_(false), oncv(0), cv_wakeup(0), curcycles(0),
   tsc(0), cpuid(0), cpu_pin(0), context(nullptr), on_qstack(false), state_(EMBRYO),
-  transparent_barriers(0), intentional_barriers(0),
+  transparent_barriers(0), intentional_barriers(0), robust_list_ptr(nullptr),
   parent(0), unmap_tlbreq_(0), data_cpuid(-1), in_exec_(0),
   upath(nullptr), uargv(nullptr), exception_inuse(0), magic(PROC_MAGIC),
   blocked_signals(0), pending_signals(0)
@@ -155,6 +155,16 @@ procexit(int status)
   myproc()->cwd.reset();
 
   myproc()->status = (status & __WAIT_STATUS_VAL_MASK) | __WAIT_STATUS_EXITED;
+
+  userptr<robust_list_head> head_ptr = myproc()->robust_list_ptr;
+  if (head_ptr) {
+    robust_list_head head;
+    myproc()->robust_list_ptr.load(&head);
+    if ((void*)head.list.next.unsafe_get() != (void*)head_ptr.unsafe_get())
+      panic("robust_list");
+    if (head.list_op_pending)
+      panic("list_op_pending");
+  }
 
   // Pass abandoned children to init.
   wakeupinit = 0;

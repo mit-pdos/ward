@@ -46,13 +46,9 @@ sys_fork(void)
 }
 
 //SYSCALL
-long sys_clone(unsigned long flags, void* stack, userptr<int> parent_tid, uintptr_t child_tid, unsigned long tls)
+long sys_clone(unsigned long flags, uintptr_t stack, userptr<int> parent_tid, uintptr_t child_tid, unsigned long tls)
 {
   STRACE_PARAMS("0x%lx, %p, %p, %p, 0x%lx", flags, stack, parent_tid, child_tid, tls);
-
-  // Stack argument not supported
-  if (stack)
-    return -EINVAL;
 
   // fork process:
   // CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID
@@ -62,7 +58,7 @@ long sys_clone(unsigned long flags, void* stack, userptr<int> parent_tid, uintpt
   // CLONE_PARENT_SETTID | CLONE_CHILD_CLEARTID | CLONE_SETTLS | CLONE_THREAD
 
   if (flags & CLONE_THREAD) {
-    // TODO
+    // TODO: Actually handle thread groups (i.e. TIDs and TGIDs)
   }
 
   if (flags & CLONE_SIGHAND) {
@@ -90,6 +86,9 @@ long sys_clone(unsigned long flags, void* stack, userptr<int> parent_tid, uintpt
 
   if (flags & CLONE_SETTLS)
     p->user_fs_ = tls;
+
+  if (stack)
+    p->tf->rsp = stack;
 
   if (flags & CLONE_CHILD_SETTID) {
     static_assert(sizeof(int) == sizeof(pid_t), "'pid_t' is not 'int'");
@@ -422,6 +421,13 @@ sys_futex(const u32* addr, int op, u32 val, u64 timer)
   default:
     return -1;
   }
+}
+
+//SYSCALL
+long
+sys_set_robust_list(intptr_t ptr) {
+  myproc()->robust_list_ptr = userptr<robust_list_head>((robust_list_head*)ptr);
+  return 0;
 }
 
 //SYSCALL

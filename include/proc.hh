@@ -23,6 +23,18 @@ class vnode;
   }
 #endif
 
+
+struct robust_list {
+  userptr<robust_list> next;
+};
+
+struct robust_list_head {
+  // circular linked list of futexes to unlock at thread exit.
+  robust_list list;
+  long futex_offset;
+  userptr<robust_list> list_op_pending;
+};
+
 // Saved registers for kernel context switches.
 // (also implicitly defined in swtch.S)
 struct context {
@@ -96,6 +108,8 @@ public:
 
   u64 transparent_barriers;
   u64 intentional_barriers;
+
+  userptr<robust_list_head> robust_list_ptr;
 
   char fpu_state[XSAVE_BYTES] __attribute__ ((aligned (64)));
 
