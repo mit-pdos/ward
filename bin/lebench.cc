@@ -477,7 +477,7 @@ int main(int argc, char *argv[])
   clock_gettime(CLOCK_MONOTONIC, &startTime);
 
 #ifdef HW_linux
-  fprintf(fp, "Benchmark (linux),         Best,     Average,\n");
+  printf("Benchmark (linux),         Best,     Average,\n");
 #else
   printf("Benchmark (ward),     Off  Best,    On  Best,  Fast  Best, Off Average,  On Average,    Fast Avg,\n");
   fflush(stdout);
@@ -486,7 +486,6 @@ int main(int argc, char *argv[])
   int base_iter = 200;
   if (argc >= 2) {
     base_iter = atoi(argv[1]);
-    assert(base_iter >= 20);
   }
 
   u64 mask = ~0ull;
