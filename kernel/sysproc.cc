@@ -69,10 +69,6 @@ long sys_clone(unsigned long flags, uintptr_t stack, userptr<int> parent_tid, ui
     // TODO
   }
 
-  if (flags & CLONE_CHILD_CLEARTID) {
-    // TODO
-  }
-
   ensure_secrets();
   clone_flags cflags = clone_flags::WARD_CLONE_ALL;
   if (flags & CLONE_VM)
@@ -98,6 +94,9 @@ long sys_clone(unsigned long flags, uintptr_t stack, userptr<int> parent_tid, ui
 
   if (flags & CLONE_PARENT_SETTID && !parent_tid.store((int*)&p->pid))
     return -EFAULT;
+
+  if (flags & CLONE_CHILD_CLEARTID)
+    p->tid_address = userptr<u32>((u32*)child_tid);
 
   acquire(&p->lock);
   addrun(p);

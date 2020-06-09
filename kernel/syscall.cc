@@ -141,7 +141,7 @@ syscall(u64 a0, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 num)
           mtstop(myproc());
           mtign();
 #if KERNEL_STRACE
-          if (strcmp(myproc()->name, "git") == 0) {
+          if (strcmp(myproc()->name, STRACE_BINARY_NAME) == 0) {
             if (myproc()->syscall_param_string[0]) {
               cprintf("\033[33m%d %s: %s(%s) = %lx\033[0m\n",
                       myproc()->pid, myproc()->name, syscall_names[num], myproc()->syscall_param_string, r);

@@ -110,7 +110,9 @@ public:
   u64 transparent_barriers;
   u64 intentional_barriers;
 
+  // These pointers are set to USERTOP if invalid
   userptr<robust_list_head> robust_list_ptr;
+  userptr<u32> tid_address;
 
   char fpu_state[XSAVE_BYTES] __attribute__ ((aligned (64)));
 

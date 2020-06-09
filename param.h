@@ -64,9 +64,10 @@
 #define RANDOMIZE_KMALLOC 1
 // Track kernel memory usage
 #define KERNEL_HEAP_PROFILE 0
-#define KERNEL_STRACE 0
+#define KERNEL_STRACE 1
 #define ENABLE_PARAVIRT 0
-#define KERNEL_STRACE_UNKOWN 0
+#define KERNEL_STRACE_UNKOWN 1
+#define STRACE_BINARY_NAME "lebench"
 
 //
 // QEMU-based targets
