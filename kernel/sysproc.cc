@@ -109,6 +109,12 @@ long sys_clone(unsigned long flags, uintptr_t stack, userptr<int> parent_tid, ui
 void
 sys_exit(int status)
 {
+#if KERNEL_STRACE
+  if (strcmp(myproc()->name, STRACE_BINARY_NAME) == 0) {
+    cprintf("\033[33m%d %s: exit(%d)\033[0m\n", myproc()->pid, myproc()->name, status);
+  }
+#endif
+
   procexit(status);
   panic("procexit() returned");
 }
