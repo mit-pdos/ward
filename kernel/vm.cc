@@ -357,6 +357,28 @@ vmap::willneed(uptr start, uptr len)
 }
 
 int
+vmap::dontneed(uptr start, uptr len)
+{
+  auto begin = vpfs_.find(start / PGSIZE);
+  auto end = vpfs_.find((start + len) / PGSIZE);
+  scoped_acquire l(&vpfs_lock_);
+
+  page_holder pages(this);
+  mmu::shootdown shootdown;
+
+  for (auto it = begin; it < end; it += it.span()) {
+    if (it.is_set() && it->page) {
+      pages.add(page_info_ref(it->page));
+      cache.invalidate(it.index() * PGSIZE, PGSIZE, &shootdown);
+      it->page = page_info_ref(nullptr);
+    }
+  }
+
+  shootdown.perform();
+  return 0;
+}
+
+int
 vmap::invalidate_cache(uptr start, uptr len)
 {
   auto begin = vpfs_.find(start / PGSIZE);

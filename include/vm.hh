@@ -154,10 +154,9 @@ struct vmap : public referenced {
   // Unmap from virtual addresses start to start+len.
   int remove(uptr start, uptr len);
 
-  // Populate vmdesc's.
+  // Apply relevant madvise operation.
   int willneed(uptr start, uptr len);
-
-  // Invalidate page caches.
+  int dontneed(uptr start, uptr len);
   int invalidate_cache(uptr start, uptr len);
 
   // Modify protection on a range.  flags must be 0 or FLAG_MAPPED.

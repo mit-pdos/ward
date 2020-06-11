@@ -296,6 +296,11 @@ sys_madvise(userptr<void> addr, size_t len, int advice)
       return -1;
     return 0;
 
+  case MADV_DONTNEED:
+    if (myproc()->vmap->dontneed(align_addr, align_len) < 0)
+      return -1;
+    return 0;
+
   case MADV_INVALIDATE_CACHE:
     if (myproc()->vmap->invalidate_cache(align_addr, align_len) < 0)
       return -1;

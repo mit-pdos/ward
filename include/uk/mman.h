@@ -22,7 +22,11 @@
 
 #define MAP_FAILED ((void*)-1)
 
-#define MADV_WILLNEED 3
+#define MADV_NORMAL     0        /* no further special treatment */
+#define MADV_RANDOM     1        /* expect random page references */
+#define MADV_SEQUENTIAL 2        /* expect sequential page references */
+#define MADV_WILLNEED   3        /* will need these pages */
+#define MADV_DONTNEED   4        /* don't need these pages */
 
 // xv6 extension: invalidate all page tables
 #define MADV_INVALIDATE_CACHE 1000
