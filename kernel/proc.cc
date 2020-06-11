@@ -235,12 +235,6 @@ procexit(int status)
   panic("zombie exit");
 }
 
-static void
-freeproc(struct proc *p)
-{
-  delete p;
-}
-
 proc*
 proc::alloc(void)
 {
@@ -264,7 +258,7 @@ proc::alloc(void)
      !(p->kstack = (char*) kalloc("kstack", KSTACKSIZE))) {
     if (!xnspid->remove(p->pid, &p))
       panic("allocproc: ns_remove");
-    freeproc(p);
+    delete p;
     return nullptr;
   }
 
@@ -408,7 +402,7 @@ doclone(clone_flags flags)
   auto proc_cleanup = scoped_cleanup([&np]() {
     if (!xnspid->remove(np->pid, &np))
       panic("fork: ns_remove");
-    freeproc(np);
+    delete np;
   });
 
   if (flags & WARD_CLONE_SHARE_VMAP) {
@@ -472,7 +466,7 @@ finishproc(struct proc *p)
   p->parent = 0;
   p->name[0] = 0;
   p->killed = 0;
-  freeproc(p);
+  delete p;
 }
 
 // Wait for a child process to exit and return its pid.
@@ -541,7 +535,7 @@ threadalloc(void (*fn)(void *), void *arg)
   auto proc_cleanup = scoped_cleanup([&p]() {
     if (!xnspid->remove(p->pid, &p))
       panic("fork: ns_remove");
-    freeproc(p);
+    delete p;
   });
 
   p->vmap = vmap::alloc();
