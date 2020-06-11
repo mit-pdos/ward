@@ -41,7 +41,7 @@ proc::proc(int npid) :
   transparent_barriers(0), intentional_barriers(0),
   robust_list_ptr((robust_list_head*)USERTOP), tid_address((u32*)USERTOP),
   parent(0), unmap_tlbreq_(0), data_cpuid(-1), in_exec_(0),
-  upath(nullptr), uargv(nullptr), exception_inuse(0), magic(PROC_MAGIC),
+  upath(nullptr), uargv(nullptr), exception_inuse(0),
   blocked_signals(0), pending_signals(0)
 {
   memmove(fpu_state, fpu_initial_state, XSAVE_BYTES);
@@ -52,11 +52,6 @@ proc::proc(int npid) :
   gc = new gc_handle();
   memset(__cxa_eh_global, 0, sizeof(__cxa_eh_global));
   memset(sig, 0, sizeof(sig));
-}
-
-proc::~proc(void)
-{
-  magic = 0;
 }
 
 void

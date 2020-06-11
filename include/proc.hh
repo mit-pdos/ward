@@ -69,8 +69,6 @@ typedef enum procstate {
   ZOMBIE
 } procstate_t;
 
-#define PROC_MAGIC 0xfeedfacedeadd00dULL
-
 // Per-process state
 struct proc {
   // First page of proc is quasi-user visible
@@ -145,7 +143,6 @@ public:
 
   std::atomic<int> exception_inuse;
   u8 exception_buf[256];
-  u64 magic;
   sigaction sig[NSIG];
   u32 blocked_signals;
   u32 pending_signals;
@@ -168,7 +165,6 @@ public:
   static bool deliver_signal(int pid, int signo);
   bool deliver_signal(int signo);
 
-  ~proc(void);
   NEW_DELETE_OPS(proc);
 
 private:
