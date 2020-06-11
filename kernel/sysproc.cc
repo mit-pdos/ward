@@ -639,6 +639,15 @@ sig_tgkill(int pid, int tid, int sig)
 
 //SYSCALL
 long
+sys_set_tid_address(userptr<u32> tid_address)
+{
+  myproc()->tid_address = tid_address;
+  return 0;
+}
+
+
+//SYSCALL
+long
 sys_display_image(userptr<u32> data, unsigned int width, unsigned int height) {
   if (width > 2048 || height > 2048)
     return -1;
