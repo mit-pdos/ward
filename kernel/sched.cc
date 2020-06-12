@@ -309,9 +309,13 @@ sched_dir thesched_dir __mpalign__ __attribute__((section (".qdata")));
 void
 post_swtch(void)
 {
-  if (mycpu()->prev->get_state() == RUNNABLE && mycpu()->prev != idleproc())
-    addrun(mycpu()->prev);
-  release(&mycpu()->prev->lock);
+  proc* p = mycpu()->prev;
+  if (p->get_state() == RUNNABLE && p != idleproc())
+    addrun(p);
+  else if(p->get_state() == ZOMBIE) {
+    finishproc(p);
+  }
+  release(&p->lock);
 }
 
 void

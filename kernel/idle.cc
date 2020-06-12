@@ -12,6 +12,9 @@
 #include "benchcodex.hh"
 #include "cpuid.hh"
 #include "ilist.hh"
+#include "vm.hh"
+#include "file.hh"
+#include "filetable.hh"
 
 struct idle {
   struct proc *cur;
@@ -46,9 +49,9 @@ finishzombies(void)
   scoped_acquire l(&i->lock);
 
   while(!i->zombies.empty()) {
-    auto &p = i->zombies.front();
+    auto& p = i->zombies.front();
     i->zombies.pop_front();
-    finishproc(&p);
+    delete &p;
   }
 }
 

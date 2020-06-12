@@ -28,7 +28,6 @@ struct cpu {
 
   int timer_printpc;
   struct proc *prev;           // The previously-running process
-  atomic<struct proc*> fpu_owner; // The proc with the current FPU state
   struct numa_node *node;
   u64 tsc_period;
 

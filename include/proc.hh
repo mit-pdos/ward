@@ -169,8 +169,8 @@ public:
 
 private:
   proc(int npid);
-  proc& operator=(const proc&);
-  proc(const proc& x);
+  proc& operator=(const proc&) = delete;
+  proc(const proc& x) = delete;
 } __page_align__;
 
 class kill_exception : public std::runtime_error {

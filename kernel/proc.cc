@@ -218,12 +218,6 @@ procexit(int status)
   if (wakeupinit)
     bootproc->cv->wake_all();
 
-  // Clean up FPU state by making sure no CPUs think this process is the FPU owner
-  for (int i = 0; i < ncpu; ++i) {
-    struct proc *copy = myproc();
-    atomic_compare_exchange_strong(&cpus[i].fpu_owner, &copy, (proc*)nullptr);
-  }
-
   // Jump into the scheduler, never to return.
   myproc()->set_state(ZOMBIE);
   sched(true);
@@ -450,18 +444,10 @@ finishproc(struct proc *p)
 {
   if (!xnspid->remove(p->pid, &p))
     panic("finishproc: ns_remove");
-#if !KSTACK_DEBUG
   if (p->kstack)
     kfree(p->kstack, KSTACKSIZE);
   if (p->qstack)
     kfree(p->qstack, KSTACKSIZE);
-#endif
-
-  p->pid = 0;
-  p->parent = 0;
-  p->name[0] = 0;
-  p->killed = 0;
-  delete p;
 }
 
 // Wait for a child process to exit and return its pid.
@@ -490,7 +476,7 @@ wait(int wpid,  userptr<int> status)
             status.store(&p.status);
           }
 
-          finishproc(&p);
+          delete &p;
           return pid;
         }
       }
@@ -589,11 +575,7 @@ proc::deliver_signal(int pid, int signo)
   // proc structure, or be in an RCU epoch.  Now another process can delete
   // p between lookup and kill.
   p = xnspid->lookup(pid);
-  if (p == 0) {
-    panic("kill");
-    return false;
-  }
-  return p->deliver_signal(signo);
+  return p && p->deliver_signal(signo);
 }
 
 bool
