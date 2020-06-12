@@ -170,18 +170,16 @@ procexit(int status)
     }
   }
 
-  // Pass abandoned children to init.
-  wakeupinit = 0;
+  // Set all children to have null parent, or delete them if they've already
+  // terminated.
   while (!myproc()->childq.empty()) {
     auto &p = myproc()->childq.front();
     myproc()->childq.pop_front();
     scoped_acquire pl(&p.lock);
-    scoped_acquire bl(&bootproc->lock);
-    p.parent = bootproc;
+    p.parent = nullptr;
     if(p.get_state() == ZOMBIE)  {
-      wakeupinit = 1;
+      delete &p;
     }
-    bootproc->childq.push_back(&p);
   }
 
   // Release vmap
@@ -211,12 +209,7 @@ procexit(int status)
   if (myproc()->parent != nullptr) {
     release(&myproc()->parent->lock);
     myproc()->parent->cv->wake_all();
-  } else {
-    idlezombie(myproc());
   }
-
-  if (wakeupinit)
-    bootproc->cv->wake_all();
 
   // Jump into the scheduler, never to return.
   myproc()->set_state(ZOMBIE);
@@ -448,6 +441,8 @@ finishproc(struct proc *p)
     kfree(p->kstack, KSTACKSIZE);
   if (p->qstack)
     kfree(p->qstack, KSTACKSIZE);
+  if (!p->parent)
+    delete p;
 }
 
 // Wait for a child process to exit and return its pid.

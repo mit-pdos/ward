@@ -148,7 +148,6 @@ void            ideintr(void);
 
 // idle.cc
 struct proc *   idleproc(void);
-void            idlezombie(struct proc*);
 
 // ipi.cc
 void            pause_other_cpus_and_call(void (*fn)(void));

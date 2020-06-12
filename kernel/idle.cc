@@ -34,14 +34,6 @@ idleproc(void)
   return idlem->cur;
 }
 
-void
-idlezombie(struct proc *p)
-{
-  struct idle *i = &idlem[mycpu()->id];
-  scoped_acquire l(&i->lock);
-  i->zombies.push_back(p);
-}
-
 static inline void
 finishzombies(void)
 {
