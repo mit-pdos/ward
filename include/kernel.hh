@@ -257,7 +257,7 @@ u64             syscall(u64 a0, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 num)
 // sysfile.cc
 #include "userptr.hh"
 #include "ref.hh"
-int             wait(int, userptr<int>);
+long            wait(int, userptr<int>);
 int             doexec(userptr_str upath,
                        userptr<userptr_str> uargv);
 int             fdalloc(sref<file>&& f, int omode);

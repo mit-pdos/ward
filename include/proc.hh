@@ -61,6 +61,14 @@ struct mtrace_stacks {
 };
 #endif
 
+struct waitstub {
+  ilink<waitstub> next;
+  int pid;
+  int status;
+
+  NEW_DELETE_OPS(waitstub);
+};
+
 typedef enum procstate {
   EMBRYO,
   SLEEPING,
@@ -104,6 +112,8 @@ struct proc {
 private:
   procstate_t state_;          // Process state
 public:
+
+  ilist<waitstub, &waitstub::next> waiting_children;
 
   u64 transparent_barriers;
   u64 intentional_barriers;

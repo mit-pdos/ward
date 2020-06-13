@@ -141,8 +141,6 @@ forkret(void)
 void
 procexit(int status)
 {
-  int wakeupinit;
-
   if(myproc() == bootproc)
     panic("init exiting");
 
@@ -207,6 +205,12 @@ procexit(int status)
 
   // Kernel threads might not have a parent
   if (myproc()->parent != nullptr) {
+    waitstub* w = new waitstub;
+    w->pid = myproc()->pid;
+    w->status = myproc()->status;
+    myproc()->parent->waiting_children.push_back(w);
+    myproc()->parent->childq.erase(myproc()->parent->childq.iterator_to(myproc()));
+
     release(&myproc()->parent->lock);
     myproc()->parent->cv->wake_all();
   }
@@ -441,45 +445,33 @@ finishproc(struct proc *p)
     kfree(p->kstack, KSTACKSIZE);
   if (p->qstack)
     kfree(p->qstack, KSTACKSIZE);
-  if (!p->parent)
-    delete p;
+  delete p;
 }
 
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
-int
+long
 wait(int wpid,  userptr<int> status)
 {
-  int havekids, pid;
-
   for(;;){
-    // Scan children for ZOMBIEs
-    havekids = 0;
     acquire(&myproc()->lock);
-    for (auto it = myproc()->childq.begin(); it != myproc()->childq.end(); it++) {
-      proc &p = *it;
-      acquire(&p.lock);
-      if (wpid == -1 || wpid == p.pid) {
-        havekids = 1;
-        if(p.get_state() == ZOMBIE){
-          release(&p.lock);	// no one else better be trying to lock p
-          pid = p.pid;
-          myproc()->childq.erase(it);
-          release(&myproc()->lock);
+    for (auto it = myproc()->waiting_children.begin();
+         it != myproc()->waiting_children.end(); it++) {
+      waitstub w = *it;
+      if (wpid == -1 || wpid == w.pid) {
+        myproc()->waiting_children.erase(it);
+        delete &*it;
 
-          if (status) {
-            status.store(&p.status);
-          }
-
-          delete &p;
-          return pid;
+        release(&myproc()->lock);
+        if (status) {
+          status.store(&w.status);
         }
+        return w.pid;
       }
-      release(&p.lock);
     }
 
     // No point waiting if we don't have any children.
-    if(!havekids || myproc()->killed){
+    if(myproc()->childq.empty() || myproc()->killed){
       release(&myproc()->lock);
       return -1;
     }
