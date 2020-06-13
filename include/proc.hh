@@ -129,7 +129,6 @@ public:
 #endif
 
   struct proc *parent;         // Parent process
-  int status;                  // exit's returns status
   char name[16];               // Process name (debugging)
   ilink<proc> child_next;
   ilist<proc,&proc::child_next> childq;

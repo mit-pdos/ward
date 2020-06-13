@@ -148,8 +148,6 @@ procexit(int status)
 
   myproc()->cwd.reset();
 
-  myproc()->status = (status & __WAIT_STATUS_VAL_MASK) | __WAIT_STATUS_EXITED;
-
   userptr<robust_list_head> head_ptr = myproc()->robust_list_ptr;
   if ((uptr)head_ptr != USERTOP) {
     robust_list_head head;
@@ -207,7 +205,7 @@ procexit(int status)
   if (myproc()->parent != nullptr) {
     waitstub* w = new waitstub;
     w->pid = myproc()->pid;
-    w->status = myproc()->status;
+    w->status = (status & __WAIT_STATUS_VAL_MASK) | __WAIT_STATUS_EXITED;
     myproc()->parent->waiting_children.push_back(w);
     myproc()->parent->childq.erase(myproc()->parent->childq.iterator_to(myproc()));
 
