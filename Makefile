@@ -55,7 +55,7 @@ ifeq ($(PLATFORM),xv6)
 INCLUDES  = -isystem include -iquote $(O)/include \
 		 -include param.h -include include/compiler.h
 COMFLAGS  = -static -DXV6_HW=$(HW) -DXV6 \
-	    -fno-builtin -fno-strict-aliasing -fno-omit-frame-pointer -fms-extensions \
+	    -fno-builtin -fno-strict-aliasing -fomit-frame-pointer -fms-extensions \
 	    -mno-red-zone -nostdlib -ffreestanding -fno-pie -fno-pic -funwind-tables -fasynchronous-unwind-tables
 LDFLAGS   = -m elf_x86_64 --eh-frame-hdr
 else

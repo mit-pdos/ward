@@ -103,8 +103,10 @@ include kernel/Makefrag.acpica
 KERN = $(O)/kernel.elf
 ALL += $(KERN)
 
-$(O)/kernel/%.o: CFLAGS+=-mcmodel=kernel -Ithird_party/libcxx/include -DXV6_KERNEL -mno-sse
-$(O)/kernel/%.o: CXXFLAGS+=-mcmodel=kernel -Ithird_party/libcxx/include -DXV6_KERNEL -mno-sse
+$(O)/kernel/%.o: CFLAGS+=-mcmodel=kernel -Ithird_party/libunwind/include -Ithird_party/libcxx/include \
+							-DXV6_KERNEL -mno-sse
+$(O)/kernel/%.o: CXXFLAGS+=-mcmodel=kernel -Ithird_party/libunwind/include -Ithird_party/libcxx/include \
+							-DXV6_KERNEL -mno-sse
 
 UNAME := $(shell uname)
 ifeq ($(UNAME), Darwin)

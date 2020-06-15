@@ -192,6 +192,22 @@ printtrace(u64 rbp)
   }
 }
 
+void
+printtrace(trapframe* tf)
+{
+  uptr pc[10];
+
+  getcallerpcs(tf, pc, NELEM(pc));
+  for (int i = 0; i < NELEM(pc) && pc[i] != 0; i++) {
+    u32 offset = 0;
+    const char *sym = kmeta::lookup((void*) pc[i], &offset);
+    if (sym)
+      __cprintf("  %016lx <%s+%u>\n", pc[i], sym, offset);
+    else
+      __cprintf("  %016lx\n", pc[i]);
+  }
+}
+
 const char *trapnames[] = {
   "#DE",
   "#DB",
@@ -293,7 +309,7 @@ kerneltrap(struct trapframe *tf)
 
   __cprintf("kernel ");
   printtrap(tf, false);
-  printtrace(tf->rbp);
+  printtrace(tf);
   // printbinctx(tf->rip);
 
   if (readmsr(MSR_INTEL_DEBUGCTL) & 1) {

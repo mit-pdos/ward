@@ -1,3 +1,9 @@
+#define UNW_LOCAL_ONLY
+#define _LIBUNWIND_IS_NATIVE_ONLY
+#define _LIBUNWIND_IS_BAREMETAL
+#define _LIBUNWIND_HAS_NO_THREADS
+#include <libunwind.h>
+
 #include "types.h"
 #include "mmu.h"
 #include "kernel.hh"
@@ -115,7 +121,7 @@ do_pagefault(struct trapframe *tf, bool had_secrets)
 
     if (cmdline_params.track_wbs) {
       uptr pc[2];
-      getcallerpcs((void *) tf->rbp, pc, NELEM(pc));
+      getcallerpcs(tf, pc, NELEM(pc));
       u64 bt = (tf->rip & 0x1fffff) | ((pc[0] & 0x1fffff) << 21) | ((pc[1] & 0x1fffff) << 42);
       transparent_wb_rips.increment(bt);
     }
@@ -264,7 +270,7 @@ trap(struct trapframe *tf, bool had_secrets)
               tf->rip, tf->rsp, tf->cs);
       if (mycpu()->timer_printpc == 2 && tf->rbp > KBASE) {
         uptr pc[10];
-        getcallerpcs((void *) tf->rbp, pc, NELEM(pc));
+        getcallerpcs(tf, pc, NELEM(pc));
         for (int i = 0; i < 10 && pc[i]; i++)
           cprintf("cpu%d:   %lx\n", mycpu()->id, pc[i]);
       }
@@ -589,28 +595,82 @@ popcli(void)
     sti();
 }
 
-// Record the current call stack in pcs[] by following the %rbp chain.
-void
-getcallerpcs(void *v, uptr pcs[], int n)
-{
-  uintptr_t rbp;
-  int i;
+extern "C" {
+  extern int __unw_getcontext(unw_context_t *);
+  extern int __unw_init_local(unw_cursor_t *, unw_context_t *);
+  extern int __unw_step(unw_cursor_t *);
+  extern int __unw_get_reg(unw_cursor_t *, unw_regnum_t, unw_word_t *);
+  extern int __unw_set_reg(unw_cursor_t *, unw_regnum_t, unw_word_t);
+  extern int __unw_get_proc_name(unw_cursor_t *, char *, size_t, unw_word_t *);
+}
 
-  rbp = (uintptr_t)v;
-  for(i = 0; i < n; i++){
-    // Read saved %rip
-    uintptr_t saved_rip;
-    if (safe_read_vm(&saved_rip, rbp + sizeof(uintptr_t), sizeof(saved_rip)) !=
-        sizeof(saved_rip))
-      break;
-    // Subtract 1 so it points to the call instruction
-    pcs[i] = saved_rip - 1;
-    // Read saved %rbp
-    if (safe_read_vm(&rbp, rbp, sizeof(rbp)) != sizeof(rbp))
+void
+getcallerpcs(trapframe* tf, uptr pcs[], int n)
+{
+  unw_cursor_t cursor;
+  unw_context_t context;
+
+  __unw_getcontext(&context);
+  __unw_init_local(&cursor, &context);
+
+  __unw_set_reg(&cursor, UNW_X86_64_RAX, tf->rax);
+  __unw_set_reg(&cursor, UNW_X86_64_RDX, tf->rdx);
+  __unw_set_reg(&cursor, UNW_X86_64_RCX, tf->rcx);
+  __unw_set_reg(&cursor, UNW_X86_64_RSI, tf->rsi);
+  __unw_set_reg(&cursor, UNW_X86_64_RDI, tf->rdi);
+  __unw_set_reg(&cursor, UNW_X86_64_RBP, tf->rbp);
+  __unw_set_reg(&cursor, UNW_X86_64_RSP, tf->rsp);
+
+  __unw_set_reg(&cursor, UNW_X86_64_R8, tf->r8);
+  __unw_set_reg(&cursor, UNW_X86_64_R9, tf->r9);
+  __unw_set_reg(&cursor, UNW_X86_64_R10, tf->r10);
+  __unw_set_reg(&cursor, UNW_X86_64_R11, tf->r11);
+  __unw_set_reg(&cursor, UNW_X86_64_R12, tf->r12);
+  __unw_set_reg(&cursor, UNW_X86_64_R13, tf->r13);
+  __unw_set_reg(&cursor, UNW_X86_64_R14, tf->r14);
+  __unw_set_reg(&cursor, UNW_X86_64_R15, tf->r15);
+
+  __unw_set_reg(&cursor, UNW_REG_IP, tf->rip);
+  // __unw_set_reg(&cursor, UNW_REG_RFLAGS, tf->rflags);
+
+  for(int i = 0; i < n; i++)
+    pcs[i] = 0;
+
+  for (int i = 0; i < n; i++) {
+    unw_word_t ip = 0, sp = 0, off = 0;
+
+    __unw_get_reg(&cursor, UNW_REG_IP, &ip);
+    __unw_get_reg(&cursor, UNW_REG_SP, &sp);
+    pcs[i] = ip;
+
+    if (!__unw_step(&cursor))
       break;
   }
-  for(; i < n; i++)
+}
+
+// Record the current call stack in pcs[] by following the %rbp chain.
+void
+getcallerpcs(uptr pcs[], int n)
+{
+  unw_cursor_t cursor;
+  unw_context_t context;
+
+  __unw_getcontext(&context);
+  __unw_init_local(&cursor, &context);
+
+  for(int i = 0; i < n; i++)
     pcs[i] = 0;
+
+  for (int i = 0; i < n; i++) {
+    unw_word_t ip = 0, sp = 0, off = 0;
+
+    __unw_get_reg(&cursor, UNW_REG_IP, &ip);
+    __unw_get_reg(&cursor, UNW_REG_SP, &sp);
+    pcs[i] = ip;
+
+    if (!__unw_step(&cursor))
+      break;
+  }
 }
 
 bool

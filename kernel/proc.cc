@@ -360,7 +360,7 @@ procdumpall(void)
             p->pid, name, state, p->cpuid, p->tsc);
     
     if(p->get_state() == SLEEPING){
-      getcallerpcs((void*)p->context->rbp, pc, NELEM(pc));
+      getcallerpcs(p->context, pc, NELEM(pc));
       for(int i=0; i<10 && pc[i] != 0; i++)
         cprintf(" %lx\n", pc[i]);
     }

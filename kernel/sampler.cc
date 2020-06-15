@@ -638,7 +638,7 @@ samplog(int pmc, struct nmiframe *tf)
   ev.kernel = tf->rip >= KCODE;
   ev.count = 1;
   ev.rip = tf->rip;
-  getcallerpcs((void*)tf->rbp, ev.trace, NELEM(ev.trace));
+  getcallerpcs(tf, ev.trace, NELEM(ev.trace));
 
   if (!pmulog->log(ev)) {
     selectors[pmc].enable = false;

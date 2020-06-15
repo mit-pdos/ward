@@ -11,7 +11,7 @@ LIBUNWIND_SRC_S_FILES := $(wildcard $(LIBUNWIND_SRC)/*.S)
 LIBUNWIND_OBJ_FILES := $(patsubst $(LIBUNWIND_SRC)/%.c,$(LIBUNWIND_OBJ)/%.o,$(LIBUNWIND_SRC_C_FILES)) \
 						$(patsubst $(LIBUNWIND_SRC)/%.cpp,$(LIBUNWIND_OBJ)/%.o,$(LIBUNWIND_SRC_CXX_FILES)) \
 						$(patsubst $(LIBUNWIND_SRC)/%.S,$(LIBUNWIND_OBJ)/%.o,$(LIBUNWIND_SRC_S_FILES))
-LIBUNWIND_FLAGS = -D_LIBUNWIND_IS_BAREMETAL -D_LIBUNWIND_HAS_NO_THREADS -DNDEBUG -Ithird_party/libunwind/include -mcmodel=kernel
+LIBUNWIND_FLAGS = -D_LIBUNWIND_IS_NATIVE_ONLY -D_LIBUNWIND_IS_BAREMETAL -D_LIBUNWIND_HAS_NO_THREADS -DNDEBUG -Ithird_party/libunwind/include -mcmodel=kernel
 $(LIBUNWIND_OBJ)/%.o: $(LIBUNWIND_SRC)/%.cpp
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
