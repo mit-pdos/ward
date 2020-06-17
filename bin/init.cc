@@ -9,10 +9,8 @@
 
 static const char *sh_argv[] = { "sh", 0 };
 static const char *app_argv[][MAXARG] = {
-#ifdef LWIP
-  { "telnetd", 0 },
+  // { "telnetd", 0 },
   { "httpd", 0 },
-#endif
 };
 
 static const char* busybox_aliases[] = {

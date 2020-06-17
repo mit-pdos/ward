@@ -1,26 +1,55 @@
-#include "types.h"
-#include "user.h"
-#include "lib.h"
+// #include "types.h"
+// #include "user.h"
+// #include "lib.h"
 
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/socket.h>
 
-#include "sockutil.h"
+// #include <sys/socket.h>
+// #include <arpa/inet.h>
+// #include "sockutil.h"
+
+// #define LWIP
+// #include "../include/uk/socket.h"
+
+#include "sysstubs.h"
 
 #define VERSION "0.1"
 #define HTTP_VERSION "1.0"
 #define BUFSIZE 512
+
+#define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+#define SOCK_STREAM 1
+#define AF_INET 2
+#define INADDR_ANY 0
+typedef uint32_t socklen_t;
+struct in_addr {
+  uint32_t s_addr;
+};
+struct sockaddr_in {
+  uint8_t sin_len;
+  uint8_t sin_family;
+  uint16_t sin_port;
+  struct in_addr sin_addr;
+  char sin_zero[8];
+};
+unsigned long htonl(unsigned long x) {
+  return ((x & 0xff) << 24) | ((x & 0xff00) << 8) | ((x >> 8) & 0xff00) | (x >> 24);
+}
+unsigned short htons(unsigned short x) {
+  return ((x & 0xff) << 8) | ((x & 0xff00) >> 8);
+}
 
 static int xwrite(int fd, const void *buf, u64 n)
 {
   int r;
   
   while (n) {
-    r = write(fd, buf, n);
+    r = ward_write(fd, buf, n);
     if (r < 0 || r == 0) {
       fprintf(stderr, "xwrite: failed %d\n", r);
       return -1;
@@ -52,8 +81,10 @@ error(int s, int code)
     if (errors[i].code == code)
       break;
 
-  if (i == NELEM(errors))
-    die("httpd error: unknown code %u", code);
+  if (i == NELEM(errors)) {
+    fprintf(stderr, "httpd error: unknown code %u", code);
+    exit(-1);
+  }
 
   snprintf(buf, 512, "HTTP/" HTTP_VERSION" %d %s\r\n"
            "Server: xv6-httpd/" VERSION "\r\n"
@@ -78,8 +109,10 @@ header(int s)
   int len;
 
   len = strlen(h);
-  if (xwrite(s, h, len))
-    die("httpd header: incomplete write");
+  if (xwrite(s, h, len)) {
+    fprintf(stderr, "httpd header: incomplete write");
+    exit(-1);
+  }
 
   return 0;
 }
@@ -92,8 +125,10 @@ header_fin(int s)
   int len;
 
   len = strlen(f);
-  if (xwrite(s, f, len))
-    die("httpd fin: incomplete write");
+  if (xwrite(s, f, len)) {
+    fprintf(stderr, "httpd fin: incomplete write");
+    exit(-1);
+  }
 
   return 0;
 }
@@ -107,8 +142,10 @@ content_length(int s, u64 size)
   snprintf(buf, 128, "Content-Length: %lu\r\n", size);
   len = strlen(buf);
 
-  if (xwrite(s, buf, len))
-    die("httpd size: incomplete write");
+  if (xwrite(s, buf, len)) {
+    fprintf(stderr, "httpd size: incomplete write");
+    exit(-1);
+  }
 
   return 0;
 }
@@ -121,8 +158,11 @@ content_type(int s)
   int len;
 
   len = strlen(t);
-  if (xwrite(s, t, len))
-    die("httpd content_type: incomplete write");
+  if (xwrite(s, t, len)) {
+    fprintf(stderr, "httpd content_type: incomplete write");
+    exit(-1);
+  }
+
   return 0;
 }
 
@@ -133,7 +173,7 @@ content(int s, int fd)
   int n;
 
   for (;;) {
-    n = read(fd, buf, sizeof(buf));
+    n = ward_read(fd, buf, sizeof(buf));
     if (n < 0) {
       fprintf(stderr, "send_data: read failed %d\n", n);
       return n;
@@ -164,14 +204,15 @@ resp_get(int s, const char *url)
   r = fstat(fd, &stat);
   if (r < 0) {
     fprintf(stderr, "httpd resp: fstat %d\n", r);
-    close(fd);
+    ward_close(fd);
     return error(s, 404);
   }
 
-  if (!S_ISREG(stat.st_mode) && !S_ISCHR(stat.st_mode)) {
-    close(fd);
-    return error(s, 404);
-  }
+  // if (!S_ISREG(stat.st_mode) && !S_ISCHR(stat.st_mode)) {
+  //   fprintf(stderr, "httpd resp: bad kind st_mode=%d\n", stat.st_mode);
+  //   ward_close(fd);
+  //   return error(s, 404);
+  // }
 
   r = header(s);
   if (r < 0)
@@ -195,11 +236,11 @@ resp_get(int s, const char *url)
   if (r < 0)
     goto error;
   
-  close(fd);
+  ward_close(fd);
   return;
 
 error:
-  close(fd);
+  ward_close(fd);
   error(s, 500);
 }
 
@@ -213,14 +254,14 @@ resp_put(int s, const char *url, int content_length)
     return;
   }
 
-  int fd = open(url, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+  int fd = ward_open(url, O_WRONLY|O_CREAT|O_TRUNC);
   if (fd < 0) {
     error(s, 404);
     return;
   }
 
   char buf[1024];
-  while (content_length && (r = read(s, buf, NELEM(buf))) != 0) {
+  while (content_length && (r = ward_read(s, buf, NELEM(buf))) != 0) {
     if (r < 0) {
       fprintf(stderr, "httpd client: read %d\n", r);
       r = -400;
@@ -243,11 +284,11 @@ resp_put(int s, const char *url, int content_length)
   if (r < 0)
     goto error;
 
-  close(fd);
+  ward_close(fd);
   return;
 
  error:
-  close(fd);
+  ward_close(fd);
   error(s, 500);
 }
 
@@ -256,7 +297,7 @@ readline(int s, char *buf, int limit)
 {
   char *pos = buf;
   while (pos < buf + limit - 1) {
-    int r = read(s, pos, 1);
+    int r = ward_read(s, pos, 1);
     if (r < 0)
       return r;
     if (r == 0)
@@ -345,37 +386,43 @@ main(void)
   int s;
   int r;
 
-  s = socket(AF_INET, SOCK_STREAM, 0);
-  if (s < 0)
-    die("httpd socket: %d\n", s);
+  s = ward_socket(AF_INET, SOCK_STREAM, 0);
+  if (s < 0) {
+    fprintf(stderr, "httpd socket: %d\n", s);
+    exit(-1);
+  }
 
   struct sockaddr_in sin;
   sin.sin_family = AF_INET;
   sin.sin_addr.s_addr = htonl(INADDR_ANY);
   sin.sin_port = htons(80);
-  r = bind(s, (struct sockaddr *)&sin, sizeof(sin));
-  if (r < 0)
-    die("httpd bind: %d\n", r);
-  
-  r = listen(s, 5);
-  if (r < 0)
-    die("httpd listen: %d\n", r);
+  r = ward_bind(s, (struct sockaddr *)&sin, sizeof(sin));
+  if (r < 0) {
+    fprintf(stderr, "httpd bind: %d\n", r);
+    exit(-1);
+  }
+
+  r = ward_listen(s, 5);
+  if (r < 0) {
+    fprintf(stderr, "httpd listen: %d\n", r);
+    exit(-1);
+  }
 
   fprintf(stderr, "httpd: port 80\n");
 
   for (;;) {
     socklen_t socklen;
     int ss;
-    
+
     socklen = sizeof(sin);
-    ss = accept(s, (struct sockaddr *)&sin, &socklen);
+    ss = ward_accept(s, (struct sockaddr *)&sin, &socklen);
     if (ss < 0) {
       fprintf(stderr, "httpd accept: %d\n", ss);
       continue;
     }
-    fprintf(stderr, "httpd: connection %s\n", ipaddr(&sin));
+    fprintf(stderr, "httpd: connection ???\n" /*, ipaddr(&sin)*/);
 
     client(ss);
-    close(ss);
+    ward_close(ss);
   }
 }
