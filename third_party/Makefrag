@@ -1,7 +1,5 @@
 # -*- makefile-gmake -*-
 
-$(O)/third_party/zlib/crc32.o: CFLAGS:=$(CFLAGS) -mcmodel=kernel -mno-sse -DXV6_KERNEL
-
 #libunwind
 LIBUNWIND_SRC = third_party/libunwind/src
 LIBUNWIND_OBJ = $(O)/libunwind
@@ -11,7 +9,7 @@ LIBUNWIND_SRC_S_FILES := $(wildcard $(LIBUNWIND_SRC)/*.S)
 LIBUNWIND_OBJ_FILES := $(patsubst $(LIBUNWIND_SRC)/%.c,$(LIBUNWIND_OBJ)/%.o,$(LIBUNWIND_SRC_C_FILES)) \
 						$(patsubst $(LIBUNWIND_SRC)/%.cpp,$(LIBUNWIND_OBJ)/%.o,$(LIBUNWIND_SRC_CXX_FILES)) \
 						$(patsubst $(LIBUNWIND_SRC)/%.S,$(LIBUNWIND_OBJ)/%.o,$(LIBUNWIND_SRC_S_FILES))
-LIBUNWIND_FLAGS = -D_LIBUNWIND_IS_BAREMETAL -D_LIBUNWIND_HAS_NO_THREADS -DNDEBUG -Ithird_party/libunwind/include -mcmodel=kernel
+LIBUNWIND_FLAGS = -D_LIBUNWIND_IS_BAREMETAL -D_LIBUNWIND_HAS_NO_THREADS -DNDEBUG -Ithird_party/libunwind/include -msse
 $(LIBUNWIND_OBJ)/%.o: $(LIBUNWIND_SRC)/%.cpp
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
@@ -35,7 +33,7 @@ LIBCXXABI_SRC_C_FILES := $(wildcard $(LIBCXXABI_SRC)/*.c)
 LIBCXXABI_SRC_CXX_FILES := $(wildcard $(LIBCXXABI_SRC)/*.cpp)
 LIBCXXABI_OBJ_FILES := $(patsubst $(LIBCXXABI_SRC)/%.c,$(LIBCXXABI_OBJ)/%.o,$(LIBCXXABI_SRC_C_FILES)) \
 						$(patsubst $(LIBCXXABI_SRC)/%.cpp,$(LIBCXXABI_OBJ)/%.o,$(LIBCXXABI_SRC_CXX_FILES))
-LIBCXXABI_FLAGS = -D_NOEXCEPT=noexcept -DLIBCXXABI_USE_LLVM_UNWINDER -Ithird_party/libcxx/include -Ithird_party/libcxxabi/include -mcmodel=kernel # -D_LIBCPP_BUILDING_LIBRARY
+LIBCXXABI_FLAGS = -D_NOEXCEPT=noexcept -DLIBCXXABI_USE_LLVM_UNWINDER -Ithird_party/libcxx/include -Ithird_party/libcxxabi/include
 $(LIBCXXABI_OBJ)/%.o: $(LIBCXXABI_SRC)/%.cpp
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
@@ -55,11 +53,11 @@ LIBCXX_SRC_C_FILES := $(wildcard $(LIBCXX_SRC)/*.c)
 LIBCXX_SRC_CXX_FILES := $(wildcard $(LIBCXX_SRC)/*.cpp)
 LIBCXX_OBJ_FILES := $(patsubst $(LIBCXX_SRC)/%.c,$(LIBCXX_OBJ)/%.o,$(LIBCXX_SRC_C_FILES)) \
 						$(patsubst $(LIBCXX_SRC)/%.cpp,$(LIBCXX_OBJ)/%.o,$(LIBCXX_SRC_CXX_FILES))
-LIBCXX_FLAGS = -D_NOEXCEPT=noexcept -D_LIBCPP_BUILDING_LIBRARY -Ithird_party/libcxx/include -mcmodel=kernel # -D_LIBCPP_BUILDING_LIBRARY
+LIBCXX_FLAGS = -D_NOEXCEPT=noexcept -D_LIBCPP_BUILDING_LIBRARY -Ithird_party/libcxx/include -msse
 $(LIBCXX_OBJ)/%.o: $(LIBCXX_SRC)/%.cpp
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)$(CXX) $(LIBCXX_FLAGS) $(CXXFLAGS) -c -o $@ $<
+	$(Q)$(CXX) $(CXXFLAGS) $(LIBCXX_FLAGS) -c -o $@ $<
 $(LIBCXX_OBJ)/%.o: $(LIBCXX_SRC)/%.c
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
@@ -76,7 +74,7 @@ COMPILERRT_SRC_C_FILES := $(wildcard $(COMPILERRT_SRC)/*.c)
 COMPILERRT_SRC_CXX_FILES := $(wildcard $(COMPILERRT_SRC)/*.cpp)
 COMPILERRT_OBJ_FILES := $(patsubst $(COMPILERRT_SRC)/%.c,$(COMPILERRT_OBJ)/%.o,$(COMPILERRT_SRC_C_FILES)) \
 						$(patsubst $(COMPILERRT_SRC)/%.cpp,$(COMPILERRT_OBJ)/%.o,$(COMPILERRT_SRC_CXX_FILES))
-COMPILERRT_FLAGS = -Ithird_party/libcxx/include
+COMPILERRT_FLAGS = -Ithird_party/libcxx/include -msse
 $(COMPILERRT_OBJ)/%.o: $(COMPILERRT_SRC)/%.cpp
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)

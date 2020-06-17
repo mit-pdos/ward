@@ -16,8 +16,8 @@ OBJS = \
 	file.o \
 	fmt.o \
 	fs.o \
-        futex.o \
-        idle.o \
+	futex.o \
+	idle.o \
 	ioapic.o \
 	hotpatch.o \
 	hwvm.o \
@@ -47,10 +47,10 @@ OBJS = \
 	sysproc.o \
 	syssocket.o\
 	uart.o \
-        user.o \
+	user.o \
 	vm.o \
 	trap.o \
-        uaccess.o \
+	uaccess.o \
 	trapasm.o \
 	xapic.o \
 	x2apic.o \
@@ -100,9 +100,6 @@ include kernel/Makefrag.acpica
 KERN = $(O)/kernel.elf
 ALL += $(KERN)
 
-$(O)/kernel/%.o: CFLAGS+=-mcmodel=kernel -Ithird_party/libcxx/include -DXV6_KERNEL -mno-sse
-$(O)/kernel/%.o: CXXFLAGS+=-mcmodel=kernel -Ithird_party/libcxx/include -DXV6_KERNEL -mno-sse
-
 UNAME := $(shell uname)
 ifeq ($(UNAME), Darwin)
 DDSTATUS :=
@@ -128,46 +125,33 @@ $(KERN): tools/kmeta.py $(O)/kernel/boot.o $(OBJS) $(LDEPS) kernel/kernel.ld
 	$(Q)tools/check-stack $@.tmp
 	$(Q)mv $@.tmp $@
 
-$(O)/kernel/%.o: lib/zlib/%.c
-	@echo "  CC     $@"
-	$(Q)mkdir -p $(@D)
-	$(Q)$(CC) $(CFLAGS) -c -o $@ $<
-
-$(O)/kernel/%.o: $(O)/kernel/%.cc
-	@echo "  CXX    $@"
-	$(Q)mkdir -p $(@D)
-	$(Q)$(CXX) $(CXXFLAGS) -Ithird_party/libcxx/include -c -o $@ $<
-
 $(O)/kernel/incbin.o: ASFLAGS+=-DMAKE_OUT=$(O)
 $(O)/kernel/incbin.o: $(O)/kernel/initcode $(O)/kernel/bootother $(O)/fs.part
+$(O)/kernel/swtch.o: $(O)/include/asmdefines.h
+$(O)/kernel/trapasm.o: $(O)/include/asmdefines.h
+$(O)/kernel/uaccess.o: $(O)/include/asmdefines.h
 
 # link initcode against sysstubs to get syscall numbers
-$(O)/kernel/initcode: TTEXT = 0x1000
-$(O)/kernel/initcode: LDEXTRA = $(O)/lib/sysstubs.o
-$(O)/kernel/initcode: $(O)/lib/sysstubs.o
-
-$(O)/kernel/bootother: TTEXT = 0x7000
-
-$(O)/kernel/swtch.o: $(O)/include/asmdefines.h
-
-$(O)/kernel/%: kernel/%.S
+$(O)/kernel/initcode: kernel/initcode.S $(O)/lib/sysstubs.o
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) $(CFLAGS) -nostdinc -I. -c $< -o $@.o
-	$(Q)$(LD) $(LDFLAGS) -N -e start -Ttext $(TTEXT) -o $@.out $@.o $(LDEXTRA)
+	$(Q)$(LD) $(LDFLAGS) -N -e start -Ttext 0x1000 -o $@.out $@.o $(O)/lib/sysstubs.o
 	$(Q)$(OBJCOPY) -S -O binary $@.out $@
 
-$(O)/kernel/asmdefines.S: kernel/asmdefines.cc
-	@echo "  CXX    $@"
+$(O)/kernel/bootother: kernel/bootother.S
+	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)$(CXX) -S $(CXXFLAGS) -o $@ $<
+	$(Q)$(CC) $(CFLAGS) -nostdinc -I. -c $< -o $@.o
+	$(Q)$(LD) $(LDFLAGS) -N -e start -Ttext 0x7000 -o $@.out $@.o
+	$(Q)$(OBJCOPY) -S -O binary $@.out $@
 
-$(O)/include/asmdefines.h: $(O)/kernel/asmdefines.S
+$(O)/include/asmdefines.h: kernel/asmdefines.cc
 	@echo "  GEN    $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)sed -n 's/remove\$$//p' $(O)/kernel/asmdefines.S > $@
-$(O)/kernel/trapasm.o: $(O)/include/asmdefines.h
-$(O)/kernel/uaccess.o: $(O)/include/asmdefines.h
+	$(Q)$(CXX) -S $(CXXFLAGS) -o $@.tmp $<
+	$(Q)sed -i -n 's/remove\$$//p' $@.tmp
+	$(Q)mv $@.tmp $@
 
 $(O)/kernel/sysvectors.cc: tools/syscalls.py kernel/*.cc
 	$(call SYSCALLGEN,--kvectors)

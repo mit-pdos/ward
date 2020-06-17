@@ -1,6 +1,3 @@
 # -*- makefile-gmake -*-
 
 -include $(O)/net/*.d
-
-$(O)/net/%.o: CXXFLAGS+=-mcmodel=kernel -Ithird_party/libcxx/include -DXV6_KERNEL -mno-sse \
-						-Ithird_party/lwip/src/include -Ithird_party/lwip/src/include/ipv4

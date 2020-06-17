@@ -59,11 +59,12 @@ endef
 #
 COMFLAGS := $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector) \
 			$(shell $(CC) -fcf-protection=none -E -x c /dev/null >/dev/null 2>&1 && echo -fcf-protection=none) \
-	        -static -DXV6_HW=$(HW) -DHW_$(HW) -DXV6 -fno-builtin -fno-strict-aliasing -fno-omit-frame-pointer \
+	        -static -fno-builtin -fno-strict-aliasing -fno-omit-frame-pointer -mcmodel=kernel -mno-sse \
 	        -fms-extensions -mno-red-zone -nostdlib -ffreestanding -fno-pie -fno-pic -funwind-tables \
 	        -fasynchronous-unwind-tables -g -MD -MP -O3 -Wall -msoft-float -mretpoline-external-thunk \
+	        -DXV6_HW=$(HW) -DHW_$(HW) -DXV6 -DXV6_KERNEL \
 	        -isystem include -iquote $(O)/include -include param.h -include include/compiler.h \
-	        -Ithird_party/lwip/src/include -Inet -Ithird_party/lwip/src/include/ipv4
+	        -Ithird_party/lwip/src/include -Inet -Ithird_party/lwip/src/include/ipv4 -Ithird_party/libcxx/include
 CFLAGS   := $(COMFLAGS) -std=c99
 CXXFLAGS := $(COMFLAGS) -std=c++14 -Wno-sign-compare -faligned-new -DEXCEPTIONS=1 -Wno-delete-non-virtual-dtor -nostdinc++
 ASFLAGS  := $(ASFLAGS) -Iinclude -I$(O)/include -m64 -MD -MP -DHW_$(HW) -include param.h
@@ -104,11 +105,6 @@ $(O)/%.o: $(O)/%.cc
 	$(Q)$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 $(O)/%.o: %.S
-	@echo "  CC     $@"
-	$(Q)mkdir -p $(@D)
-	$(Q)$(CC) $(ASFLAGS) -c -o $@ $<
-
-$(O)/%.o: $(O)/%.S
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) $(ASFLAGS) -c -o $@ $<
