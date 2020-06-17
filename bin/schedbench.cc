@@ -40,8 +40,8 @@ pthread_t* worker_threads;
 
 static struct {
   uint32_t mem;
-  __padout__;
-} ftx[256] __mpalign__;
+  char padding[0] __attribute__((aligned(64), unused));
+} ftx[256] __attribute__((aligned(64)));
 
 #define die(...) do { \
   printf( __VA_ARGS__ ); \

@@ -8,7 +8,7 @@
 #include "sysstubs.h"
 
 static const char *sh_argv[] = { "sh", 0 };
-static const char *app_argv[][MAXARG] = {
+static const char *app_argv[][2] = {
   // { "telnetd", 0 },
   { "httpd", 0 },
 };

@@ -368,21 +368,6 @@ sys_getdents64(int fd, const userptr<void> p, size_t total_bytes) {
 
 //SYSCALL
 long
-sys_fstatx(int fd, userptr<struct kernel_stat> st, enum stat_flags flags)
-{
-  struct kernel_stat st_buf;
-  sref<file> f = getfile(fd);
-  if (!f)
-    return -1;
-  if (f->stat(&st_buf, flags) < 0)
-    return -1;
-  if (!st.store(&st_buf))
-    return -1;
-  return 0;
-}
-
-//SYSCALL
-long
 sys_fstat(int fd, userptr<struct kernel_stat> st)
 {
   STRACE_PARAMS("0x%x, %p", fd, st.unsafe_get());

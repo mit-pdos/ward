@@ -12,10 +12,8 @@ typedef uint32_t        u32;
 typedef int32_t         s32;
 typedef uint64_t        u64;
 typedef int64_t         s64;
-#ifdef XV6
 typedef unsigned __int128 u128;
 typedef __int128        s128;
-#endif
 typedef uintptr_t       uptr;
 typedef intptr_t        sptr;
 typedef uptr            paddr;

@@ -1,4 +1,4 @@
-#include "user.h"
+#include "sysstubs.h"
 
 int
 main(int argc, char *argv[])

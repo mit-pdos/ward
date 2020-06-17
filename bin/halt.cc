@@ -1,6 +1,6 @@
 #ifdef XV6_USER
-#include "user.h"
-#include "stdlib.h"
+#include <stdlib.h>
+#include "sysstubs.h"
 #else
 #include <stdio.h>
 #include <unistd.h>

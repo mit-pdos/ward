@@ -22,15 +22,17 @@ FSCONTENTS := $(addprefix $(O)/fs/bin/, $(UPROGS_BIN)) \
               $(O)/fs/intel-ucode \
               $(O)/fs/bin/busybox \
 
+$(O)/include/types.h: include/types.h
+	$(Q)mkdir -p $(@D)
+	$(Q)cp $< $@
 $(O)/bin/%.o: bin/%.c
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)$(CC) -std=c11 -g -MD -MP -O3 -Wall -DHW_$(HW) -iquote $(O)/include -DXV6_USER -static -c -o $@ $<
+	$(Q)$(CC) -std=c11 -g -MD -MP -O3 -Wall -static -DHW_$(HW) -DXV6_USER -iquote $(O)/include -c -o $@ $<
 $(O)/bin/%.o: bin/%.cc
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)$(CXX) -std=c++14 -g -MD -MP -O3 -Wall -DHW_$(HW) -iquote $(O)/include -isystem include \
-	           -include include/compiler.h -include param.h -DXV6_USER -static -c -o $@ $<
+	$(Q)$(CXX) -std=c++14 -g -MD -MP -O3 -Wall -static -DHW_$(HW) -DXV6_USER -iquote $(O)/include -c -o $@ $<
 $(O)/bin/%.unstripped: $(O)/bin/%.o $(O)/lib/sysstubs.o
 	@echo "  LD     $@"
 	$(Q)mkdir -p $(@D)
@@ -51,9 +53,10 @@ $(O)/fs/bin/git: git/root/bin/git
 $(O)/fs/lwip: lwip
 	$(Q)cp -r lwip $(O)/fs/lwip
 
+
 ifeq ($(PLATFORM),xv6)
-  # Assume everything inclues user.h, which includes sysstubs.h
-  $(patsubst %,$(O)/bin/%.o,$(UPROGS_BIN)): $(O)/include/sysstubs.h
+  # Assume everything includes sysstubs.h and types.h
+  $(patsubst %,$(O)/bin/%.o,$(UPROGS_BIN)): $(O)/include/sysstubs.h $(O)/include/types.h
 else
   ALL += $(addprefix $(O)/bin/, $(UPROGS_NATIVE))
 endif

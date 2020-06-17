@@ -452,10 +452,11 @@ ward_syscall:
 """)
 
     if options.udecls:
-        print("#include \"types.h\"")
-        print("#include <uk/unistd.h>")
+        print('#include "types.h"')
         print()
-        print("BEGIN_DECLS")
+        print("#ifdef __cplusplus")
+        print('extern "C" {')
+        print("#endif")
         print()
         types = set(typ for syscall in syscalls for typ in syscall.types())
         for typ in types:
@@ -471,7 +472,9 @@ ward_syscall:
         for syscall in syscalls:
             print("#define SYS_%s %s" % (syscall.uname, syscall.num))
         print()
-        print("END_DECLS")
+        print("#ifdef __cplusplus")
+        print("}")
+        print("#endif")
 
 class Syscall(object):
     def __init__(self, fp, kname, rettype, kargs, flags, num=None):
