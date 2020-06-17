@@ -68,7 +68,7 @@ endif
 
 COMFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector) \
 			$(shell $(CC) -fcf-protection=none -E -x c /dev/null >/dev/null 2>&1 && echo -fcf-protection=none) \
-			-g -MD -MP -O3 -Wall -DHW_$(HW) $(INCLUDES) -msoft-float -mretpoline-external-thunk
+			-g -MD -MP -O3 -Wall -DHW_$(HW) $(INCLUDES) -msoft-float -mretpoline-external-thunk -DLWIP
 
 CFLAGS   := $(COMFLAGS) -std=c99 $(CFLAGS)
 CXXFLAGS := $(COMFLAGS) -std=c++14 -Wno-sign-compare -faligned-new -DEXCEPTIONS=1 -Wno-delete-non-virtual-dtor -nostdinc++
@@ -87,7 +87,7 @@ define SYSCALLGEN
 endef
 
 ifeq ($(PLATFORM),xv6)
-# include net/Makefrag
+include net/Makefrag
 include third_party/Makefrag
 include kernel/Makefrag
 endif

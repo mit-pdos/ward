@@ -16,7 +16,6 @@ o.tom/
 /mscan.syms
 /mscan.kern
 config.mk
-lwip
 /.passwd.*
 .gdb_history
 cscope.out

@@ -1,6 +1,7 @@
 #pragma once
 
 #ifdef LWIP
+#define LWIP_TIMEVAL_PRIVATE 0
 #include "lwip/sockets.h"
 // Oddly, LWIP doesn't define sa_family_t
 typedef __typeof__(((struct sockaddr*)0)->sa_family) sa_family_t;
