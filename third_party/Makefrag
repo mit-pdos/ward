@@ -88,3 +88,19 @@ $(COMPILERRT_OBJ)/%.o: $(COMPILERRT_SRC)/%.c
 $(O)/compiler-rt.a: $(COMPILERRT_OBJ_FILES)
 	@echo "  AR     $@"
 	$(Q)$(AR) rcs $@ $^
+
+#lwip
+LWIP_SRC = third_party/lwip/src
+LWIP_OBJ = $(O)/lwip
+LWIP_SRC_C_FILES := $(wildcard $(LWIP_SRC)/*/*.c) $(wildcard $(LWIP_SRC)/core/ipv4/*.c)
+LWIP_OBJ_FILES := $(patsubst $(LWIP_SRC)/%.c,$(LWIP_OBJ)/%.o,$(LWIP_SRC_C_FILES))
+LWIP_FLAGS = -Wno-attributes -Wno-address -Wno-char-subscripts -Wno-format -O2 \
+	-Ithird_party/lwip/src/include -Ithird_party/lwip/src/include/ipv4 -Inet -Inet/arch \
+	-mcmodel=kernel -Ithird_party/libcxx/include -DXV6_KERNEL -mno-sse
+$(LWIP_OBJ)/%.o: $(LWIP_SRC)/%.c
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(CFLAGS) $(LWIP_FLAGS) -c -o $@ $<
+$(O)/liblwip.a: $(LWIP_OBJ_FILES) $(O)/net/sys_arch.o $(O)/net/if.o
+	@echo "  AR     $@"
+	$(Q)$(AR) rcs $@ $^

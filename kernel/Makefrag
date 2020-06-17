@@ -112,7 +112,8 @@ else
 DDSTATUS := status=none
 endif
 
-LDEPS += $(O)/libunwind.a $(O)/libcxxabi.a $(O)/compiler-rt.a $(O)/libcxx.a $(O)/third_party/zlib/crc32.o
+LDEPS += $(O)/libunwind.a $(O)/libcxxabi.a $(O)/compiler-rt.a $(O)/libcxx.a \
+		$(O)/third_party/zlib/crc32.o $(O)/liblwip.a
 
 $(KERN): tools/kmeta.py $(O)/kernel/boot.o $(OBJS) $(LDEPS) kernel/kernel.ld
 	@echo "  LD     $@"
