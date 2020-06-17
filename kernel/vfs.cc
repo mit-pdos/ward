@@ -64,7 +64,6 @@ initvfs()
   dev->create_device("stat", MAJ_STAT, 0);
   dev->create_device("cmdline", MAJ_CMDLINE, 0);
   dev->create_device("gc", MAJ_GC, 0);
-  dev->create_device("kconfig", MAJ_KCONFIG, 0);
   dev->create_device("kstats", MAJ_KSTATS, 0);
   dev->create_device("kmemstats", MAJ_KMEMSTATS, 0);
   dev->create_device("mfsstats", MAJ_MFSSTATS, 0);

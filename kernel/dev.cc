@@ -7,21 +7,7 @@
 #include "kstream.hh"
 #include "linearhash.hh"
 
-extern const char *kconfig;
-
 DEFINE_QPERCPU(struct kstats, mykstats, NO_CRITICAL);
-
-static int
-kconfigread(char *dst, u32 off, u32 n)
-{
-  auto len = strlen(kconfig);
-  if (off >= len)
-    return 0;
-  if (n > len - off)
-    n = len - off;
-  memmove(dst, kconfig + off, n);
-  return n;
-}
 
 static int
 kstatsread(char *dst, u32 off, u32 n)
@@ -80,7 +66,6 @@ static int nullwrite(const char* src, u32 off, u32 n) {
 void
 initdev(void)
 {
-  devsw[MAJ_KCONFIG].pread = kconfigread;
   devsw[MAJ_KSTATS].pread = kstatsread;
   devsw[MAJ_QSTATS].pread = qstatsread;
   devsw[MAJ_NULL].pread = nullread;

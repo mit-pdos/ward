@@ -5,9 +5,8 @@
 #define MAJ_STAT      5
 #define MAJ_CMDLINE   6
 #define MAJ_GC        7
-#define MAJ_KCONFIG   8
-#define MAJ_KSTATS    9
-#define MAJ_KMEMSTATS 10
-#define MAJ_MFSSTATS  11
-#define MAJ_QSTATS    12
-#define MAJ_NULL      13
+#define MAJ_KSTATS    8
+#define MAJ_KMEMSTATS 9
+#define MAJ_MFSSTATS  10
+#define MAJ_QSTATS    11
+#define MAJ_NULL      12
