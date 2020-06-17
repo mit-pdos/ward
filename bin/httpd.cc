@@ -12,9 +12,6 @@
 // #include <arpa/inet.h>
 // #include "sockutil.h"
 
-// #define LWIP
-// #include "../include/uk/socket.h"
-
 #include "sysstubs.h"
 
 #define VERSION "0.1"

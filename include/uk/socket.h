@@ -1,26 +1,9 @@
 #pragma once
 
-#ifdef LWIP
 #define LWIP_TIMEVAL_PRIVATE 0
 #include "lwip/sockets.h"
 // Oddly, LWIP doesn't define sa_family_t
 typedef __typeof__(((struct sockaddr*)0)->sa_family) sa_family_t;
-#else
-// Stub definitions and enough for local sockets
-#include <stdint.h>
-
-typedef uint32_t socklen_t;
-typedef uint8_t sa_family_t;
-
-#define SOCK_STREAM 1
-#define SOCK_DGRAM 2
-
-struct sockaddr
-{
-  sa_family_t sa_family;
-  char sa_data[];
-};
-#endif
 
 struct __attribute__((__aligned__(__BIGGEST_ALIGNMENT__))) sockaddr_storage
 {
@@ -32,9 +15,7 @@ struct __attribute__((__aligned__(__BIGGEST_ALIGNMENT__))) sockaddr_storage
 
   union
   {
-#ifdef LWIP
     char lwip_stuff[sizeof(struct sockaddr)];
-#endif
     char sun_path[UNIX_PATH_MAX];
   } __pad1;
   // Make sure there's at least one extra byte so we can internally

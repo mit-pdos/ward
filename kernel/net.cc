@@ -10,7 +10,6 @@
 #include "netdev.hh"
 #include <uk/socket.h>
 
-#ifdef LWIP
 extern "C" {
 #include "lwip/tcp_impl.h"
 #include "lwip/tcpip.h"
@@ -23,7 +22,6 @@ extern "C" {
 
 err_t if_init(struct netif *netif);
 void if_input(struct netif *netif, void *buf, u16 len);
-#endif
 
 netdev *the_netdev;
 
@@ -54,8 +52,6 @@ nethwaddr(u8 *hwaddr)
     return;
   the_netdev->get_hwaddr(hwaddr);
 }
-
-#ifdef LWIP
 
 class file_lwip_socket : public refcache::referenced, public file
 {
@@ -330,23 +326,3 @@ netsocket(int domain, int type, int protocol, file **out)
   *out = new file_lwip_socket{r};
   return 0;
 }
-
-#else
-
-void
-initnet(void)
-{
-}
-
-void
-netrx(void *va, u16 len)
-{
-  netfree(va);
-}
-
-int
-netsocket(int domain, int type, int protocol, file **out)
-{
-  return -1;
-}
-#endif

@@ -2,8 +2,5 @@
 
 -include $(O)/net/*.d
 
-CFLAGS   += -Ithird_party/lwip/src/include -Inet -Ithird_party/lwip/src/include/ipv4 -DLWIP
-CXXFLAGS += -Ithird_party/lwip/src/include -Inet -Ithird_party/lwip/src/include/ipv4 -DLWIP
-
 $(O)/net/%.o: CXXFLAGS+=-mcmodel=kernel -Ithird_party/libcxx/include -DXV6_KERNEL -mno-sse \
 						-Ithird_party/lwip/src/include -Ithird_party/lwip/src/include/ipv4

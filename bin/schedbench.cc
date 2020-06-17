@@ -1,6 +1,3 @@
-
-#include "compiler.h"
-
 #include <errno.h>
 #include <atomic>
 #include <stdio.h>
@@ -8,13 +5,6 @@
 #include <time.h>
 #include <sys/time.h>
 #include <pthread.h>
-
-#ifdef XV6_USER
-#include <uk/futex.h>
-#include "user.h"
-#include "amd64.h"
-#include "pthread.h"
-#else
 #include "assert.h"
 #include <linux/futex.h>
 #include <sys/types.h>
@@ -22,6 +12,7 @@
 #include <sys/syscall.h>
 #include <sched.h>
 #include <unistd.h>
+
 void nsleep(uint64_t t) {
   timespec ts;
   ts.tv_nsec = t % 1000000000;
@@ -38,7 +29,6 @@ int futex(uint32_t *uaddr, int futex_op, int val, uint64_t timeout) {
   int r = syscall(SYS_futex, uaddr, futex_op, val, &ts);
   return r < 0 ? errno : r;
 }
-#endif
 
 static volatile std::atomic<uint64_t> waiting;
 static volatile std::atomic<uint64_t> waking __attribute__((unused));
@@ -135,5 +125,6 @@ main(int ac, char** av)
   unsigned long delta = (end.tv_sec - start.tv_sec) * 1000000000UL +
     (unsigned long)end.tv_nsec - (unsigned long)start.tv_nsec;
   printf("%lu ns/iter\n", delta/iters);
+  fflush(stdout);
   return 0;
 }

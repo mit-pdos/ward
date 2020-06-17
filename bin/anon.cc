@@ -30,5 +30,6 @@ main(int argc, char *argv[])
   clock_gettime(CLOCK_REALTIME, &end);
   unsigned long delta = (end.tv_sec - start.tv_sec) * 1000000000UL + (unsigned long)end.tv_nsec - (unsigned long)start.tv_nsec;
   printf("%lu ns/iter\n", delta / iters);
+  fflush(stdout);
   return 0;
 }

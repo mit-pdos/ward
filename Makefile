@@ -23,59 +23,28 @@ PYTHON     ?= python3
 MTRACESRC  ?= ../mtrace
 # Mtrace-enabled QEMU binary
 MTRACE     ?= $(MTRACESRC)/x86_64-softmmu/qemu-system-x86_64
-
+# Output directory
 O           = o.$(HW)
 
-ifeq ($(HW),linux)
-PLATFORM   := native
-TOOLPREFIX :=
-else
-PLATFORM   := xv6
-endif
 
-ifeq ($(HW),codex)
-CODEXINC = -Icodexinc
+#
+# Tool definitions
+#
+ifeq ($(HW),linux)
+TOOLPREFIX :=
+PLATFORM := native
 else
-CODEXINC =
+PLATFORM := xv6
 endif
 
 CC  = $(TOOLPREFIX)clang
 CXX = $(TOOLPREFIX)clang++
-CFLAGS   =
-ASFLAGS  =
-
 AR = $(TOOLPREFIX)ar
 LD = $(TOOLPREFIX)ld
 NM = $(TOOLPREFIX)nm
 OBJDUMP = $(TOOLPREFIX)objdump
 OBJCOPY = $(TOOLPREFIX)objcopy
 STRIP = $(TOOLPREFIX)strip
-
-ifeq ($(PLATFORM),xv6)
-INCLUDES  = -isystem include -iquote $(O)/include \
-		 -include param.h -include include/compiler.h
-COMFLAGS  = -static -DXV6_HW=$(HW) -DXV6 \
-	    -fno-builtin -fno-strict-aliasing -fno-omit-frame-pointer -fms-extensions \
-	    -mno-red-zone -nostdlib -ffreestanding -fno-pie -fno-pic -funwind-tables -fasynchronous-unwind-tables
-LDFLAGS   = -m elf_x86_64 --eh-frame-hdr
-else
-INCLUDES := -include param.h -I$(MTRACESRC)
-COMFLAGS := -pthread -Wno-unused-result
-LDFLAGS := -pthread
-endif
-
-# -mindirect-branch=thunk -fnothrow-opt -Wnoexcept -Wl,-m,elf_x86_64
-
-COMFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector) \
-			$(shell $(CC) -fcf-protection=none -E -x c /dev/null >/dev/null 2>&1 && echo -fcf-protection=none) \
-			-g -MD -MP -O3 -Wall -DHW_$(HW) $(INCLUDES) -msoft-float -mretpoline-external-thunk -DLWIP
-
-CFLAGS   := $(COMFLAGS) -std=c99 $(CFLAGS)
-CXXFLAGS := $(COMFLAGS) -std=c++14 -Wno-sign-compare -faligned-new -DEXCEPTIONS=1 -Wno-delete-non-virtual-dtor -nostdinc++
-ASFLAGS  := $(ASFLAGS) -Iinclude -I$(O)/include -m64 -MD -MP -DHW_$(HW) -include param.h
-
-ALL :=
-all:
 
 define SYSCALLGEN
 	@echo "  GEN    $@"
@@ -84,6 +53,29 @@ define SYSCALLGEN
 	$(Q)cmp -s $@.tmp $@ || mv $@.tmp $@
 endef
 
+
+#
+# Compiler flags
+#
+COMFLAGS := $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector) \
+			$(shell $(CC) -fcf-protection=none -E -x c /dev/null >/dev/null 2>&1 && echo -fcf-protection=none) \
+	        -static -DXV6_HW=$(HW) -DHW_$(HW) -DXV6 -fno-builtin -fno-strict-aliasing -fno-omit-frame-pointer \
+	        -fms-extensions -mno-red-zone -nostdlib -ffreestanding -fno-pie -fno-pic -funwind-tables \
+	        -fasynchronous-unwind-tables -g -MD -MP -O3 -Wall -msoft-float -mretpoline-external-thunk \
+	        -isystem include -iquote $(O)/include -include param.h -include include/compiler.h \
+	        -Ithird_party/lwip/src/include -Inet -Ithird_party/lwip/src/include/ipv4
+CFLAGS   := $(COMFLAGS) -std=c99
+CXXFLAGS := $(COMFLAGS) -std=c++14 -Wno-sign-compare -faligned-new -DEXCEPTIONS=1 -Wno-delete-non-virtual-dtor -nostdinc++
+ASFLAGS  := $(ASFLAGS) -Iinclude -I$(O)/include -m64 -MD -MP -DHW_$(HW) -include param.h
+LDFLAGS  := -m elf_x86_64 --eh-frame-hdr
+
+ALL :=
+all:
+
+
+#
+# include other makefiles
+#
 ifeq ($(PLATFORM),xv6)
 include net/Makefrag
 include third_party/Makefrag
@@ -93,6 +85,9 @@ include bin/Makefrag
 include tools/Makefrag
 include metis/Makefrag
 
+##
+## generic build rules
+##
 $(O)/%.o: %.c
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)

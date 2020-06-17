@@ -1,61 +1,19 @@
 # -*- makefile-gmake -*-
 
-$(O)/bin/%.o: CFLAGS:=$(CFLAGS)
-$(O)/bin/%.o: CXXFLAGS:=$(CXXFLAGS)
-
-ifeq ($(PLATFORM),xv6)
-  $(O)/bin/%.o: CFLAGS:=-std=c11 -g -MD -MP -O3 -Wall -DHW_$(HW) -iquote $(O)/include -DXV6_USER
-  $(O)/bin/%.o: CXXFLAGS:=-std=c++14 -g -MD -MP -O3 -Wall -DHW_$(HW) -iquote $(O)/include -isystem include -include include/compiler.h -include param.h -DXV6_USER
-endif
-
 UPROGS_BIN= \
 	init \
-	lebench \
 	httpd \
+	halt \
+	reboot \
+	anon \
+	lebench \
+	schedbench \
 
 # Binaries that are known to build on PLATFORM=native
 UPROGS_NATIVE := \
-	allocbench \
-	base64 \
-	benchhdr \
-	cat \
-	cp \
-	crwpbench \
-	dd \
-	dirbench \
-	echo \
-	fdbench \
-	filebench \
-	forktest \
-	halt \
-	init \
-	linkbench \
-	ls \
-	mail-deliver \
-	mail-enqueue \
-	mail-qman \
-	mailbench \
-	mailfilter \
-	mapbench \
-	mkdir \
-	mount \
-	mv \
-	sh \
-	tee \
-	vmimbalbench \
 	anon \
-	getpid \
 	smallfile \
 	lebench \
-
-# ifeq ($(HAVE_LWIP),y)
-#   UPROGS_BIN += telnetd httpd
-# endif
-
-ifeq ($(HAVE_TESTGEN),y)
-  UPROGS_BIN    += fstest
-  UPROGS_NATIVE += fstest
-endif
 
 FSCONTENTS := $(addprefix $(O)/fs/bin/, $(UPROGS_BIN)) \
               $(addprefix $(O)/fs/bin/, $(notdir $(wildcard git/root/bin/git))) \
@@ -64,31 +22,15 @@ FSCONTENTS := $(addprefix $(O)/fs/bin/, $(UPROGS_BIN)) \
               $(O)/fs/intel-ucode \
               $(O)/fs/bin/busybox \
 
-# (ULIBA will be empty for native builds)
-UPROGS_LIBS := $(ULIBA)
-
-ifeq ($(PLATFORM),native)
-  ALL += $(addprefix $(O)/bin/, $(UPROGS_NATIVE))
-  LINK_CMD_BEGIN := $(Q)$(CXX) $(CXXFLAGS)
-  LINK_CMD_END :=  -Wl,--start-group $(UPROGS_LIBS) -Wl,--end-group $(ULIB_END)
-  # Statically link for the Linux environment so we can create a trivial
-  # initramfs without libraries
-  LINK_CMD_END := $(LINK_CMD_END) -static
-  # Unfortunately, the weak symbols in libpthread mean pthreads don't
-  # work with static linking unless we force the linker to include the
-  # whole archive.  This is, apparently, "not a bug"
-  # (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=52590).
-  LINK_CMD_BEGIN += -Wl,--whole-archive -lpthread -Wl,--no-whole-archive
-  # Build an initramfs
-  $(O)/initramfs: $(addprefix $(O)/bin/, $(UPROGS_NATIVE))
-	@echo "  CPIO   $@"
-	$(Q)(cd $(<D); ls -1 $(^F) | cpio -o -H newc) > $@
-  ALL += $(O)/initramfs
-else
-  LINK_CMD_BEGIN := $(Q)$(LD) $(LDFLAGS)
-  LINK_CMD_END :=  --start-group $(UPROGS_LIBS) --end-group $(ULIB_END)
-endif
-
+$(O)/bin/%.o: bin/%.c
+	@echo "  CC     $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) -std=c11 -g -MD -MP -O3 -Wall -DHW_$(HW) -iquote $(O)/include -DXV6_USER -static -c -o $@ $<
+$(O)/bin/%.o: bin/%.cc
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CXX) -std=c++14 -g -MD -MP -O3 -Wall -DHW_$(HW) -iquote $(O)/include -isystem include \
+	           -include include/compiler.h -include param.h -DXV6_USER -static -c -o $@ $<
 $(O)/bin/%.unstripped: $(O)/bin/%.o $(O)/lib/sysstubs.o
 	@echo "  LD     $@"
 	$(Q)mkdir -p $(@D)
@@ -112,6 +54,8 @@ $(O)/fs/lwip: lwip
 ifeq ($(PLATFORM),xv6)
   # Assume everything inclues user.h, which includes sysstubs.h
   $(patsubst %,$(O)/bin/%.o,$(UPROGS_BIN)): $(O)/include/sysstubs.h
+else
+  ALL += $(addprefix $(O)/bin/, $(UPROGS_NATIVE))
 endif
 
 .PRECIOUS: $(O)/bin/%.o $(O)/bin/%.unstripped

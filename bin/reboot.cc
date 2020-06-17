@@ -3,6 +3,6 @@
 int
 main(int argc, char *argv[])
 {
-  reboot();
+  ward_reboot();
   return 0;
 }

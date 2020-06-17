@@ -13,9 +13,9 @@ main(int argc, char *argv[])
 {
 #ifdef XV6_USER
   if(argc >= 2)
-    halt(atoi(argv[1]));
+    ward_halt(atoi(argv[1]));
   else
-    halt(0);
+    ward_halt(0);
 #else
   reboot(LINUX_REBOOT_CMD_POWER_OFF);
   perror("reboot failed");
