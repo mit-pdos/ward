@@ -93,8 +93,6 @@ OBJS = \
 
 OBJS := $(addprefix $(O)/kernel/, $(OBJS))
 
-OBJS += $(CXXRUNTIME)
-
 # Include ACPICA fragment after we've set up the kernel object list,
 # but before the kernel build rules
 include kernel/Makefrag.acpica
