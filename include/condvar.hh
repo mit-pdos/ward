@@ -7,7 +7,7 @@
 
 struct condvar {
   struct spinlock lock;
-  ilist<proc,&proc::cv_waiters> waiters;
+  ilist<pproc,&pproc::cv_waiters> waiters;
 
   // Construct an uninitialized condvar.  This should be move-assigned
   // from an initialized condvar before being used.  This is
@@ -31,8 +31,8 @@ struct condvar {
 
   void sleep(struct spinlock *, struct spinlock * = nullptr);
   void sleep_to(struct spinlock*, u64, struct spinlock * = nullptr);
-  void wake_all(int yield=false, proc *callerproc=nullptr);
-  void wake_one(proc *p);
+  void wake_all(int yield=false, pproc *callerproc=nullptr);
+  void wake_one(pproc *p);
 };
 
 void            timerintr(void);

@@ -77,8 +77,35 @@ typedef enum procstate {
   ZOMBIE
 } procstate_t;
 
+struct pproc {
+  proc* p;
+
+  struct spinlock lock;
+  struct condvar *oncv = nullptr;  // Where it is sleeping, for kill()
+  u64 cv_wakeup = 0;               // Wakeup time for this process
+  u64 curcycles = 0;
+  unsigned cpuid = 0;
+  int cpu_pin = 0;
+  ilink<pproc> cv_waiters;      // Linked list of processes waiting for oncv
+  ilink<pproc> cv_sleep;        // Linked list of processes sleeping on a cv
+  volatile int pid;             // Process ID
+
+private:
+  procstate_t state_ = EMBRYO;
+public:
+
+  pproc(proc* p_, int pid_) : p(p_), pid(pid_) {}
+  procstate_t get_state(void) const { return state_; }
+
+  friend struct proc;
+
+  PUBLIC_NEW_DELETE_OPS(pproc);
+};
+
 // Per-process state
 struct proc {
+  std::unique_ptr<pproc> p;
+
   // First page of proc is quasi-user visible
   char *kstack;                // Bottom of kernel stack for this process
   char *qstack;                // Bottom of quasi user-visible stack
@@ -87,7 +114,6 @@ struct proc {
 
   int uaccess_;
   u64 user_fs_;
-  volatile int pid;            // Process ID
   sref<vmap> vmap;             // va -> vma
   struct condvar *cv;          // for waiting till children exit
 
@@ -95,22 +121,23 @@ struct proc {
   futexkey futex_key;
 
   bool yield_;                 // yield cpu up when returning to user space
-  struct spinlock lock;
-  struct condvar *oncv;        // Where it is sleeping, for kill()
-  u64 cv_wakeup;               // Wakeup time for this process
-  u64 curcycles;
   u64 tsc;
-  unsigned cpuid;
-  int cpu_pin;
-  ilink<proc> cv_waiters;      // Linked list of processes waiting for oncv
-  ilink<proc> cv_sleep;        // Linked list of processes sleeping on a cv
   context* context;            // swtch() here to run process
   bool on_qstack;              // Only valid when proc is *not* running
   sref<vnode> cwd;             // Current directory
   sref<filetable> ftable;      // File descriptor table
 
+  volatile int& pid = p->pid;
+  spinlock& lock = p->lock;
+  condvar*& oncv = p->oncv;
+  u64& cv_wakeup = p->cv_wakeup;
+  u64& curcycles = p->curcycles;
+  unsigned& cpuid = p->cpuid;
+  int& cpu_pin = p->cpu_pin;
+  ilink<pproc>& cv_waiters = p->cv_waiters;
+  ilink<pproc>& cv_sleep = p->cv_sleep;
 private:
-  procstate_t state_;          // Process state
+  procstate_t& state_ = p->state_;
 public:
 
   ilist<waitstub, &waitstub::next> waiting_children;

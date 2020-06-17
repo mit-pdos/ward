@@ -34,10 +34,10 @@ struct kstack_tag kstack_tag[NCPU];
 
 enum { sched_debug = 0 };
 
-proc::proc(int npid) :
-  kstack(0), qstack(0), killed(0), tf(0), uaccess_(0), user_fs_(0), pid(npid),
-  cv(nullptr), yield_(false), oncv(0), cv_wakeup(0), curcycles(0),
-  tsc(0), cpuid(0), cpu_pin(0), context(nullptr), on_qstack(false), state_(EMBRYO),
+proc::proc(int npid) : p(std::unique_ptr<pproc>(new pproc(this, npid))),
+  kstack(0), qstack(0), killed(0), tf(0), uaccess_(0), user_fs_(0),
+  cv(nullptr), yield_(false),
+  tsc(0), context(nullptr), on_qstack(false),
   transparent_barriers(0), intentional_barriers(0),
   robust_list_ptr((robust_list_head*)USERTOP), tid_address((u32*)USERTOP),
   parent(0), unmap_tlbreq_(0), data_cpuid(-1), in_exec_(0),
@@ -307,7 +307,7 @@ proc::kill(void)
     // can't call p->oncv.wake_all() since that results in
     //   deadlock (wake_all() acquires p->lock).
     // changed the wake_all API to avoid double locking of p.
-    oncv->wake_all(0, this);
+    oncv->wake_all(0, p.get());
   }
   release(&lock);
   return 0;

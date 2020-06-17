@@ -25,16 +25,16 @@
 u64 cpuhz = 0;
 static u64 ticks __mpalign__;
 
-ilist<proc,&proc::cv_sleep> sleepers  __mpalign__;   // XXX one per core?
+ilist<pproc,&pproc::cv_sleep> sleepers  __mpalign__;   // XXX one per core?
 struct spinlock sleepers_lock;
 
 static void
-wakeup(struct proc *p)
+wakeup(struct pproc *p)
 {
   auto it = p->oncv->waiters.iterator_to(p);
   p->oncv->waiters.erase(it);
   p->oncv = 0;
-  addrun(p);
+  addrun(p->p);
 }
 
 u64
@@ -71,7 +71,7 @@ timerintr(void)
     again = 0;
     scoped_acquire l(&sleepers_lock);
     for (auto it = sleepers.begin(); it != sleepers.end(); it++) {
-      struct proc &p = *it;
+      struct pproc &p = *it;
       if (p.cv_wakeup <= now) {
         if (tryacquire(&p.lock)) {
           if (tryacquire(&p.oncv->lock)) {
@@ -113,14 +113,14 @@ condvar::sleep_to(struct spinlock *lk, u64 timeout, struct spinlock *lk2)
   if(myproc()->oncv)
     panic("condvar::sleep_to oncv");
 
-  waiters.push_front(myproc());
+  waiters.push_front(myproc()->p.get());
   myproc()->oncv = this;
   myproc()->set_state(SLEEPING);
 
   if (timeout) {
     scoped_acquire l(&sleepers_lock);
     myproc()->cv_wakeup = timeout;
-    sleepers.push_back(myproc());
+    sleepers.push_back(myproc()->p.get());
  }
 
   lock.release();
@@ -144,14 +144,14 @@ condvar::sleep(struct spinlock *lk, struct spinlock *lk2)
 }
 
 void
-condvar::wake_one(proc *p)
+condvar::wake_one(pproc *p)
 {
   if (p->get_state() != SLEEPING)
     panic("condvar::wake_all: pid %u name %s state %u",
-          p->pid, p->name, p->get_state());
+          p->pid, p->p->name, p->get_state());
   if (p->oncv != this)
     panic("condvar::wake_all: pid %u name %s p->cv %p cv %p",
-          p->pid, p->name, p->oncv, this);
+          p->pid, p->p->name, p->oncv, this);
   if (p->cv_wakeup) {
     scoped_acquire s_l(&sleepers_lock);
     auto it = sleepers.iterator_to(p);
@@ -163,14 +163,14 @@ condvar::wake_one(proc *p)
 
 // Wake up all processes sleeping on this condvar.
 void
-condvar::wake_all(int yield, proc *callerproc)
+condvar::wake_all(int yield, pproc *callerproc)
 {
   scoped_acquire cv_l(&lock);
   myproc()->yield_ = yield;
 
   for (auto it = this->waiters.begin(); it != this->waiters.end();
        it++) {
-    struct proc *p = &(*it);
+    pproc* p = &(*it);
     if (p == callerproc) {
       wake_one(p);
     } else {
