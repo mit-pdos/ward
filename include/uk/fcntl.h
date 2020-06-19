@@ -14,5 +14,4 @@
 #define O_NDELAY    O_NONBLOCK
 
 // #define O_WAIT    0x800 // (xv6) open waits for create, read for write
-#define O_ANYFD   00010000 // (xv6) no need for lowest FD
 // #define AT_FDCWD  -100

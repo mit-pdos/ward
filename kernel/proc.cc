@@ -414,7 +414,7 @@ doclone(clone_flags flags)
     np->ftable = myproc()->ftable->copy();
   }
 
-  static_assert(sizeof(filetable) >= PGSIZE, "filetable too small");
+  static_assert(sizeof(filetable) > PGSIZE/2, "filetable too small");
   np->vmap->qinsert(np->ftable.get(), np->ftable.get(), PGROUNDUP(sizeof(filetable)));
 
   np->cwd = myproc()->cwd;

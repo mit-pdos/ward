@@ -6,10 +6,6 @@
 #include "file.hh"
 
 class filetable : public referenced {
-private:
-  static const int cpushift = 16;
-  static const int fdmask = (1 << cpushift) - 1;
-
 public:
   static sref<filetable> alloc() {
     return sref<filetable>::transfer(new filetable());
@@ -19,30 +15,28 @@ public:
     filetable* t = new filetable(false);
 
     fdinfo init(nullptr, false);
-    for(int cpu = 0; cpu < NCPU; cpu++) {
-      for(int fd = 0; fd < NOFILE; fd++) {
-        // XXX Relaxed load?
-        fdinfo info;
-        // Avoid reading info_ altogether if we're closing cloexec FDs
-        // and this is a cloexec FD.
-        if (close_cloexec && cloexec_[cpu][fd])
-          info = init;
-        else
-          info = info_[cpu][fd].load();
-        file *f = info.get_file();
-        if (f && (!close_cloexec || !info.get_cloexec())) {
-          // XXX f's refcount could have dropped to zero between the
-          // load and here
-          file* newf = f->dup();
-          fdinfo newinfo(newf, info.get_cloexec());
+    for(int fd = 0; fd < NOFILE; fd++) {
+      // XXX Relaxed load?
+      fdinfo info;
+      // Avoid reading info_ altogether if we're closing cloexec FDs
+      // and this is a cloexec FD.
+      if (close_cloexec && cloexec_[fd])
+        info = init;
+      else
+        info = info_[fd].load();
+      file *f = info.get_file();
+      if (f && (!close_cloexec || !info.get_cloexec())) {
+        // XXX f's refcount could have dropped to zero between the
+        // load and here
+        file* newf = f->dup();
+        fdinfo newinfo(newf, info.get_cloexec());
 
-          t->info_[cpu][fd].store(newinfo, std::memory_order_relaxed);
-          t->cloexec_[cpu][fd].store(
-            info.get_cloexec(), std::memory_order_relaxed);
-        } else {
-          t->info_[cpu][fd].store(init, std::memory_order_relaxed);
-          t->cloexec_[cpu][fd].store(true, std::memory_order_relaxed);
-        }
+        t->info_[fd].store(newinfo, std::memory_order_relaxed);
+        t->cloexec_[fd].store(
+          info.get_cloexec(), std::memory_order_relaxed);
+      } else {
+        t->info_[fd].store(init, std::memory_order_relaxed);
+        t->cloexec_[fd].store(true, std::memory_order_relaxed);
       }
     }
     std::atomic_thread_fence(std::memory_order_release);
@@ -52,25 +46,18 @@ public:
   // Return the file referenced by FD fd.  If fd is not open, returns
   // sref<file>().
   sref<file> getfile(int fd) {
-    int cpu = fd >> cpushift;
-    fd = fd & fdmask;
-
-    if (cpu < 0 || cpu >= NCPU)
-      return sref<file>();
-
     if (fd < 0 || fd >= NOFILE)
       return sref<file>();
 
     // XXX This isn't safe: there could be a concurrent close that
     // drops the reference count to zero.
-    file* f = info_[cpu][fd].load().get_file();
+    file* f = info_[fd].load().get_file();
     return sref<file>::newref(f);
   }
 
   // Allocate a FD and point it to f.  This takes over the reference
   // to f from the caller.
-  int allocfd(sref<file>&& f, int minfd, bool percpu, bool cloexec) {
-    int cpu = percpu ? myid() : 0;
+  int allocfd(sref<file>&& f, int minfd, bool cloexec) {
     fdinfo none(nullptr, false);
     // Transfer f to manual reference counting since we can't store
     // sref's in the info table.
@@ -79,16 +66,16 @@ public:
     for (int fd = minfd; fd < NOFILE; fd++) {
       // Note that we skip over locked FDs because that means they're
       // either non-null or about to be.
-      if (info_[cpu][fd].load(std::memory_order_relaxed) == none &&
-          cmpxch(&info_[cpu][fd], none, newinfo)) {
+      if (info_[fd].load(std::memory_order_relaxed) == none &&
+          cmpxch(&info_[fd], none, newinfo)) {
         // The default state of cloexec_ is 'true', so we only need to
         // write to it if this is a keep-exec FD.
         if (!cloexec)
-          cloexec_[cpu][fd] = cloexec;
+          cloexec_[fd] = cloexec;
         // Unlock FD
-        info_[cpu][fd].store(newinfo.with_locked(false),
+        info_[fd].store(newinfo.with_locked(false),
                              std::memory_order_release);
-        return (cpu << cpushift) | fd;
+        return fd;
       }
     }
     cprintf("filetable::allocfd: failed\n");
@@ -104,26 +91,18 @@ public:
     // XXX(sbw) if f->ref_ > 1 the kernel will not actually close 
     // the file when this function returns (i.e. sys_close can return 
     // while the file/pipe/socket is still open).
-    int cpu = fd >> cpushift;
-    fd = fd & fdmask;
-
-    if (cpu < 0 || cpu >= NCPU) {
-      cprintf("filetable::close: bad fd cpu %u\n", cpu);
-      return;
-    }
-
     if (fd < 0 || fd >= NOFILE) {
       cprintf("filetable::close: bad fd %u\n", fd);
       return;
     }
 
     // Lock the FD to prevent concurrent modifications
-    std::atomic<fdinfo> *infop = &info_[cpu][fd];
+    std::atomic<fdinfo> *infop = &info_[fd];
     fdinfo info = lock_fdinfo(infop);
 
     // Clear cloexec_ back to default state of 'true'
-    if (!cloexec_[cpu][fd])
-      cloexec_[cpu][fd] = true;
+    if (!cloexec_[fd])
+      cloexec_[fd] = true;
 
     // Update and unlock the FD
     fdinfo newinfo(nullptr, false);
@@ -141,21 +120,13 @@ public:
   bool replace(int fd, sref<file>&& newf, bool cloexec = false) {
     assert(newf);
 
-    int cpu = fd >> cpushift;
-    fd = fd & fdmask;
-
-    if (cpu < 0 || cpu >= NCPU) {
-      cprintf("filetable::replace: bad fd cpu %u\n", cpu);
-      return false;
-    }
-
     if (fd < 0 || fd >= NOFILE) {
       cprintf("filetable::replace: bad fd %u\n", fd);
       return false;
     }
 
     // Lock the FD to prevent concurrent modifications
-    std::atomic<fdinfo> *infop = &info_[cpu][fd];
+    std::atomic<fdinfo> *infop = &info_[fd];
     fdinfo oldinfo = lock_fdinfo(infop);
 
     // Update to new info and unlock.  It's safe to update cloexec_
@@ -163,8 +134,8 @@ public:
     // because any that care will double-check the fdinfo bit.
     file *newfptr = newf->dup();
     fdinfo newinfo(newfptr, cloexec);
-    if (cloexec != cloexec_[cpu][fd])
-      cloexec_[cpu][fd] = cloexec;
+    if (cloexec != cloexec_[fd])
+      cloexec_[fd] = cloexec;
     infop->store(newinfo, std::memory_order_release);
 
     // Close the old FD
@@ -180,24 +151,20 @@ private:
     if (!clear)
       return;
     fdinfo none(nullptr, false);
-    for(int cpu = 0; cpu < NCPU; cpu++) {
-      for(int fd = 0; fd < NOFILE; fd++) {
-        info_[cpu][fd].store(none, std::memory_order_relaxed);
-        cloexec_[cpu][fd].store(true, std::memory_order_relaxed);
-      }
+    for(int fd = 0; fd < NOFILE; fd++) {
+      info_[fd].store(none, std::memory_order_relaxed);
+      cloexec_[fd].store(true, std::memory_order_relaxed);
     }
     std::atomic_thread_fence(std::memory_order_release);
   }
 
   ~filetable() {
     // Close all FDs
-    for(int cpu = 0; cpu < NCPU; cpu++){
-      for(int fd = 0; fd < NOFILE; fd++){
-        fdinfo info = info_[cpu][fd].load();
-        if (info.get_file()) {
-          info.get_file()->pre_close();
-          info.get_file()->dec();
-        }
+    for(int fd = 0; fd < NOFILE; fd++){
+      fdinfo info = info_[fd].load();
+      if (info.get_file()) {
+        info.get_file()->pre_close();
+        info.get_file()->dec();
       }
     }
   }
@@ -206,7 +173,7 @@ private:
   filetable(const filetable& x) = delete;
   filetable& operator=(filetable &&) = delete;
   filetable(filetable &&) = delete;
-  NEW_DELETE_OPS(filetable);  
+  NEW_DELETE_OPS(filetable);
 
   class fdinfo
   {
@@ -267,7 +234,7 @@ private:
     return info;
   }
 
-  percpu<std::atomic<fdinfo>[NOFILE]> info_;
+  std::atomic<fdinfo> info_[NOFILE];
   // In addition to storing O_CLOEXEC with each fdinfo so it can be
   // read atomically with the FD, we store it separately so we can
   // scan for keep-exec FDs without reading from info_, which would
@@ -278,5 +245,5 @@ private:
   // Modifications to this array are protected by the fdinfo lock.
   // Lock-free readers should double-check the O_CLOEXEC bit in
   // fdinfo.
-  percpu<std::atomic<bool>[NOFILE]> cloexec_;
+  std::atomic<bool> cloexec_[NOFILE];
 };

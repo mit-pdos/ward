@@ -34,8 +34,7 @@ fdalloc(sref<file>&& f, int omode)
 {
   if (!f)
     return -1;
-  return myproc()->ftable->allocfd(
-    std::move(f), 0, omode & O_ANYFD, omode & O_CLOEXEC);
+  return myproc()->ftable->allocfd(std::move(f), 0, omode & O_CLOEXEC);
 }
 
 //SYSCALL
@@ -916,7 +915,7 @@ sys_fcntl(int fd, int cmd, u64 arg)
     auto f = getfile(fd);
     if (!f)
       return -EBADFD;
-    return myproc()->ftable->allocfd(std::move(f), arg, false, false);
+    return myproc()->ftable->allocfd(std::move(f), arg, false);
   }
   default:
     return -EINVAL;
