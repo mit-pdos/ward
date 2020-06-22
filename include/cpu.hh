@@ -8,9 +8,7 @@
 #define TSC_PERIOD_SCALE 0x10000
 
 using std::atomic;
-namespace MMU_SCHEME {
-  class page_map_cache;
-};
+class page_map_cache;
 
 // Per-CPU state
 struct cpu {

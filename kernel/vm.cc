@@ -138,8 +138,6 @@ vmap::alloc(void)
   vmap* page = (vmap*)zalloc("vmap::alloc");
   sref<vmap> v = sref<vmap>::transfer(new (page) vmap());
 
-  v->cache.init();
-
   v->qinsert(page);
   v->qinsert(__qdata_start, __qdata_start, __qdata_end - __qdata_start);
   v->qinsert(__qpercpu_start, __qpercpu_start, __qpercpu_end - __qpercpu_start);
@@ -183,7 +181,7 @@ vmap::copy()
     sdebug.println("vm: copy pid ", myproc()->pid);
 
   sref<vmap> nm = alloc();
-  mmu::shootdown shootdown;
+  tlb_shootdown shootdown;
 
   {
     scoped_acquire l(&vpfs_lock_);
@@ -239,7 +237,7 @@ vmap::insert(vmdesc&& desc, uptr start, uptr len)
 
   if (start) {
     page_holder pages(this);
-    mmu::shootdown shootdown;
+    tlb_shootdown shootdown;
     scoped_acquire l(&vpfs_lock_);
 
     bool need_invalidate = false;
@@ -294,7 +292,7 @@ vmap::remove(uptr start, uptr len)
   if (SDEBUG)
     sdebug.println("vm: remove(", start, ",", len, ")");
 
-  mmu::shootdown shootdown;
+  tlb_shootdown shootdown;
   page_holder pages(this);
 
   if (start + len <= USERTOP) {
@@ -330,7 +328,7 @@ vmap::willneed(uptr start, uptr len)
   scoped_acquire l(&vpfs_lock_);
 
   page_holder pages(this);
-  mmu::shootdown shootdown;
+  tlb_shootdown shootdown;
 
   for (auto it = begin; it < end; it += it.span()) {
     if (!it.is_set())
@@ -364,7 +362,7 @@ vmap::dontneed(uptr start, uptr len)
   scoped_acquire l(&vpfs_lock_);
 
   page_holder pages(this);
-  mmu::shootdown shootdown;
+  tlb_shootdown shootdown;
 
   for (auto it = begin; it < end; it += it.span()) {
     if (it.is_set() && it->page) {
@@ -385,7 +383,7 @@ vmap::invalidate_cache(uptr start, uptr len)
   auto end = vpfs_.find((start + len) / PGSIZE);
   scoped_acquire l(&vpfs_lock_);
 
-  mmu::shootdown shootdown;
+  tlb_shootdown shootdown;
 
   for (auto it = begin; it < end; it += it.span()) {
     if (!it.is_set())
@@ -405,7 +403,7 @@ vmap::mprotect(uptr start, uptr len, uint64_t flags)
   auto end = vpfs_.find((start + len) / PGSIZE);
   scoped_acquire l(&vpfs_lock_);
 
-  mmu::shootdown shootdown;
+  tlb_shootdown shootdown;
 
   for (auto it = begin; it < end; it += it.span()) {
     if (!it.is_set())
@@ -469,7 +467,7 @@ int
 vmap::pagefault(uptr va, u32 err)
 {
   access_type type = (err & FEC_WR) ? access_type::WRITE : access_type::READ;
-  mmu::shootdown shootdown;
+  tlb_shootdown shootdown;
 
   kstats::inc(&kstats::page_fault_count);
   kstats::timer timer(&kstats::page_fault_cycles);
@@ -910,7 +908,7 @@ void
 vmap::unmap_temporary(void* va)
 {
   cache.insert((uintptr_t)va, 0);
-  mmu::shootdown shootdown;
+  tlb_shootdown shootdown;
   cache.invalidate((uintptr_t)va, PGSIZE, &shootdown);
   shootdown.perform();
 }
@@ -984,7 +982,7 @@ vmap::qfree(void* page)
     }
   }
 
-  mmu::shootdown shootdown;
+  tlb_shootdown shootdown;
   for (auto p : unneeded_pages) {
     cache.invalidate((uintptr_t)p, PGSIZE, &shootdown);
   }

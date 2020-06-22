@@ -33,14 +33,6 @@
 #define UART_BAUD     115200
 #define PERFSIZE      (128<<20ull)
 #define DEBUG         0
-// The MMU scheme.  One of:
-//  mmu_shared_page_table
-//  mmu_per_core_page_table
-#define MMU_SCHEME    mmu_shared_page_table
-// The TLB shootdown scheme, for shared page tables.  One of:
-//  batched_shootdown
-//  core_tracking_shootdown
-#define TLB_SCHEME    core_tracking_shootdown
 // Physical page reference counting scheme.  One of:
 //  :: for shared reference counters
 //  refcache:: for refcache counters

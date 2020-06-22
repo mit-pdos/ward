@@ -31,7 +31,7 @@ sref<pageable> new_shared_memory_region(size_t pages);
 // address space.  This plays a similar role to the more traditional
 // "virtual memory area," but this does not know its size (it could
 // represent a single page or the entire address space).
-struct vmdesc : public mmu::page_tracker
+struct vmdesc
 {
   enum {
     // Bit used for radix tree range locking
@@ -194,9 +194,6 @@ struct vmap : public referenced {
   // Slowly by carefully write n bytes from src into dst.
   size_t safe_write(uintptr_t dst, char *src, size_t n);
 
-  // Report the number of internal pages used by the page map cache.
-  u64 internal_pages() const { return cache.internal_pages(); }
-
   // Set write permission bit in vmdesc
   int set_write_permission(uptr start, uptr len, bool is_readonly, bool is_cow);
 
@@ -219,7 +216,7 @@ private:
     kfree(ptr);
   }
 
-  mmu::page_map_cache cache;
+  page_map_cache cache;
   friend void switchvm(struct vmap*, struct vmap*);
 
   // Virtual page frames

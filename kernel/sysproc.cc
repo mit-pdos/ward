@@ -333,13 +333,6 @@ sys_mprotect(userptr<void> addr, size_t len, int prot)
   return myproc()->vmap->mprotect(align_addr, align_len, flags);
 }
 
-//SYSCALL
-long
-sys_pt_pages(void)
-{
-  return myproc()->vmap->internal_pages();
-}
-
 //SYSCALL {"noret":true}
 void
 sys_halt(int code)

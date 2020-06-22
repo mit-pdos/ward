@@ -55,7 +55,7 @@ percpu<tlb_state> tlb_states;
 
 atomic<u64> next_asid;
 
-DEFINE_PERCPU(const MMU_SCHEME::page_map_cache*, cur_page_map_cache);
+DEFINE_PERCPU(const page_map_cache*, cur_page_map_cache);
 
 static bool use_invpcid __attribute__((section (".qdata"))) = true;
 
@@ -109,21 +109,6 @@ struct pgmap {
 private:
   std::atomic<pme_t> e[PGSIZE / sizeof(pme_t)];
 
-  u64 internal_pages(int level, int end = 512) const
-  {
-    u64 count = 1;
-
-    if (level != 0) {
-      for (int i = 0; i < end; i++) {
-        pme_t entry = e[i].load(memory_order_relaxed);
-        if (entry & PTE_P)
-          count += ((pgmap*) p2v(PTE_ADDR(entry)))->internal_pages(level - 1);
-      }
-    }
-
-    return count;
-  }
-
 public:
   // Allocate and return a new pgmap the clones the kernel part of this pgmap,
   // and populates the quasi user-visible part.
@@ -160,11 +145,6 @@ public:
 
     if (release)
       kfree(this);
-  }
-
-  u64 internal_pages() const
-  {
-    return internal_pages(L_PML4, PX(L_PML4, KGLOBAL));
   }
 
   // An iterator that references the page structure entry on a fixed
@@ -571,7 +551,8 @@ switchvm(vmap* from, vmap* to)
     scoped_cli cli;
 
     if (from) {
-      from->cache.switch_from();
+      from->cache.active_cores_.atomic_reset(myid());
+      // No need for a fence; worst case, we just get an extra shootdown.
     }
 
     if (!to) {
@@ -722,7 +703,7 @@ unregister_public_range(void* start, size_t npages)
 }
 
 void
-core_tracking_shootdown::on_ipi()
+tlb_shootdown::on_ipi()
 {
   if (pcids_enabled())
     flush_tlb_context();
@@ -731,7 +712,7 @@ core_tracking_shootdown::on_ipi()
 }
 
 void
-core_tracking_shootdown::perform() const
+tlb_shootdown::perform() const
 {
   if (start_ >= end_)
     return;
@@ -770,120 +751,102 @@ core_tracking_shootdown::perform() const
   }
 }
 
-namespace mmu_shared_page_table {
-  page_map_cache::page_map_cache(vmap* parent) :
-    pml4s(kpml4.kclone_pair()), parent_(parent), asid_(next_asid++)
-  {
-    if (!pml4s.kernel || !pml4s.user) {
-      swarn.println("page_map_cache() out of memory\n");
-      throw_bad_alloc();
+page_map_cache::page_map_cache(vmap* parent) :
+  pml4s(kpml4.kclone_pair()), parent_(parent), asid_(next_asid++)
+{
+  if (!pml4s.kernel || !pml4s.user) {
+    swarn.println("page_map_cache() out of memory\n");
+    throw_bad_alloc();
+  }
+
+  // Ideally this should be done by vmap::alloc, but we don't currently have a
+  // way to create hugepage mappings anywhere so plumbing through the logic
+  // seems like more effort than it is worth.
+  *(pml4s.user->find(KTEXT, pgmap::L_2M).create(0, parent_, pml4s.user))
+    = v2p(qtext) | PTE_PS | PTE_P | PTE_W;
+
+  // pml4s is private, so vmap::alloc needs us to do this.
+  parent_->qinsert((void*)pml4s.user);
+  parent_->qinsert((void*)pml4s.kernel);
+}
+page_map_cache::~page_map_cache()
+{
+  pml4s.kernel->free(pgmap::L_PML4, 0, PX(pgmap::L_PML4, KGLOBAL), false);
+
+  pml4s.user->free(pgmap::L_PML4, 0, PX(pgmap::L_PML4, KGLOBAL), false);
+  pml4s.user->free(pgmap::L_PML4, PX(pgmap::L_PML4, KBASE), 512, false);
+
+  kfree(pml4s.kernel, PGSIZE * 2);
+}
+
+void
+page_map_cache::insert(uintptr_t va, pme_t pte)
+{
+  pml4s.user->find(va).create(PTE_U & pte, parent_, pml4s.user)->store(pte, memory_order_relaxed);
+  if (va < KGLOBAL) {
+    pml4s.kernel->find(va).create(PTE_U & pte, parent_, pml4s.user)->store(pte, memory_order_relaxed);
+  }
+}
+
+void
+page_map_cache::invalidate(uintptr_t start, uintptr_t len, tlb_shootdown *sd)
+{
+  sd->set_cache(this);
+  for (auto it = pml4s.user->find(start); it.index() < start + len;
+       it += it.span()) {
+    if (it.is_set()) {
+      it->store(0, memory_order_relaxed);
+      sd->add_range(it.index(), it.index() + it.span());
     }
   }
-  page_map_cache::~page_map_cache()
-  {
-    pml4s.kernel->free(pgmap::L_PML4, 0, PX(pgmap::L_PML4, KGLOBAL), false);
-
-    pml4s.user->free(pgmap::L_PML4, 0, PX(pgmap::L_PML4, KGLOBAL), false);
-    pml4s.user->free(pgmap::L_PML4, PX(pgmap::L_PML4, KBASE), 512, false);
-
-    kfree(pml4s.kernel, PGSIZE * 2);
-  }
-
-  void page_map_cache::init()
-  {
-    // Ideally this should be done by vmap::alloc, but we don't currently have a
-    // way to create hugepage mappings anywhere so plumbing through the logic
-    // seems like more effort than it is worth.
-    *(pml4s.user->find(KTEXT, pgmap::L_2M).create(0, parent_, pml4s.user))
-      = v2p(qtext) | PTE_PS | PTE_P | PTE_W;
-
-    // pml4s is private, so vmap::alloc needs us to do this.
-    parent_->qinsert((void*)pml4s.user);
-    parent_->qinsert((void*)pml4s.kernel);
-  }
-
-  void
-  page_map_cache::insert(uintptr_t va, pme_t pte)
-  {
-    pml4s.user->find(va).create(PTE_U & pte, parent_, pml4s.user)->store(pte, memory_order_relaxed);
-    if (va < KGLOBAL) {
-      pml4s.kernel->find(va).create(PTE_U & pte, parent_, pml4s.user)->store(pte, memory_order_relaxed);
-    }
-  }
-
-  void
-  page_map_cache::invalidate(uintptr_t start, uintptr_t len, shootdown *sd)
-  {
-    sd->set_cache(this);
-    for (auto it = pml4s.user->find(start); it.index() < start + len;
+  if (start < USERTOP) {
+    for (auto it = pml4s.kernel->find(start); it.index() < start + len;
          it += it.span()) {
       if (it.is_set()) {
         it->store(0, memory_order_relaxed);
         sd->add_range(it.index(), it.index() + it.span());
       }
     }
-    if (start < USERTOP) {
-      for (auto it = pml4s.kernel->find(start); it.index() < start + len;
-           it += it.span()) {
-        if (it.is_set()) {
-          it->store(0, memory_order_relaxed);
-          sd->add_range(it.index(), it.index() + it.span());
-        }
-      }
+  }
+}
+
+void
+page_map_cache::switch_to() const
+{
+  active_cores_.atomic_set(myid());
+  // Ensure that reads from the cache cannot move up before the tracker
+  // update, and that the tracker update does not move down after the
+  // cache reads.
+  std::atomic_thread_fence(std::memory_order_acq_rel);
+
+  bool flush_tlb = false;
+  u64 new_tlb_gen = tlb_generation_;
+
+  // Find next context to use
+  int new_context = -1;
+  for (int i = 0; i < NUM_TLB_CONTEXTS; i++) {
+    if (tlb_states->contexts[i].asid == asid_) {
+      flush_tlb = new_tlb_gen > tlb_states->contexts[i].tlb_gen;
+      new_context = i;
+      break;
     }
   }
+  if(new_context == -1) {
+    new_context = tlb_states->next_context;
+    tlb_states->next_context = (new_context + 1) % NUM_TLB_CONTEXTS;
+    flush_tlb = true;
+  }
+  tlb_states->contexts[new_context].asid = asid_;
+  tlb_states->contexts[new_context].tlb_gen = new_tlb_gen;
 
-  void
-  page_map_cache::switch_to() const
-  {
-    active_cores_.atomic_set(myid());
-    // Ensure that reads from the cache cannot move up before the tracker
-    // update, and that the tracker update does not move down after the
-    // cache reads.
-    std::atomic_thread_fence(std::memory_order_acq_rel);
+  u64 cr3 = v2p(pml4s.kernel)
+    | (new_context * 2 + 2)
+    | (flush_tlb ? 0 : CR3_NOFLUSH);
+  cr3 &= mycpu()->cr3_mask;
 
-    bool flush_tlb = false;
-    u64 new_tlb_gen = tlb_generation_;
-
-    // Find next context to use
-    int new_context = -1;
-    for (int i = 0; i < NUM_TLB_CONTEXTS; i++) {
-      if (tlb_states->contexts[i].asid == asid_) {
-        flush_tlb = new_tlb_gen > tlb_states->contexts[i].tlb_gen;
-        new_context = i;
-        break;
-      }
-    }
-    if(new_context == -1) {
-      new_context = tlb_states->next_context;
-      tlb_states->next_context = (new_context + 1) % NUM_TLB_CONTEXTS;
-      flush_tlb = true;
-    }
-    tlb_states->contexts[new_context].asid = asid_;
-    tlb_states->contexts[new_context].tlb_gen = new_tlb_gen;
-
-    u64 cr3 = v2p(pml4s.kernel)
-      | (new_context * 2 + 2)
-      | (flush_tlb ? 0 : CR3_NOFLUSH);
-    cr3 &= mycpu()->cr3_mask;
-
-    if (pcids_enabled() && flush_tlb) {
-      mycpu()->cr3_noflush = 0;
-    }
-
-    lcr3(cr3);
+  if (pcids_enabled() && flush_tlb) {
+    mycpu()->cr3_noflush = 0;
   }
 
-  void
-  page_map_cache::switch_from() const
-  {
-    active_cores_.atomic_reset(myid());
-    // No need for a fence; worst case, we just get an extra shootdown.
-  }
-
-  u64
-  page_map_cache::internal_pages() const
-  {
-    return pml4s.kernel->internal_pages();
-  }
+  lcr3(cr3);
 }

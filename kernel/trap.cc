@@ -320,7 +320,7 @@ trap(struct trapframe *tf, bool had_secrets)
     break;
   case T_TLBFLUSH: {
     lapiceoi();
-    mmu::shootdown::on_ipi();
+    tlb_shootdown::on_ipi();
     break;
   }
   case T_SAMPCONF:
