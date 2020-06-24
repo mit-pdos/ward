@@ -11,36 +11,33 @@ public:
     return sref<filetable>::transfer(new filetable());
   }
 
-  sref<filetable> copy(bool close_cloexec = false) {
-    filetable* t = new filetable(false);
+  sref<filetable> copy(bool cloexec = false) {
+    filetable* t = new filetable();
 
-    fdinfo init(nullptr, false);
+    scoped_acquire lk(&lock_);
+    t->open_ = open_;
+    t->cloexec_ = cloexec_;
+    for(int fd = 0; fd < NOFILE; fd++)
+      t->table_[fd] = table_[fd];
     for(int fd = 0; fd < NOFILE; fd++) {
-      // XXX Relaxed load?
-      fdinfo info;
-      // Avoid reading info_ altogether if we're closing cloexec FDs
-      // and this is a cloexec FD.
-      if (close_cloexec && cloexec_[fd])
-        info = init;
-      else
-        info = info_[fd].load();
-      file *f = info.get_file();
-      if (f && (!close_cloexec || !info.get_cloexec())) {
-        // XXX f's refcount could have dropped to zero between the
-        // load and here
-        file* newf = f->dup();
-        fdinfo newinfo(newf, info.get_cloexec());
+        t->entries_[fd].refcount = entries_[fd].refcount;
+        t->entries_[fd].f = entries_[fd].f;
+    }
 
-        t->info_[fd].store(newinfo, std::memory_order_relaxed);
-        t->cloexec_[fd].store(
-          info.get_cloexec(), std::memory_order_relaxed);
-      } else {
-        t->info_[fd].store(init, std::memory_order_relaxed);
-        t->cloexec_[fd].store(true, std::memory_order_relaxed);
+    if (cloexec) {
+      t->close_cloexec();
+    }
+
+    return sref<filetable>::transfer(t);
+  }
+
+  void close_cloexec() {
+    scoped_acquire lk(&lock_);
+    for (int fd = 0; fd < NOFILE; fd++) {
+      if (open_[fd] && cloexec_[fd]) {
+        __replace(fd, sref<file>());
       }
     }
-    std::atomic_thread_fence(std::memory_order_release);
-    return sref<filetable>::transfer(t);
   }
 
   // Return the file referenced by FD fd.  If fd is not open, returns
@@ -49,124 +46,86 @@ public:
     if (fd < 0 || fd >= NOFILE)
       return sref<file>();
 
-    // XXX This isn't safe: there could be a concurrent close that
-    // drops the reference count to zero.
-    file* f = info_[fd].load().get_file();
-    return sref<file>::newref(f);
+    scoped_acquire lk(&lock_);
+    return open_[fd] ? entries_[table_[fd]].f : sref<file>();
   }
 
   // Allocate a FD and point it to f.  This takes over the reference
   // to f from the caller.
   int allocfd(sref<file>&& f, int minfd, bool cloexec) {
-    fdinfo none(nullptr, false);
-    // Transfer f to manual reference counting since we can't store
-    // sref's in the info table.
-    file *fptr = f->dup();
-    fdinfo newinfo(fptr, cloexec, true);
+    scoped_acquire lk(&lock_);
+
     for (int fd = minfd; fd < NOFILE; fd++) {
-      // Note that we skip over locked FDs because that means they're
-      // either non-null or about to be.
-      if (info_[fd].load(std::memory_order_relaxed) == none &&
-          cmpxch(&info_[fd], none, newinfo)) {
-        // The default state of cloexec_ is 'true', so we only need to
-        // write to it if this is a keep-exec FD.
-        if (!cloexec)
-          cloexec_[fd] = cloexec;
-        // Unlock FD
-        info_[fd].store(newinfo.with_locked(false),
-                             std::memory_order_release);
+      if (!open_[fd]) {
+        __replace(fd, std::move(f), cloexec);
         return fd;
       }
     }
     cprintf("filetable::allocfd: failed\n");
-    // The "dup" call told f that we're binding it to a FD.  That
-    // ultimately failed, but we have to tell it that we're "closing"
-    // the FD now.
-    fptr->pre_close();
-    fptr->dec();
     return -1;
   }
 
   void close(int fd) {
-    // XXX(sbw) if f->ref_ > 1 the kernel will not actually close 
-    // the file when this function returns (i.e. sys_close can return 
-    // while the file/pipe/socket is still open).
-    if (fd < 0 || fd >= NOFILE) {
-      cprintf("filetable::close: bad fd %u\n", fd);
-      return;
-    }
-
-    // Lock the FD to prevent concurrent modifications
-    std::atomic<fdinfo> *infop = &info_[fd];
-    fdinfo info = lock_fdinfo(infop);
-
-    // Clear cloexec_ back to default state of 'true'
-    if (!cloexec_[fd])
-      cloexec_[fd] = true;
-
-    // Update and unlock the FD
-    fdinfo newinfo(nullptr, false);
-    infop->store(newinfo, std::memory_order_release);
-
-    // Close old file
-    if (info.get_file()) {
-      info.get_file()->pre_close();
-      info.get_file()->dec();
-    } else {
-      cprintf("filetable::close: bad fd %u\n", fd);
-    }
+    replace(fd, sref<file>());
   }
 
   bool replace(int fd, sref<file>&& newf, bool cloexec = false) {
-    assert(newf);
-
     if (fd < 0 || fd >= NOFILE) {
       cprintf("filetable::replace: bad fd %u\n", fd);
       return false;
     }
 
-    // Lock the FD to prevent concurrent modifications
-    std::atomic<fdinfo> *infop = &info_[fd];
-    fdinfo oldinfo = lock_fdinfo(infop);
+    scoped_acquire lk(&lock_);
+    return __replace(fd, std::move(newf), cloexec);
+  }
 
-    // Update to new info and unlock.  It's safe to update cloexec_
-    // non-atomically with info even with concurrent lock-free readers
-    // because any that care will double-check the fdinfo bit.
-    file *newfptr = newf->dup();
-    fdinfo newinfo(newfptr, cloexec);
-    if (cloexec != cloexec_[fd])
-      cloexec_[fd] = cloexec;
-    infop->store(newinfo, std::memory_order_release);
+private:
+  filetable() {
+    open_.reset();
+    for(int i = 0; i < NOFILE; i++){
+      entries_[i].f = sref<file>();
+    }
+  }
 
-    // Close the old FD
-    if (oldinfo.get_file() && oldinfo.get_file() != newfptr) {
-      oldinfo.get_file()->pre_close();
-      oldinfo.get_file()->dec();
+  ~filetable() {
+    scoped_acquire lk(&lock_);
+    for(int i = 0; i < NOFILE; i++){
+      if (entries_[i].f) {
+        entries_[i].f->pre_close();
+        entries_[i].f.reset();
+      }
+    }
+  }
+
+  bool __replace(int fd, sref<file>&& newf, bool cloexec = false) {
+    if (open_[fd]) {
+      int i = table_[fd];
+      if (--entries_[i].refcount == 0) {
+        entries_[i].f->pre_close();
+        entries_[i].f.reset();
+      }
+    }
+
+    if (newf) {
+      int i = alloc_entry();
+      entries_[i].refcount = 1;
+      entries_[i].f = std::move(newf);
+      table_[fd] = i;
+      open_.set(fd);
+      cloexec_.set(fd, cloexec);
+    } else {
+      open_.reset(fd);
     }
     return true;
   }
 
-private:
-  filetable(bool clear = true) {
-    if (!clear)
-      return;
-    fdinfo none(nullptr, false);
-    for(int fd = 0; fd < NOFILE; fd++) {
-      info_[fd].store(none, std::memory_order_relaxed);
-      cloexec_[fd].store(true, std::memory_order_relaxed);
-    }
-    std::atomic_thread_fence(std::memory_order_release);
-  }
-
-  ~filetable() {
-    // Close all FDs
-    for(int fd = 0; fd < NOFILE; fd++){
-      fdinfo info = info_[fd].load();
-      if (info.get_file()) {
-        info.get_file()->pre_close();
-        info.get_file()->dec();
+  u16 alloc_entry() {
+    for (auto i = 0; i < NOFILE; i++) {
+      if (!entries_[i].f) {
+        return i;
       }
     }
+    panic("filetable: out of entries");
   }
 
   filetable& operator=(const filetable&) = delete;
@@ -175,75 +134,16 @@ private:
   filetable(filetable &&) = delete;
   NEW_DELETE_OPS(filetable);
 
-  class fdinfo
-  {
-    uintptr_t data_;
-
-    constexpr fdinfo(uintptr_t data) : data_(data) { }
-
-  public:
-    fdinfo() = default;
-
-    fdinfo(file* fp, bool cloexec, bool locked = false)
-      : data_((uintptr_t)fp | (uintptr_t)cloexec | ((uintptr_t)locked << 1)) { }
-
-    file* get_file() const
-    {
-      return (file*)(data_ & ~3);
-    }
-
-    bool get_cloexec() const
-    {
-      return data_ & 1;
-    }
-
-    bool get_locked() const
-    {
-      return data_ & 2;
-    }
-
-    fdinfo with_locked(bool locked)
-    {
-      return fdinfo((data_ & ~2) | ((uintptr_t)locked << 1));
-    }
-
-    bool operator==(const fdinfo &o) const
-    {
-      return data_ == o.data_;
-    }
-
-    bool operator!=(const fdinfo &o) const
-    {
-      return data_ != o.data_;
-    }
+  struct entry {
+    u16 refcount;
+    sref<file> f;
   };
 
-  fdinfo lock_fdinfo(std::atomic<fdinfo> *infop)
-  {
-    fdinfo info;
-    while (true) {
-      info = infop->load(std::memory_order_relaxed);
-    retry:
-      if (info.get_locked())
-        nop_pause();
-      else
-        break;
-    }
-    if (!infop->compare_exchange_weak(info, info.with_locked(true)))
-      goto retry;
-    return info;
-  }
+  spinlock lock_;
 
-  std::atomic<fdinfo> info_[NOFILE];
-  // In addition to storing O_CLOEXEC with each fdinfo so it can be
-  // read atomically with the FD, we store it separately so we can
-  // scan for keep-exec FDs without reading from info_, which would
-  // cause unnecessary sharing between the scan and creating O_CLOEXEC
-  // FDs.  To avoid unnecessary sharing on this array itself, the
-  // *default* state of this array for closed FDs must be 'true', so
-  // we only have to write to it when opening a keep-exec FD.
-  // Modifications to this array are protected by the fdinfo lock.
-  // Lock-free readers should double-check the O_CLOEXEC bit in
-  // fdinfo.
-  std::atomic<bool> cloexec_[NOFILE];
+  u16 table_[NOFILE];
+  bitset<NOFILE> open_;
+  bitset<NOFILE> cloexec_;
+
+  entry entries_[NOFILE];
 };
