@@ -1,6 +1,7 @@
 #include "types.h"
 #include "kernel.hh"
 #include "net.hh"
+#include "filetable.hh"
 #include <uk/fcntl.h>
 #include <uk/stat.h>
 #include <uk/socket.h>
@@ -60,7 +61,9 @@ sys_socket(int domain, int type, int protocol)
     r = netsocket(domain, type, protocol, &f);
   if (r < 0)
     return r;
-  return fdalloc(sref<file>::transfer(f), 0);
+  if (!f)
+    return -1;
+  return myproc()->ftable->allocfd(sref<file>::transfer(f), 0, 0);
 }
 
 //SYSCALL
@@ -111,7 +114,9 @@ sys_accept(int xsock, userptr<struct sockaddr> xaddr,
   sref<file> newf(sref<file>::transfer(newfp));
   if ((r = sockaddr_to_user(xaddr, xaddrlen, &ss, ss_len)) < 0)
     return r;
-  return fdalloc(std::move(newf), 0);
+  if (!newf)
+    return -1;
+  return myproc()->ftable->allocfd(std::move(newf), 0, 0);
 }
 
 //SYSCALL

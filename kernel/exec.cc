@@ -181,19 +181,10 @@ exec(const char *path, const char * const *argv)
     return r;
   }
 
-  // Close O_CLOEXEC file descriptors.
-  //
-  // exec, CLOEXEC, and FD table sharing interact in strange ways.
-  // The easiest thing to do is make a new FD table for the new image,
-  // though in many cases the FD table will only have one reference,
-  // so it would be safe to close O_CLOEXEC descriptors in place.
-  {
-    sref<filetable> newftable(myproc()->ftable->copy(true));
-    myproc()->ftable = std::move(newftable);
-  }
-
   static_assert(sizeof(filetable) > PGSIZE/2, "filetable too small");
-  myproc()->vmap->qinsert(myproc()->ftable.get(), myproc()->ftable.get(), PGROUNDUP(sizeof(filetable)));
+  myproc()->vmap->qinsert(myproc()->ftable.get(), myproc()->ftable.get(),
+                          PGROUNDUP(sizeof(filetable)));
+  myproc()->ftable->close_cloexec();
 
   // Switch to the new address space
   switchvm(oldvmap.get(), myproc()->vmap.get());

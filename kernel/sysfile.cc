@@ -27,41 +27,18 @@ getfile(int fd)
   return myproc()->ftable->getfile(fd);
 }
 
-// Allocate a file descriptor for the given file.
-// Takes over file reference from caller on success.
-int
-fdalloc(sref<file>&& f, int omode)
-{
-  if (!f)
-    return -1;
-  return myproc()->ftable->allocfd(std::move(f), 0, omode & O_CLOEXEC);
-}
-
 //SYSCALL
 long
 sys_dup(int ofd)
 {
-  return fdalloc(getfile(ofd), 0);
+  return myproc()->ftable->dup(ofd);
 }
 
 //SYSCALL
 long
 sys_dup2(int ofd, int nfd)
 {
-  sref<file> f = getfile(ofd);
-  if (!f)
-    return -1;
-
-  if (ofd == nfd)
-    // Do nothing, aggressively.  Remarkably, while dup2 usually
-    // clears O_CLOEXEC on nfd (even if ofd is O_CLOEXEC), POSIX 2013
-    // is very clear that it should *not* do this if ofd == nfd.
-    return nfd;
-
-  if (!myproc()->ftable->replace(nfd, std::move(f)))
-    return -1;
-
-  return nfd;
+  return myproc()->ftable->dup2(ofd, nfd);
 }
 
 static off_t
@@ -507,7 +484,9 @@ sys_openat(int dirfd, userptr_str path, int omode, ...)
 
   sref<file> f = make_sref<file_inode>(
     m, !(rwmode == O_WRONLY), !(rwmode == O_RDONLY), !!(omode & O_APPEND));
-  return fdalloc(std::move(f), omode);
+  if (!f)
+    return -1;
+  return myproc()->ftable->allocfd(std::move(f), 0, omode & O_CLOEXEC);
 }
 
 //SYSCALL
@@ -734,8 +713,8 @@ sys_pipe2(userptr<int> fd, int flags)
   if (pipealloc(&rf, &wf, flags) < 0)
     return -1;
 
-  int fd_buf[2] = { fdalloc(std::move(rf), flags),
-                    fdalloc(std::move(wf), flags) };
+  int fd_buf[2] = { myproc()->ftable->allocfd(std::move(rf), 0, flags & O_CLOEXEC),
+                    myproc()->ftable->allocfd(std::move(wf), 0, flags & O_CLOEXEC) };
   if (fd_buf[0] >= 0 && fd_buf[1] >= 0 && fd.store(fd_buf, 2))
     return 0;
 
@@ -796,111 +775,6 @@ long
 sys_chmod(userptr_str path, mode_t mode)
 {
   return 0;
-}
-
-//SYSCALL {"uargs":["const char *upath", "char * const uargv[]", "const void *actions", "size_t actions_len"]}
-long
-sys_spawn(userptr_str upath, userptr<userptr_str> uargv,
-              const userptr<void> uactions, size_t actions_len)
-{
-  sref<filetable> newftable;
-
-  // Build a new file table by executing actions
-  if (uactions && actions_len) {
-    // Copy actions buffer
-    if (actions_len > 1024 * 1024) {
-      uerr.println(__func__, ": actions_len too large (", actions_len, ")");
-      return -1;
-    }
-    char *actions = (char*)kmalloc(actions_len, "file_actions");
-    if (!actions) {
-      console.println("Out of memory allocating file_actions");
-      return -1;
-    }
-    // Copy 'actions' into the lambda since we move it later
-    auto cleanup = scoped_cleanup([=](){kmfree(actions, actions_len);});
-    char *actions_end = actions + actions_len;
-    if (!uactions.load_bytes(actions, actions_len)) {
-      uerr.println(__func__, ": failed to copy actions");
-      return -1;
-    }
-
-    // We don't follow the file actions algorithm described by POSIX
-    // because it would induce unnecessary sharing in the presence of
-    // O_CLOEXEC file descriptors.  Instead, we first clone the
-    // parent's file table *without* O_CLOEXEC descriptors.  We then
-    // fill this in following the actions, but falling back to the
-    // parent's file table if a dup2 refers to an FD that isn't found
-    // in the clone.  There are two subtle cases: 1) if a dup2
-    // action's source was closed by an earlier close action, we must
-    // not fall back to the parent table; 2) if an open action
-    // specifies O_CLOEXEC and that flag isn't overwritten by a later
-    // action, we must close it before the exec.
-    //
-    // Since we only support dup2 actions at the moment, we don't have
-    // to deal with either subtle case.
-
-    newftable = myproc()->ftable->copy(true);
-    while (actions < actions_end) {
-      auto hdr = (__posix_spawn_file_action_hdr*)actions;
-      if (hdr->type == __posix_spawn_file_action_hdr::TYPE_DUP2) {
-        auto a = (__posix_spawn_file_action_dup2*)actions;
-
-        sref<file> f = newftable->getfile(a->fildes);
-        if (!f) {
-          // Try the parent FD table
-          f = getfile(a->fildes);
-          if (!f) {
-            uerr.println(__func__, ": dup2 failed, unknown FD ", a->fildes);
-            return -1;
-          }
-        }
-
-        if (!newftable->replace(a->newfildes, std::move(f))) {
-          uerr.println(__func__, ": dup2 failed to replace FD ", a->newfildes);
-          return -1;
-        }
-      } else {
-        uerr.println(__func__, ": unimplemented action type");
-        return -1;
-      }
-      actions += hdr->len;
-    }
-  } else {
-    newftable = myproc()->ftable->copy(true);
-  }
-
-  // Create the new process
-  proc *p = doclone(WARD_CLONE_NO_VMAP | WARD_CLONE_NO_FTABLE | WARD_CLONE_NO_RUN);
-  if (!p)
-    return -1;
-
-  // Load the new image
-  {
-    std::unique_ptr<char[]> path;
-    if (!(path = upath.load_alloc(FILENAME_MAX+1)))
-      return -1;
-    std::vector<std::unique_ptr<char[]>, kmalloc_allocator<std::unique_ptr<char[]>> > xargv;
-    if (load_str_list(uargv, MAXARG, MAXARGLEN, &xargv) < 0)
-      return -1;
-    std::vector<char*, kmalloc_allocator<char*>> argv;
-    for (auto &p : xargv)
-      argv.push_back(p.get());
-    argv.push_back(nullptr);
-    if (load_image(p, path.get(), argv.data(), nullptr) < 0)
-      return -1;
-  }
-
-  // Install ftable
-  p->ftable = std::move(newftable);
-
-  // Make p runnable (normally doclone would do this)
-  {
-    scoped_acquire l(&p->lock);
-    addrun(p);
-  }
-
-  return p->pid;
 }
 
 //SYSCALL

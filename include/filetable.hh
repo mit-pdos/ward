@@ -4,6 +4,7 @@
 // XXX If we move the filetable implementation to a source file, we
 // won't need file.hh
 #include "file.hh"
+#include "errno.h"
 
 class filetable : public referenced {
 public:
@@ -11,7 +12,7 @@ public:
     return sref<filetable>::transfer(new filetable());
   }
 
-  sref<filetable> copy(bool cloexec = false) {
+  sref<filetable> xcopy() {
     filetable* t = new filetable();
 
     scoped_acquire lk(&lock_);
@@ -22,10 +23,6 @@ public:
     for(int fd = 0; fd < NOFILE; fd++) {
         t->entries_[fd].refcount = entries_[fd].refcount;
         t->entries_[fd].f = entries_[fd].f;
-    }
-
-    if (cloexec) {
-      t->close_cloexec();
     }
 
     return sref<filetable>::transfer(t);
@@ -65,18 +62,51 @@ public:
     return -1;
   }
 
-  void close(int fd) {
-    replace(fd, sref<file>());
+  long dup(int ofd) {
+    scoped_acquire lk(&lock_);
+
+    if (ofd < 0 || ofd >= NOFILE || !open_[ofd])
+      return -EBADF;
+
+    for (int nfd = 0; nfd < NOFILE; nfd++) {
+      if (!open_[nfd]) {
+        open_.set(nfd);
+        cloexec_.reset(nfd);
+        table_[nfd] = table_[ofd];
+        entries_[table_[nfd]].refcount++;
+        return nfd;
+      }
+    }
   }
 
-  bool replace(int fd, sref<file>&& newf, bool cloexec = false) {
+  long dup2(int ofd, int nfd) {
+    scoped_acquire lk(&lock_);
+
+    if (ofd < 0 || ofd >= NOFILE || nfd < 0 || nfd >= NOFILE || !open_[ofd])
+      return -EBADF;
+
+    if (ofd == nfd)
+      // Do nothing, aggressively.  Remarkably, while dup2 usually
+      // clears O_CLOEXEC on nfd (even if ofd is O_CLOEXEC), POSIX 2013
+      // is very clear that it should *not* do this if ofd == nfd.
+      return nfd;
+
+    open_.set(nfd);
+    cloexec_.reset(nfd);
+    table_[nfd] = table_[ofd];
+    entries_[table_[nfd]].refcount++;
+
+    return nfd;
+  }
+
+  void close(int fd) {
     if (fd < 0 || fd >= NOFILE) {
       cprintf("filetable::replace: bad fd %u\n", fd);
       return false;
     }
 
     scoped_acquire lk(&lock_);
-    return __replace(fd, std::move(newf), cloexec);
+    return __replace(fd, sref<file>());
   }
 
 private:
