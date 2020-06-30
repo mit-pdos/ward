@@ -14,17 +14,14 @@
 #include <uk/unistd.h>
 
 class dirns;
+class filetable;
 
 u64 namehash(const strbuf<DIRSIZ>&);
 
 struct file {
-  // Duplicate this file so it can be bound to a FD.
-  virtual file* dup() { inc(); return this; }
 
-  // Called when a FD using this file is being closed, just before
-  // dec().  This can be an explicit close(), or the termination of a
-  // process.  This will always be paired with a dup().
-  virtual void pre_close() { }
+  virtual void on_ftable_insert(filetable* v) {}
+  virtual void on_ftable_remove(filetable* v) {}
 
   virtual int stat(struct kernel_stat*, enum stat_flags) { return -1; }
   virtual ssize_t read(char *addr, size_t n) { return -1; }
@@ -102,6 +99,9 @@ public:
   file_pipe_reader(struct pipe* p) : pipe(p) {}
   PUBLIC_NEW_DELETE_OPS(file_pipe_reader);
 
+  void on_ftable_insert(filetable* v) override;
+  void on_ftable_remove(filetable* v) override;
+
   void inc() override { refcache::referenced::inc(); }
   void dec() override { refcache::referenced::dec(); }
 
@@ -113,84 +113,6 @@ private:
   struct pipe* const pipe;
 };
 
-// We need to detect immediately when there are no more pipe writers.
-// To do this while avoiding sharing in the common case, we use a
-// two-level approach to pipe writer reference counting.
-//
-//          pipe
-//            ↑             (fixed reference)
-//     file_pipe_writer
-//    ↗       ↑        ↖    (eager references)
-// wrapper wrapper wrapper
-//    ↑       ↑     ↑  ↑    (hybrid references)
-//   FD      FD    FD temp
-//
-// Each pipe has exactly one file_pipe_writer that represents its
-// write end.  This is always eagerly reference counted and as soon as
-// it reaches zero, the write end is closed.  However, this is not
-// what an FD table entry points to.  Each FD table entry gets a
-// unique file_pipe_writer_wrapper, which in turn references the
-// file_pipe_writer.  Hence, the reference count on the
-// file_pipe_writer is the number of FDs that are open to it.  No
-// more, no less.
-//
-// file_pipe_writer_wrapper is hybrid counted.  As long as the FD is
-// open, it has at least one reference, so it operates in scalable
-// mode and thus temporary references are scalable.  When the FD is
-// closed, it switches to eager mode, and as soon as the last
-// reference to the wrapper is dropped, the wrapper will be destroyed
-// and release its reference to the file_pipe_writer (potentially
-// closing the pipe).
-
-struct file_pipe_writer_wrapper : public eager_refcache::referenced, public file {
-public:
-  file_pipe_writer_wrapper(file* f) : inner(f) {}
-  PUBLIC_NEW_DELETE_OPS(file_pipe_writer_wrapper);
-
-  void inc() override { referenced::inc(); }
-  void dec() override { referenced::dec(); }
-
-  file* dup() override {
-    return inner->dup();
-  }
-
-  int stat(struct kernel_stat* st, enum stat_flags flags) override {
-    return inner->stat(st, flags);
-  }
-
-  ssize_t write(const char *addr, size_t n) override {
-    return inner->write(addr, n);
-  }
-
-  void pre_close() override {
-    // This FD is being closed.  Now we need to know the moment its
-    // reference count actually drops to zero so we can immediately
-    // decrement the write end of the pipe.  (close()'s reference is
-    // *probably* the last reference, but there may be concurrent
-    // operations holding transient references on this FD.)
-    eagerify();
-
-    // XXX It's really hard to convince yourself that we never miss a
-    // pre_close, especially in error-handling cases.  I'm pretty sure
-    // it's true because we only get a file_pipe_writer_wrapper when
-    // we dup a file_pipe_writer, and we only do that when we're about
-    // to install it in the filetable, and if the filetable dup's a
-    // struct file, it always pre_closes it.  We could make this
-    // simpler by starting eager_refcache::referenced in *eager* mode
-    // and only switching it to scalable mode when we "commit" the
-    // reference.  I think the eager to scalable transition only
-    // requires setting referenced::mode_.
-  }
-
-  void onzero() override {
-    inner->dec();
-    delete this;
-  }
-
-private:
-  file* inner;
-};
-
 struct file_pipe_writer : public referenced, public file {
 public:
   file_pipe_writer(struct pipe* p) : pipe(p) {}
@@ -199,11 +121,8 @@ public:
   void inc() override { referenced::inc(); }
   void dec() override { referenced::dec(); }
 
-  file* dup() override {
-    inc();
-    file* w = new file_pipe_writer_wrapper(this);
-    return w ?: this;
-  }
+  void on_ftable_insert(filetable* v) override;
+  void on_ftable_remove(filetable* v) override;
 
   int stat(struct kernel_stat*, enum stat_flags) override;
   ssize_t write(const char *addr, size_t n) override;

@@ -1,4 +1,5 @@
 #include <atomic>
+#include <optional>
 #include "percpu.hh"
 #include "ref.hh"
 // XXX If we move the filetable implementation to a source file, we
@@ -6,24 +7,112 @@
 #include "file.hh"
 #include "errno.h"
 
-class filetable : public referenced {
-public:
-  static sref<filetable> alloc() {
-    return sref<filetable>::transfer(new filetable());
+class filetable_entries {
+  struct entry {
+    u16 refcount = 0;
+    u16 partner_index = 0;
+    bool mapped : 1 = false;
+    bool has_partner : 1 = false;
+    sref<file> f = sref<file>();
+
+    entry() {}
+    entry(sref<file>&& _f) : f(_f), refcount(1) {}
+    entry(sref<file>&& _f, u16 partner) : f(_f), refcount(1), partner_index(partner),
+                                          has_partner(true) {}
+  };
+  entry entries_[NOFILE];
+
+  int alloc(int min = 0) {
+    for (int i = min; i < NOFILE; i++)
+      if (!entries_[i].f)
+        return i;
+
+    panic("filetable: out of entries");
   }
 
-  sref<filetable> xcopy() {
-    filetable* t = new filetable();
+  void remove(int i, filetable* t) {
+    if (entries_[i].has_partner)
+      entries_[entries_[i].partner_index].has_partner = false;
+    else if (entries_[i].mapped)
+      entries_[i].f->on_ftable_remove(t);
+
+    entries_[i] = entry();
+  }
+
+public:
+  filetable_entries() = default;
+  filetable_entries(filetable_entries&&) = default;
+  filetable_entries(const filetable_entries&) = delete;
+  filetable_entries& operator=(const filetable_entries& other) = delete;
+  filetable_entries& operator=(filetable_entries&& other) = default;
+  ~filetable_entries() = default;
+
+  filetable_entries copy() {
+    filetable_entries t;
+    for (int i = 0; i < NOFILE; i++) {
+      t.entries_[i] = entries_[i];
+      t.entries_[i].mapped = false;
+    }
+    return t;
+  }
+
+  int insert(sref<file>&& f) {
+    int i = alloc();
+    entries_[i] = entry(std::move(f));
+    return i;
+  }
+
+  void insert_pair(sref<file>&& f1, sref<file>&& f2, int* e1, int* e2) {
+    *e1 = alloc();
+    *e2 = alloc(*e1 + 1);
+
+    entries_[*e1] = entry(std::move(f1)/*, *e2*/);
+    entries_[*e2] = entry(std::move(f2)/*, *e1*/);
+  }
+
+  void increment(int i) {
+    entries_[i].refcount++;
+  }
+
+  void decrement(int i, filetable* t) {
+    if (--entries_[i].refcount == 0)
+      remove(i, t);
+  }
+
+  void clear(filetable* t) {
+    for(int i = 0; i < NOFILE; i++)
+      if (entries_[i].f)
+        remove(i, t);
+  }
+
+  const sref<file>& get(int i, filetable* t) {
+    if (entries_[i].f && !entries_[i].mapped) {
+      entries_[i].f->on_ftable_insert(t);
+      entries_[i].mapped = true;
+      if (entries_[i].has_partner)
+        entries_[entries_[i].partner_index].mapped = true;
+    }
+    return entries_[i].f;
+  }
+};
+
+class filetable : public referenced {
+public:
+  static sref<filetable> alloc(sref<vmap> v) {
+    return sref<filetable>::transfer(new filetable(v));
+  }
+
+  sref<filetable> copy(sref<vmap> v) {
+    filetable* t = new filetable(v);
 
     scoped_acquire lk(&lock_);
+
     t->open_ = open_;
     t->cloexec_ = cloexec_;
+    t->entries_ = entries_.copy();
+
     for(int fd = 0; fd < NOFILE; fd++)
       t->table_[fd] = table_[fd];
-    for(int fd = 0; fd < NOFILE; fd++) {
-        t->entries_[fd].refcount = entries_[fd].refcount;
-        t->entries_[fd].f = entries_[fd].f;
-    }
 
     return sref<filetable>::transfer(t);
   }
@@ -44,7 +133,11 @@ public:
       return sref<file>();
 
     scoped_acquire lk(&lock_);
-    return open_[fd] ? entries_[table_[fd]].f : sref<file>();
+    if (!open_[fd])
+      return sref<file>();
+
+    auto f = entries_.get(table_[fd], this);
+    return f;
   }
 
   // Allocate a FD and point it to f.  This takes over the reference
@@ -62,6 +155,50 @@ public:
     return -1;
   }
 
+  void alloc_pair(sref<file>&& f1, sref<file>&& f2, int* fd1, int* fd2, bool cloexec) {
+    scoped_acquire lk(&lock_);
+
+    *fd1 = -1;
+    *fd2 = -1;
+    for (int i = 0; i < NOFILE; i++) {
+      if (open_[i])
+        continue;
+
+      if (*fd1 == -1) {
+        *fd1 = i;
+      } else {
+        *fd2 = i;
+        break;
+      }
+    }
+    assert(*fd2 != -1);
+
+    int e1, e2;
+    entries_.insert_pair(std::move(f1), std::move(f2), &e1, &e2);
+
+    table_[*fd1] = e1;
+    open_.set(*fd1);
+    cloexec_.set(*fd1, cloexec);
+
+    table_[*fd2] = e2;
+    open_.set(*fd2);
+    cloexec_.set(*fd2, cloexec);
+  }
+
+  bool close(int fd) {
+    if (fd < 0 || fd >= NOFILE) {
+      return false;
+    }
+
+    scoped_acquire lk(&lock_);
+
+    if (!open_[fd])
+      return false;
+
+    __replace(fd, sref<file>());
+    return true;
+  }
+
   long dup(int ofd) {
     scoped_acquire lk(&lock_);
 
@@ -73,7 +210,7 @@ public:
         open_.set(nfd);
         cloexec_.reset(nfd);
         table_[nfd] = table_[ofd];
-        entries_[table_[nfd]].refcount++;
+        entries_.increment(table_[nfd]);
         return nfd;
       }
     }
@@ -91,71 +228,42 @@ public:
       // is very clear that it should *not* do this if ofd == nfd.
       return nfd;
 
+    if (open_[nfd]) {
+      __replace(nfd, sref<file>());
+    }
+
     open_.set(nfd);
     cloexec_.reset(nfd);
     table_[nfd] = table_[ofd];
-    entries_[table_[nfd]].refcount++;
+    entries_.increment(table_[nfd]);
 
     return nfd;
   }
 
-  void close(int fd) {
-    if (fd < 0 || fd >= NOFILE) {
-      cprintf("filetable::replace: bad fd %u\n", fd);
-      return false;
-    }
-
-    scoped_acquire lk(&lock_);
-    return __replace(fd, sref<file>());
-  }
+  vmap* get_vmap() { return vmap_.get(); }
 
 private:
-  filetable() {
-    open_.reset();
-    for(int i = 0; i < NOFILE; i++){
-      entries_[i].f = sref<file>();
-    }
+  filetable(sref<vmap> v): vmap_(v) {
+    for (int i = 0; i < NOFILE; i++)
+      assert(!open_[i]);
   }
 
-  ~filetable() {
-    scoped_acquire lk(&lock_);
-    for(int i = 0; i < NOFILE; i++){
-      if (entries_[i].f) {
-        entries_[i].f->pre_close();
-        entries_[i].f.reset();
-      }
-    }
+  virtual ~filetable() {
+    entries_.clear(this);
   }
 
-  bool __replace(int fd, sref<file>&& newf, bool cloexec = false) {
+  void __replace(int fd, sref<file>&& newf, bool cloexec = false) {
     if (open_[fd]) {
-      int i = table_[fd];
-      if (--entries_[i].refcount == 0) {
-        entries_[i].f->pre_close();
-        entries_[i].f.reset();
-      }
+      entries_.decrement(table_[fd], this);
     }
 
     if (newf) {
-      int i = alloc_entry();
-      entries_[i].refcount = 1;
-      entries_[i].f = std::move(newf);
-      table_[fd] = i;
+      table_[fd] = entries_.insert(std::move(newf));
       open_.set(fd);
       cloexec_.set(fd, cloexec);
     } else {
       open_.reset(fd);
     }
-    return true;
-  }
-
-  u16 alloc_entry() {
-    for (auto i = 0; i < NOFILE; i++) {
-      if (!entries_[i].f) {
-        return i;
-      }
-    }
-    panic("filetable: out of entries");
   }
 
   filetable& operator=(const filetable&) = delete;
@@ -164,16 +272,13 @@ private:
   filetable(filetable &&) = delete;
   NEW_DELETE_OPS(filetable);
 
-  struct entry {
-    u16 refcount;
-    sref<file> f;
-  };
+  sref<vmap> vmap_;
 
   spinlock lock_;
 
+  filetable_entries entries_;
   u16 table_[NOFILE];
   bitset<NOFILE> open_;
   bitset<NOFILE> cloexec_;
 
-  entry entries_[NOFILE];
 };

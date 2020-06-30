@@ -232,4 +232,19 @@ public:
       (*this)[i].~T();
     size_ = 0;
   }
+
+  bool contains(const T& val) {
+    for (std::size_t i = 0; i < size(); ++i) {
+      if (at(i) == val)
+        return true;
+    }
+    return false;
+  }
+
+  void swap_remove(std::size_t index) {
+    assert(index < size_);
+    if (--size_) {
+      (*this)[index] = (*this)[size_];
+    }
+  }
 };

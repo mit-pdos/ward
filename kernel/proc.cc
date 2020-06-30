@@ -55,7 +55,7 @@ proc::proc(int npid) : p(std::unique_ptr<pproc>(new pproc(this, npid))),
 }
 
 void
-proc::set_state(enum procstate s)
+pproc::set_state(enum procstate s)
 {
   switch(state_) {
   case EMBRYO:
@@ -408,10 +408,12 @@ doclone(clone_flags flags)
   // Clear %eax so that fork returns 0 in the child.
   np->tf->rax = 0;
 
+  assert(!!(flags & WARD_CLONE_SHARE_VMAP) == !!(flags & WARD_CLONE_SHARE_FTABLE));
+
   if (flags & WARD_CLONE_SHARE_FTABLE) {
     np->ftable = myproc()->ftable;
   } else if (!(flags & WARD_CLONE_NO_FTABLE)) {
-    np->ftable = myproc()->ftable->copy();
+    np->ftable = myproc()->ftable->copy(np->vmap);
   }
 
   static_assert(sizeof(filetable) > PGSIZE/2, "filetable too small");

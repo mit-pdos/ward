@@ -34,7 +34,7 @@ wakeup(struct pproc *p)
   auto it = p->oncv->waiters.iterator_to(p);
   p->oncv->waiters.erase(it);
   p->oncv = 0;
-  addrun(p->p);
+  addrun(p);
 }
 
 u64

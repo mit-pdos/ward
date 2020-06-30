@@ -107,12 +107,7 @@ sys_close(int fd)
   STRACE_PARAMS("0x%x", fd);
 
   ensure_secrets();
-  sref<file> f = getfile(fd);
-  if (!f)
-    return -1;
-
-  myproc()->ftable->close(fd);
-  return 0;
+  return myproc()->ftable->close(fd) ? 0 : -1;
 }
 
 //SYSCALL
@@ -165,9 +160,9 @@ sys_read(int fd, userptr<void> p, size_t total_bytes)
   if(f->get_vnode()) {
     if(f->get_vnode()->is_directory())
       return -EISDIR;
-  } else {
+  } /*else {
     ensure_secrets();
-  }
+    }*/
 
   if(total_bytes >= 1024 * 1024)
     ensure_secrets();
@@ -227,7 +222,7 @@ sys_write(int fd, const userptr<void> p, size_t total_bytes)
   if (!f)
     return -1;
 
-  if(total_bytes >= 1024 * 1024 || !f->get_vnode())
+  if(total_bytes >= 1024 * 1024 /*|| !f->get_vnode()*/)
     ensure_secrets();
 
   return impl_write(std::move(f), p, total_bytes);
@@ -713,8 +708,9 @@ sys_pipe2(userptr<int> fd, int flags)
   if (pipealloc(&rf, &wf, flags) < 0)
     return -1;
 
-  int fd_buf[2] = { myproc()->ftable->allocfd(std::move(rf), 0, flags & O_CLOEXEC),
-                    myproc()->ftable->allocfd(std::move(wf), 0, flags & O_CLOEXEC) };
+  int fd_buf[2] = { -1, -1 };
+  myproc()->ftable->alloc_pair(std::move(rf), std::move(wf), &fd_buf[0], &fd_buf[1], flags & O_CLOEXEC);
+
   if (fd_buf[0] >= 0 && fd_buf[1] >= 0 && fd.store(fd_buf, 2))
     return 0;
 

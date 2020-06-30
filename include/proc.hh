@@ -96,6 +96,7 @@ public:
 
   pproc(proc* p_, int pid_) : p(p_), pid(pid_) {}
   procstate_t get_state(void) const { return state_; }
+  void set_state(procstate_t s);
 
   friend struct proc;
 
@@ -185,8 +186,8 @@ public:
 
   static proc* alloc();
   void         init_vmap();
-  void         set_state(procstate_t s);
   procstate_t  get_state(void) const { return state_; }
+  void         set_state(procstate_t s) { p->set_state(s); }
   int          set_cpu_pin(int cpu);
   static int   kill(int pid);
   int          kill();

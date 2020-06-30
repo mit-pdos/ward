@@ -9,6 +9,7 @@
 #include "cpu.hh"
 #include "uk/unistd.h"
 #include "uk/fcntl.h"
+#include "vm.hh"
 
 #define PIPESIZE (16*4096)
 
@@ -56,7 +57,7 @@ struct pipe {
 
     scoped_acquire l(&lock);
     for(int i = 0; i < n; i++){
-      while(nwrite == nread + PIPESIZE){ 
+      while(nwrite == nread + PIPESIZE){
         if (nonblock || myproc()->killed)
           return -1;
         scoped_acquire lclose(&lock_close);
@@ -95,7 +96,7 @@ struct pipe {
       empty.sleep(&lock, &lock_close);
     }
     int i;
-    for(i = 0; i < n; i++) { 
+    for(i = 0; i < n; i++) {
       if(nread == nwrite)
         break;
       addr[i] = data[nread++ % PIPESIZE];
@@ -154,4 +155,13 @@ int
 piperead(struct pipe *p, char *addr, int n)
 {
   return p->read(addr, n);
+}
+
+void pipemap(pipe* p, vmap* v) {
+  // TODO: why is v wrong?
+  myproc()->vmap->qinsert(p, p, PGROUNDUP(sizeof(pipe)));
+}
+void pipeunmap(pipe* p, vmap* v) {
+  // TODO: why is v wrong?
+  myproc()->vmap->remove((uptr)p, PGROUNDUP(sizeof(pipe)));
 }

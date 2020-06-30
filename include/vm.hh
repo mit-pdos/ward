@@ -203,6 +203,8 @@ struct vmap : public referenced {
   void* map_temporary(paddr pa);
   void unmap_temporary(void* page);
 
+  u64 asid() { return cache.asid_; }
+
   uptr brk_;                    // Top of heap
 
 private:

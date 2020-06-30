@@ -4,6 +4,7 @@
 #include "condvar.hh"
 #include "fs.h"
 #include "file.hh"
+#include "filetable.hh"
 #include <uk/stat.h>
 #include "net.hh"
 #include <errno.h>
@@ -177,6 +178,12 @@ file_pipe_reader::onzero(void)
   delete this;
 }
 
+void file_pipe_reader::on_ftable_insert(filetable* v) {
+  pipemap(pipe, v->get_vmap());
+}
+void file_pipe_reader::on_ftable_remove(filetable* v) {
+  pipeunmap(pipe, v->get_vmap());
+}
 
 int
 file_pipe_writer::stat(struct kernel_stat *st, enum stat_flags flags)
@@ -201,4 +208,11 @@ file_pipe_writer::onzero(void)
 {
   pipeclose(pipe, true);
   delete this;
+}
+
+void file_pipe_writer::on_ftable_insert(filetable* v) {
+  pipemap(pipe, v->get_vmap());
+}
+void file_pipe_writer::on_ftable_remove(filetable* v) {
+  pipeunmap(pipe, v->get_vmap());
 }

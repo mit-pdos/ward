@@ -200,6 +200,8 @@ int             piperead(struct pipe*, char*, int);
 int             pipewrite(struct pipe*, const char*, int);
 struct pipe*    pipesockalloc();
 void            pipesockclose(struct pipe *);
+void            pipemap(struct pipe*, vmap*);
+void            pipeunmap(struct pipe*, vmap*);
 
 // proc.c
 enum clone_flags
@@ -233,11 +235,11 @@ void            wdpoke(void);
 
 // sched.cc
 void            addrun(struct proc *);
+void            addrun(struct pproc *);
 void            sched(bool voluntary);
 void            post_swtch(void);
 void            scheddump(void);
 int             steal(void);
-void            addrun(struct proc*);
 
 // swtch.S
 extern "C" {

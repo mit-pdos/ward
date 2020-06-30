@@ -184,9 +184,9 @@ public:
     b_.balance();
   }
 
-  void addrun(struct proc* p) {
+  void addrun(struct pproc* p) {
     p->set_state(RUNNABLE);
-    schedule_[p->cpuid]->enq(p);
+    schedule_[p->cpuid]->enq(p->p);
   }
 
   void sched(bool voluntary)
@@ -326,6 +326,12 @@ sched(bool voluntary)
 
 void
 addrun(struct proc* p)
+{
+  thesched_dir.addrun(p->p.get());
+}
+
+void
+addrun(struct pproc* p)
 {
   thesched_dir.addrun(p);
 }

@@ -23,12 +23,11 @@ inituser(void)
   extern u64 _initcode_size;
 
   p = proc::alloc();
-  p->ftable = filetable::alloc();
-  if (p->ftable == nullptr)
-    panic("userinit: new filetable");
   bootproc = p;
-  if((p->vmap = vmap::alloc()) == 0)
+  if (!(p->vmap = vmap::alloc()))
     panic("userinit: out of vmaps?");
+  if (!(p->ftable = filetable::alloc(p->vmap)))
+    panic("userinit: new filetable");
   p->init_vmap();
   if(p->vmap->insert(vmdesc::anon_desc(), INIT_START,
                      PGROUNDUP(_initcode_size)) < 0)
