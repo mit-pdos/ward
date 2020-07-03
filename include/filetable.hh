@@ -240,6 +240,14 @@ public:
     return nfd;
   }
 
+  bool set_cloexec(int fd, bool value) {
+    if (fd < 0 || fd >= NOFILE || !open_[fd])
+      return false;
+
+    cloexec_.set(fd, value);
+    return true;
+  }
+
   vmap* get_vmap() { return vmap_.get(); }
 
 private:

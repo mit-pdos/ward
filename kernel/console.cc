@@ -374,19 +374,19 @@ consoleintr(int (*getc)(void))
       for (u32 i = 0; i < NCPU; i++)
         cpus[i].timer_printpc = 2;
       break;
-    case C('U'):  // Kill line.
-      while(input.e != input.w &&
-            input.buf[(input.e-1) % INPUT_BUF] != '\n'){
-        input.e--;
-        consputc(BACKSPACE);
-      }
-      break;
-    case C('H'): case '\x7f':  // Backspace
-      if(input.e != input.w){
-        input.e--;
-        consputc(BACKSPACE);
-      }
-      break;
+    // case C('U'):  // Kill line.
+    //   while(input.e != input.w &&
+    //         input.buf[(input.e-1) % INPUT_BUF] != '\n'){
+    //     input.e--;
+    //     consputc(BACKSPACE);
+    //   }
+    //   break;
+    // case C('H'): case '\x7f':  // Backspace
+    //   if(input.e != input.w){
+    //     input.e--;
+    //     consputc(BACKSPACE);
+    //   }
+    //   break;
     case C('F'):  // kmem stats
       kmemprint(&console);
       break;
@@ -398,11 +398,11 @@ consoleintr(int (*getc)(void))
       if(c != 0 && input.e-input.r < INPUT_BUF){
         c = (c == '\r') ? '\n' : c;
         input.buf[input.e++ % INPUT_BUF] = c;
-        consputc(c);
-        if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
+        // consputc(c);
+        // if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
           input.w = input.e;
           input.cv.wake_all();
-        }
+        // }
       }
       break;
     }

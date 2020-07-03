@@ -787,6 +787,20 @@ sys_fcntl(int fd, int cmd, u64 arg)
       return -EBADFD;
     return myproc()->ftable->allocfd(std::move(f), arg, false);
   }
+  case F_DUPFD_CLOEXEC:
+  {
+    auto f = getfile(fd);
+    if (!f)
+      return -EBADFD;
+    return myproc()->ftable->allocfd(std::move(f), arg, true);
+  }
+  case F_SETFD:
+  {
+    if (!myproc()->ftable->set_cloexec(fd, arg & O_CLOEXEC))
+      return -EBADFD;
+    return 0;
+  }
+
   default:
     return -EINVAL;
   };
@@ -796,6 +810,15 @@ sys_fcntl(int fd, int cmd, u64 arg)
 long
 sys_ioctl(int fd, int request, void* argp)
 {
+  struct termios {
+    u32 iflag;		/* input mode flags */
+    u32 oflag;		/* output mode flags */
+    u32 cflag;		/* control mode flags */
+    u32 lflag;		/* local mode flags */
+    u8 line;			/* line discipline */
+    u8 cc[23];		/* control characters */
+  };
+
   if (request == 0x5413) { // TIOCGWINSZ
     struct winsize {
       u16 rows;
@@ -808,7 +831,35 @@ sys_ioctl(int fd, int request, void* argp)
     auto output = winsize { .rows = 24, .cols = 80, .xpixel = 24*8, .ypixel = 80*16 };
     window.store(&output);
     return 0;
+  } else if (request == 0x5401) { // TCGETS
+    termios t{0};
+    return userptr<termios>((termios*)argp).store(&t) ? 0 : -1;
+  } else if (request == 0x5402) { // TCSETS
+    return 0;
   }
 
   return -EINVAL;
+}
+
+//SYSCALL
+long
+sys_poll(void *fds, long nfds, const struct timespec *tmo_p, const sigset_t *sigmask)
+{
+  // TODO: Actually implement this syscall, instead of just returning
+  // immediately.
+
+  if (nfds != 1)
+    return -ENOSYS;
+
+  struct pollfd {
+    int   fd;         /* file descriptor */
+    short events;     /* requested events */
+    short revents;    /* returned events */
+  } p;
+  userptr<pollfd> ptr((pollfd*)fds);
+  ptr.load(&p);
+
+  p.revents = (0x0001 | 0x0004) & p.events; // POLLIN | POLLOUT
+  ptr.store(&p);
+  return 1;
 }

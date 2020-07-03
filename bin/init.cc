@@ -69,9 +69,9 @@ main(void)
 {
   int pid, wpid;
 
-  if(ward_open("console", O_RDWR) < 0){
-    ward_mknod("console", 1, 1);
-    ward_open("console", O_RDWR);
+  if(ward_open("/dev/tty", O_RDWR) < 0){
+    ward_mknod("/dev/tty", 1, 1);
+    ward_open("/dev/tty", O_RDWR);
   }
   ward_dup(0);  // stdout
   ward_dup(0);  // stderr
