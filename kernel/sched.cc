@@ -26,8 +26,8 @@ public:
   ~schedule() {};
   NEW_DELETE_OPS(schedule);
 
-  void enq(proc* entry);
-  proc* deq();
+  void enq(pproc* entry);
+  pproc* deq();
   void dump(print_stream *);
 
   void balance_move_to(schedule *other);
@@ -39,7 +39,7 @@ private:
   void sanity(void);
 
   struct spinlock lock_ __mpalign__;
-  dequeue<proc, palloc_allocator<proc>> proc_;
+  dequeue<pproc, palloc_allocator<pproc>> proc_;
   volatile bool cansteal_ __mpalign__;
   __padout__;
 };
@@ -71,13 +71,13 @@ schedule::balance_count() const {
 void
 schedule::balance_move_to(schedule* target)
 {
-  proc *victim = nullptr;
+  pproc *victim = nullptr;
 
   if (!cansteal_ || !tryacquire(&lock_))
     return;
 
   for (auto it = proc_.begin(); it != proc_.end(); ++it) {
-    if (it->cansteal(true)) {
+    if (it->cansteal()) {
       proc_.erase(it);
       if (--ncansteal_ == 0)
         cansteal_ = false;
@@ -105,11 +105,11 @@ schedule::balance_move_to(schedule* target)
 }
 
 void
-schedule::enq(proc* p)
+schedule::enq(pproc* p)
 {
   scoped_acquire x(&lock_);
   proc_.push_back(p);
-  if (p->cansteal(true))
+  if (p->cansteal())
     if (ncansteal_++ == 0) {
       cansteal_ = true;
     }
@@ -117,7 +117,7 @@ schedule::enq(proc* p)
   stats_.enqs++;
 }
 
-proc*
+pproc*
 schedule::deq(void)
 {
   if (proc_.empty())
@@ -126,9 +126,9 @@ schedule::deq(void)
   scoped_acquire x(&lock_);
   if (proc_.empty())
     return nullptr;
-  proc* p = proc_.front();
+  pproc* p = proc_.front();
   proc_.pop_front();
-  if (p->cansteal(true))
+  if (p->cansteal())
     if (--ncansteal_ == 0)
       cansteal_ = false;
   sanity();
@@ -149,7 +149,7 @@ schedule::sanity(void)
   u64 n = 0;
 
   for (auto p : proc_)
-    if (p->cansteal(true))
+    if (p->cansteal())
       n++;
 
   if (n != ncansteal_)
@@ -186,7 +186,7 @@ public:
 
   void addrun(struct pproc* p) {
     p->set_state(RUNNABLE);
-    schedule_[p->cpuid]->enq(p->p);
+    schedule_[p->cpuid]->enq(p);
   }
 
   void sched(bool voluntary)
@@ -214,7 +214,8 @@ public:
     myproc()->curcycles += rdtsc() - myproc()->tsc;
 
     // Interrupts are disabled
-    next = schedule_[mycpu()->id]->deq();
+    pproc* pnext = schedule_[mycpu()->id]->deq();
+    next = pnext ? pnext->p : nullptr;
 
     u64 t = rdtsc();
     if (myproc() == idleproc())

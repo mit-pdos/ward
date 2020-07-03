@@ -40,7 +40,7 @@ proc::proc(int npid) : p(std::unique_ptr<pproc>(new pproc(this, npid))),
   tsc(0), context(nullptr), on_qstack(false),
   transparent_barriers(0), intentional_barriers(0),
   robust_list_ptr((robust_list_head*)USERTOP), tid_address((u32*)USERTOP),
-  parent(0), unmap_tlbreq_(0), data_cpuid(-1), in_exec_(0),
+  parent(0), unmap_tlbreq_(0), data_cpuid(-1),
   upath(nullptr), uargv(nullptr), exception_inuse(0),
   blocked_signals(0), pending_signals(0)
 {

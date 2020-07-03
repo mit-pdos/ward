@@ -97,6 +97,10 @@ public:
   pproc(proc* p_, int pid_) : p(p_), pid(pid_) {}
   procstate_t get_state(void) const { return state_; }
   void set_state(procstate_t s);
+  bool cansteal() {
+    return get_state() == RUNNABLE && !cpu_pin &&
+      curcycles != 0 && curcycles > VICTIMAGE;
+  };
 
   friend struct proc;
 
@@ -171,7 +175,6 @@ public:
   u64 unmap_tlbreq_;
   int data_cpuid;              // Where vmap and kstack is likely to be cached
   int run_cpuid_;
-  int in_exec_;
 
   userptr_str upath;
   userptr<userptr_str> uargv;
@@ -191,11 +194,6 @@ public:
   int          set_cpu_pin(int cpu);
   static int   kill(int pid);
   int          kill();
-  bool         cansteal(bool nonexec) {
-    return (get_state() == RUNNABLE && !cpu_pin &&
-          (in_exec_ || nonexec) &&
-          curcycles != 0 && curcycles > VICTIMAGE);
-  };
 
   static u64   hash(const u32& p);
 

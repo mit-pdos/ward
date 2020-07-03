@@ -160,9 +160,9 @@ sys_read(int fd, userptr<void> p, size_t total_bytes)
   if(f->get_vnode()) {
     if(f->get_vnode()->is_directory())
       return -EISDIR;
-  } /*else {
+  } else {
     ensure_secrets();
-    }*/
+  }
 
   if(total_bytes >= 1024 * 1024)
     ensure_secrets();
