@@ -21,7 +21,8 @@
  *   Software.
  */
 
-#include "user.h"
+#include "sysstubs.h"
+#include <unistd.h>
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -1387,6 +1388,6 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  display_image(image, size*SCALE+BORDER*2, size*SCALE+BORDER*2);
+  ward_display_image(image, size*SCALE+BORDER*2, size*SCALE+BORDER*2);
   return 0;
 }

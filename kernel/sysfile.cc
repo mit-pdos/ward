@@ -843,7 +843,7 @@ sys_ioctl(int fd, int request, void* argp)
 
 //SYSCALL
 long
-sys_poll(void *fds, long nfds, const struct timespec *tmo_p, const sigset_t *sigmask)
+sys_poll(void* fds, long nfds, const struct timespec* tmo_p, void* sigmask)
 {
   // TODO: Actually implement this syscall, instead of just returning
   // immediately.

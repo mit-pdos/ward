@@ -8,6 +8,7 @@ UPROGS_BIN= \
 	anon \
 	lebench \
 	schedbench \
+	qrc \
 
 # Binaries that are known to build on PLATFORM=native
 UPROGS_NATIVE := \
