@@ -60,7 +60,9 @@ static inline struct cpu *
 mycpu(void)
 {
   u64 val;
-  __asm volatile("movq %%gs:0, %0" : "=r" (val));
+  __asm volatile("movq %%gs:%a1, %0"
+                 : "=r" (val)
+                 : "i" (0));
   return (struct cpu *)val;
 }
 
@@ -68,7 +70,9 @@ static inline struct proc *
 myproc(void)
 {
   u64 val;
-  __asm volatile("movq %%gs:8, %0" : "=r" (val));
+  __asm volatile("movq %%gs:%a1, %0"
+                 : "=r" (val)
+                 : "i" (offsetof(cpu, proc) - offsetof(cpu, cpu)));
   return (struct proc *)val;
 }
 
@@ -77,3 +81,6 @@ myid(void)
 {
   return mycpu()->id;
 }
+
+static_assert(GS_PERCPU_BASE == offsetof(cpu, percpu_base) - offsetof(cpu, cpu));
+static_assert(GS_NO_SCHED_COUNT == offsetof(cpu, no_sched_count) - offsetof(cpu, cpu));

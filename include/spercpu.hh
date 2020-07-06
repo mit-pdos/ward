@@ -19,6 +19,8 @@
 #include <cstddef>
 #include <new>
 
+#define GS_PERCPU_BASE 24
+
 // This defines CPU 0's instance of this percpu variable and the
 // static_percpu wrapper for accessing it.  The gunk after the section
 // makes .percpu a BSS-like section (allocated, writable, but with no
@@ -79,12 +81,12 @@ struct static_percpu
   T* get_unchecked() const
   {
     uintptr_t val;
-    // The per-CPU memory offset is stored at %gs:24.
+    // The per-CPU memory offset is stored at %gs:GS_PERCPU_BASE.
     // XXX Having to subtract __percpu_start makes this several
     // instructions longer than strictly necessary.  Alternatively, we
     // could locate .percpu at address 0 and use the key as a direct
     // offset.
-    __asm("add %%gs:24, %0" : "=r" (val) : "0" ((char*)key - __percpu_start));
+    __asm("add %%gs:%a1, %0" : "=r" (val) : "0" ((char*)key - __percpu_start), "i" (GS_PERCPU_BASE));
     return (T*)val;
   }
 
