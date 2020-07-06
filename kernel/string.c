@@ -177,12 +177,18 @@ strstr(const char *str, const char *needle)
   return NULL;
 }
 
+static char ward_tolower(char c) {
+  if (c >= 'A' && c <= 'Z')
+    return c + ('a' - 'A');
+  return c;
+}
+
 int
 strcasecmp(const char *p, const char *q)
 {
-  while (*p && tolower((unsigned char)*p) == tolower((unsigned char)*q))
+  while (*p && ward_tolower((unsigned char)*p) == ward_tolower((unsigned char)*q))
     p++, q++;
-  return tolower((unsigned char)*p) - tolower((unsigned char)*q);
+  return ward_tolower((unsigned char)*p) - ward_tolower((unsigned char)*q);
 }
 
 long int
