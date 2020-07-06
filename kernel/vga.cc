@@ -140,6 +140,28 @@ static const char* erase[] = {
   "0000000000000000000000000000000000000000000000000000000000000000",
 };
 
+static const u32 ansi_colors[16] = {
+  // normal
+  0x002E3436,
+  0x00CC0000,
+  0x004E9A06,
+  0x00C4A000,
+  0x003465A4,
+  0x0075507B,
+  0x0006989A,
+  0x00D3D7CF,
+
+  // bright
+  0x00555753,
+  0x00EF2929,
+  0x008AE234,
+  0x00FCE94F,
+  0x00729FCF,
+  0x00AD7FA8,
+  0x0034E2E2,
+  0x00EEEEEC,
+};
+
 const u16 BORDER = 4;
 
 u32* front_buffer = nullptr;
@@ -152,6 +174,12 @@ u16 cursor_y = BORDER;
 
 int line[512];
 int line_end = 0;
+
+u32 vga_foreground_color = ansi_colors[15];
+u32 vga_background_color = ansi_colors[0];
+
+const size_t ESCAPE_SEQ_MAX_LEN = 16;
+char ansi_escape_sequence[ESCAPE_SEQ_MAX_LEN] = { 0 };
 
 void initvga() {
   if (!cmdline_params.use_vga) {
@@ -169,6 +197,8 @@ void initvga() {
     screen_width = multiboot.framebuffer_pitch / 4;
     screen_height = multiboot.framebuffer_height;
 
+    for (int i = 0; i < screen_width * screen_height; i++)
+      front_buffer[i] = vga_background_color;
 
     for (const char *p=DEBUG?"xv6 DEBUG VGA\n":"xv6 VGA\n"; *p; p++)
       vgaputc(*p);
@@ -198,6 +228,55 @@ void vgaputc(int c) {
   if (!buffer)
     return;
 
+  if(ansi_escape_sequence[1]) {
+    for (int i = 0; i < ESCAPE_SEQ_MAX_LEN; i++) {
+      if (!ansi_escape_sequence[i]) {
+        ansi_escape_sequence[i] = c;
+        break;
+      }
+    }
+
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+      int i = 0;
+      int args[4] = { -1, -1, -1, -1 };
+      char* s = ansi_escape_sequence+2;
+      while (s < ansi_escape_sequence+ESCAPE_SEQ_MAX_LEN) {
+        if (*s < '0' || *s > '9')
+          break;
+
+        args[i++] = strtoul(s, &s, 10);
+        if (*s == ';') {
+          s++;
+        } else {
+          break;
+        }
+      }
+
+      switch(c) {
+      case 'm':
+        for (int i = 0; i < 4 && args[i] != -1; i++) {
+          if (args[i] == 0) {
+            vga_foreground_color = ansi_colors[15];
+            vga_background_color = ansi_colors[0];
+          } else if (args[i] >= 30 && args[i] < 38) {
+            vga_foreground_color = ansi_colors[args[i] - 30 + 8];
+          } else if (args[i] >= 40 && args[i] < 48) {
+            vga_background_color = ansi_colors[args[i] - 30];
+          }
+        }
+      }
+      memset(ansi_escape_sequence, 0, ESCAPE_SEQ_MAX_LEN);
+    }
+
+    return;
+  } else if (ansi_escape_sequence[0] && c == '[') {
+    ansi_escape_sequence[1] = c;
+    return;
+  } else if (c == '\033') {
+    ansi_escape_sequence[0] = c;
+    return;
+  }
+
   if (c == '\n') {
     cursor_x = BORDER;
     cursor_y += 16;
@@ -213,11 +292,12 @@ void vgaputc(int c) {
   const char* bitmap = unifont[c & 0x7f];
   int width = bitmap[32] == '\0' ? 8 : 16;
 
-  if (c == 0x100) { // BACKSPACE
+  if (c == '\b' || c == 0x100) { // BACKSPACE
     if (line_end == 0)
       return;
 
-    if ((unifont[line[line_end - 1]])[32] == '\0') {
+    line_end -= 1;
+    if ((unifont[line[line_end]])[32] == '\0') {
       cursor_x -= 8;
       bitmap = erase[0];
       width = 8;
@@ -243,8 +323,8 @@ void vgaputc(int c) {
     memmove(buffer,
             buffer + 16 * screen_width,
             screen_width * (screen_height - 16) * 4);
-    memset(buffer + (screen_height - 16) * screen_width, 0,
-           16 * screen_width * 4);
+    for(int i = 0; i < 16 * screen_width; i++)
+      buffer[(screen_height - 16) * screen_width + i] = vga_background_color;
     cursor_y -= 16;
     full_redraw = true;
     line_end = 0;
@@ -260,7 +340,8 @@ void vgaputc(int c) {
     for(int j = 0; j < 4; j++) {
       int h = (i*4+j) % width;
       int k = (i*4+j) / width;
-      buffer[(cursor_x+h) + (cursor_y+k) * screen_width] = nibble & (1<<(3-j)) ? 0xffffffff : 0;
+      buffer[(cursor_x+h) + (cursor_y+k) * screen_width] = nibble & (1<<(3-j))
+        ? vga_foreground_color : vga_background_color;
     }
   }
 
@@ -280,7 +361,7 @@ void vgaputc(int c) {
     }
   }
 
-  if (c != 0x100) { // BACKSPACE
+  if (c != '\b' && c != 0x100) { // BACKSPACE
     cursor_x += width;
   }
 }
@@ -306,8 +387,8 @@ void vga_put_image(u32* data, int width, int height) {
     memmove(buffer,
             buffer + 16 * screen_width,
             screen_width * (screen_height - 16) * 4);
-    memset(buffer + (screen_height - 16) * screen_width, 0,
-           16 * screen_width * 4);
+    for(int i = 0; i < 16 * screen_width; i++)
+      buffer[(screen_height - 16) * screen_width + i] = vga_background_color;
     cursor_y -= 16;
     line_end = 0;
   }
