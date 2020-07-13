@@ -239,7 +239,6 @@ public:
       xsave(prev->fpu_state, -1);
     }
 
-
     while(!next) {
       pproc* pnext = schedule_[mycpu()->id]->deq();
       if (pnext) {
@@ -260,7 +259,8 @@ public:
         prev->cpuid = mycpu()->id;
         release(&prev->lock);
 
-        hlt();
+        nop_pause();
+        // hlt();
         // thesched_dir.steal();
 
         acquire(&prev->lock);
