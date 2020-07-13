@@ -140,7 +140,6 @@ vmap::alloc(void)
 
   v->qinsert(page);
   v->qinsert(__qdata_start, __qdata_start, __qdata_end - __qdata_start);
-  v->qinsert(__qpercpu_start, __qpercpu_start, __qpercpu_end - __qpercpu_start);
 
   u64 size = nmi_stacks_size();
   v->nmi_stacks = (nmiframe*)kalloc("nmi_stacks", size);
@@ -151,6 +150,9 @@ vmap::alloc(void)
     nmiframe* cpu_nmiframe = (nmiframe*)(nmistacktop[c] - sizeof(nmiframe));
     v->nmi_stacks[c].stack = cpu_nmiframe->stack;
     v->nmi_stacks[c].gsbase = cpu_nmiframe->gsbase;
+
+    assert(__percpu_start == __qpercpu_start);
+    v->qinsert(cpus[c].percpu_base, cpus[c].percpu_base, __qpercpu_end - __qpercpu_start);
   }
 
   return v;
