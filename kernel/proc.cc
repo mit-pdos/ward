@@ -102,9 +102,15 @@ proc::set_cpu_pin(int cpu)
   // post_swtch will put us on the new runq.
   cpuid = cpu;
   cpu_pin = true;
-  myproc()->set_state(RUNNABLE);
-  sched(true);
-  assert(mycpu()->id == cpu);
+
+  if(mycpu()->id != cpu) {
+    ensure_secrets();
+    myproc()->set_state(RUNNABLE);
+    sched(true);
+    assert(mycpu()->id == cpu);
+  } else {
+    release(&lock);
+  }
   return 0;
 }
 
