@@ -405,8 +405,6 @@ main(void)
     exit(-1);
   }
 
-  fprintf(stderr, "httpd: port 80\n");
-
   for (;;) {
     socklen_t socklen;
     int ss;
