@@ -244,7 +244,8 @@ public:
       pproc* pnext = schedule_[mycpu()->id]->deq();
       if (pnext) {
         next = pnext->p;
-      } else if (prev->get_state() == ZOMBIE || (prev->cpu_pin && prev->cpuid != mycpu()->id)) {
+      } else if (!intena || prev->get_state() == ZOMBIE ||
+                 (prev->cpu_pin && prev->cpuid != mycpu()->id)) {
         next = idleproc();
       } else if (prev->get_state() == RUNNABLE && (!prev->cpu_pin || prev->cpuid == mycpu()->id)) {
         next = prev;
@@ -257,16 +258,12 @@ public:
         int old_cpuid = prev->cpuid;
         prev->cpu_pin = true;
         prev->cpuid = mycpu()->id;
-        // if (mycpu()->id == 0)
-        //   cprintf("[%d:release]\n", mycpu()->id);
         release(&prev->lock);
 
         hlt();
-        // // thesched_dir.steal();
+        // thesched_dir.steal();
 
         acquire(&prev->lock);
-        // if (mycpu()->id == 0)
-        //   cprintf("[%d:acquire]\n", mycpu()->id);
         prev->cpu_pin = old_cpu_pin;
         prev->cpuid = old_cpuid;
 
