@@ -260,8 +260,6 @@ cmain(u64 mbmagic, u64 mbaddr)
   initinode();     // inode cache
   initmfs();
 
-  inituser();      // first user process
-
   // XXX hack until mnodes can load from disk
   extern void mfsload();
   mfsload();
@@ -274,9 +272,9 @@ cmain(u64 mbmagic, u64 mbaddr)
   cleanuppg();             // Requires bootothers
   initcpprt();
   initwd();                // Requires initnmi
-
   initattack(); // for spectre demo
 
+  inituser();      // first user process
   idleloop();
 
   panic("Unreachable");
