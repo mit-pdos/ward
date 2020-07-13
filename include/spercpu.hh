@@ -86,7 +86,7 @@ struct static_percpu
     // instructions longer than strictly necessary.  Alternatively, we
     // could locate .percpu at address 0 and use the key as a direct
     // offset.
-    __asm("add %%gs:%a1, %0" : "=r" (val) : "0" ((char*)key - __percpu_start), "i" (GS_PERCPU_BASE));
+    __asm("add %%gs:%a2, %0" : "=r" (val) : "0" ((char*)key - __percpu_start), "i" (GS_PERCPU_BASE));
     return (T*)val;
   }
 
