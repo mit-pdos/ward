@@ -44,7 +44,7 @@ inituser(void)
 
   // TODO: Why does this process need to be pinned to CPU 0?
   p->cpuid = 0;
-  p->cpu_pin = 1;
+  p->cpu_pin = true;
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd.reset(); // forkret will fix in the process's context

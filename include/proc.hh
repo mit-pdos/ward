@@ -74,7 +74,8 @@ typedef enum procstate {
   SLEEPING,
   RUNNABLE,
   RUNNING,
-  ZOMBIE
+  ZOMBIE,
+  IDLING
 } procstate_t;
 
 struct pproc {
@@ -85,7 +86,7 @@ struct pproc {
   u64 cv_wakeup = 0;               // Wakeup time for this process
   u64 curcycles = 0;
   unsigned cpuid = 0;
-  int cpu_pin = 0;
+  bool cpu_pin = false;
   ilink<pproc> cv_waiters;      // Linked list of processes waiting for oncv
   ilink<pproc> cv_sleep;        // Linked list of processes sleeping on a cv
   volatile int pid;             // Process ID
@@ -138,7 +139,7 @@ struct proc {
   u64& cv_wakeup = p->cv_wakeup;
   u64& curcycles = p->curcycles;
   unsigned& cpuid = p->cpuid;
-  int& cpu_pin = p->cpu_pin;
+  bool& cpu_pin = p->cpu_pin;
   ilink<pproc>& cv_waiters = p->cv_waiters;
   ilink<pproc>& cv_sleep = p->cv_sleep;
 private:

@@ -34,7 +34,12 @@ wakeup(struct pproc *p)
   auto it = p->oncv->waiters.iterator_to(p);
   p->oncv->waiters.erase(it);
   p->oncv = 0;
-  addrun(p);
+  if (p->get_state() == SLEEPING) {
+    addrun(p);
+  } else {
+    assert(p->get_state() == IDLING);
+    p->set_state(RUNNABLE);
+  }
 }
 
 u64
@@ -115,6 +120,7 @@ condvar::sleep_to(struct spinlock *lk, u64 timeout, struct spinlock *lk2)
 
   waiters.push_front(myproc()->p.get());
   myproc()->oncv = this;
+  assert(myproc()->get_state() == RUNNING);
   myproc()->set_state(SLEEPING);
 
   if (timeout) {
@@ -146,7 +152,7 @@ condvar::sleep(struct spinlock *lk, struct spinlock *lk2)
 void
 condvar::wake_one(pproc *p)
 {
-  if (p->get_state() != SLEEPING)
+  if (p->get_state() != SLEEPING && p->get_state() != IDLING)
     panic("condvar::wake_all: pid %u name %s state %u",
           p->pid, p->p->name, p->get_state());
   if (p->oncv != this)

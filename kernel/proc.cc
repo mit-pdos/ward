@@ -63,7 +63,7 @@ pproc::set_state(enum procstate s)
       panic("EMBRYO -> %u", s);
     break;
   case SLEEPING:
-    if (s != RUNNABLE)
+    if (s != RUNNABLE && s != IDLING)
       panic("SLEEPING -> %u", s);
     break;
   case RUNNABLE:
@@ -73,6 +73,10 @@ pproc::set_state(enum procstate s)
   case RUNNING:
     if (s != RUNNABLE && s != SLEEPING && s != ZOMBIE)
       panic("RUNNING -> %u", s);
+    break;
+  case IDLING:
+    if (s != RUNNABLE && s != SLEEPING)
+      panic("IDLING -> %u", s);
     break;
   case ZOMBIE:
     panic("ZOMBIE -> %u", s);
@@ -90,14 +94,14 @@ proc::set_cpu_pin(int cpu)
   if (myproc() != this)
     panic("set_cpu_pin not implemented for non-current proc");
   if (cpu == -1) {
-    cpu_pin = 0;
+    cpu_pin = false;
     release(&lock);
     return 0;
   }
   // Since we're the current proc, there's no runq to get off.
   // post_swtch will put us on the new runq.
   cpuid = cpu;
-  cpu_pin = 1;
+  cpu_pin = true;
   myproc()->set_state(RUNNABLE);
   sched(true);
   assert(mycpu()->id == cpu);
@@ -546,7 +550,7 @@ threadpin(void (*fn)(void*), void *arg, const char *name, int cpu)
 
   snprintf(p->name, sizeof(p->name), "%s", name);
   p->cpuid = cpu;
-  p->cpu_pin = 1;
+  p->cpu_pin = true;
   acquire(&p->lock);
   addrun(p);
   release(&p->lock);

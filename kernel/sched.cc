@@ -108,6 +108,9 @@ void
 schedule::enq(pproc* p)
 {
   scoped_acquire x(&lock_);
+
+  assert(p->p->get_state() == RUNNABLE);
+
   proc_.push_back(p);
   if (p->cansteal())
     if (ncansteal_++ == 0) {
@@ -120,8 +123,6 @@ schedule::enq(pproc* p)
 pproc*
 schedule::deq(void)
 {
-  if (proc_.empty())
-    return nullptr;
   // Remove from head
   scoped_acquire x(&lock_);
   if (proc_.empty())
@@ -133,6 +134,10 @@ schedule::deq(void)
       cansteal_ = false;
   sanity();
   stats_.deqs++;
+
+  if (p->p->get_state() != RUNNABLE)
+    panic("X non-RUNNABLE next %s %s", p->p->name, p->p->get_state() == SLEEPING ? "sleeping" : "?");
+
   return p;
 }
 
@@ -194,7 +199,7 @@ public:
     extern void forkret(void);
     int intena;
     proc* prev;
-    proc* next;
+    proc* next = nullptr;
 
     // Poke the watchdog
     wdpoke();
@@ -210,37 +215,17 @@ public:
       panic("sched running");
     if(readrflags()&FL_IF)
       panic("sched interruptible");
-    intena = mycpu()->intena;
-    myproc()->curcycles += rdtsc() - myproc()->tsc;
 
-    // Interrupts are disabled
-    pproc* pnext = schedule_[mycpu()->id]->deq();
-    next = pnext ? pnext->p : nullptr;
+    prev = myproc();
+    intena = mycpu()->intena;
+    prev->curcycles += rdtsc() - prev->tsc;
 
     u64 t = rdtsc();
-    if (myproc() == idleproc())
+    if (prev == idleproc())
       schedule_[mycpu()->id]->stats_.idle += t - schedule_[mycpu()->id]->stats_.schedstart;
     else
       schedule_[mycpu()->id]->stats_.busy += t - schedule_[mycpu()->id]->stats_.schedstart;
     schedule_[mycpu()->id]->stats_.schedstart = t;
-
-    if (next == nullptr) {
-      if (myproc()->get_state() != RUNNABLE ||
-          // proc changed its CPU pin?
-          myproc()->cpuid != mycpu()->id) {
-        next = idleproc();
-      } else {
-        myproc()->set_state(RUNNING);
-        mycpu()->intena = intena;
-        release(&myproc()->lock);
-        return;
-      }
-    }
-
-    if (next->get_state() != RUNNABLE)
-      panic("non-RUNNABLE next %s %u", next->name, next->get_state());
-
-    prev = myproc();
 
     if (prev->get_state() == ZOMBIE)
       mtstop(prev);
@@ -248,6 +233,62 @@ public:
       mtpause(prev);
     mtign();
 
+    if(cpuid::features().xsaveopt) {
+      xsaveopt(prev->fpu_state, -1);
+    } else {
+      xsave(prev->fpu_state, -1);
+    }
+
+
+    while(!next) {
+      pproc* pnext = schedule_[mycpu()->id]->deq();
+      if (pnext) {
+        next = pnext->p;
+      } else if (prev->get_state() == ZOMBIE || (prev->cpu_pin && prev->cpuid != mycpu()->id)) {
+        next = idleproc();
+      } else if (prev->get_state() == RUNNABLE && (!prev->cpu_pin || prev->cpuid == mycpu()->id)) {
+        next = prev;
+      } else {
+        assert(prev->get_state() == SLEEPING);
+        prev->set_state(IDLING);
+
+        // Pin prev to this core, so that it isn't killed before we resume
+        bool old_cpu_pin = prev->cpu_pin;
+        int old_cpuid = prev->cpuid;
+        prev->cpu_pin = true;
+        prev->cpuid = mycpu()->id;
+        // if (mycpu()->id == 0)
+        //   cprintf("[%d:release]\n", mycpu()->id);
+        release(&prev->lock);
+
+        hlt();
+        // // thesched_dir.steal();
+
+        acquire(&prev->lock);
+        // if (mycpu()->id == 0)
+        //   cprintf("[%d:acquire]\n", mycpu()->id);
+        prev->cpu_pin = old_cpu_pin;
+        prev->cpuid = old_cpuid;
+
+        if (prev->get_state() == RUNNABLE) {
+          assert(!prev->cpu_pin || prev->cpuid == mycpu()->id);
+          next = prev;
+        } else {
+          assert(prev->get_state() == IDLING);
+          prev->set_state(SLEEPING);
+        }
+      }
+    }
+
+    if (next == prev) {
+        prev->set_state(RUNNING);
+        mycpu()->intena = intena;
+        release(&prev->lock);
+        return;
+    }
+
+    if (next->get_state() != RUNNABLE)
+      panic("non-RUNNABLE next %s %u", next->name, next->get_state());
     next->set_state(RUNNING);
     next->tsc = rdtsc();
 
@@ -256,11 +297,6 @@ public:
     }
     mtrec();
 
-    if(cpuid::features().xsaveopt) {
-      xsaveopt(prev->fpu_state, -1);
-    } else {
-      xsave(prev->fpu_state, -1);
-    }
     xrstor(next->fpu_state, -1);
 
     switchvm(prev->vmap.get(), next->vmap.get());
