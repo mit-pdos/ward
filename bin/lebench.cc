@@ -493,14 +493,14 @@ int main(int argc, char *argv[])
   fflush(stdout);
 #endif
 
-  int base_iter = 200;
+  u64 mask = ~0ull;
   if (argc >= 2) {
-    base_iter = atoi(argv[1]);
+    mask = 1ull << atoi(argv[1]);
   }
 
-  u64 mask = ~0ull;
+  int base_iter = 200;
   if (argc >= 3) {
-    mask = 1ull << atoi(argv[2]);
+    base_iter = atoi(argv[2]);
   }
 
   if(mask & (1ull<<0)) one_line_test(ref_test, base_iter * 1000, "ref");
