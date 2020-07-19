@@ -375,12 +375,39 @@ sys_setaffinity(int cpu)
 
 //SYSCALL
 long
+sys_sched_getaffinity(pid_t pid, size_t cpusetsize, userptr<char> mask)
+{
+  if (pid != 0 && pid != myproc()->pid)
+    return -EINVAL;
+
+  u8 mask_copy[(NCPU+7) / 8] = { 0 };
+
+  if (myproc()->cpu_pin) {
+    mask_copy[myproc()->cpuid / 8] |= 1 << (myproc()->cpuid / 8);
+  } else {
+    for (int i = 0; i < ncpu; i++) {
+      mask_copy[i / 8] |= 1 << (i % 8);
+    }
+  }
+
+  if (cpusetsize > sizeof(mask_copy))
+    cpusetsize = sizeof(mask_copy);
+  if (mask.store((char*)&mask_copy[0], cpusetsize))
+    return cpusetsize;
+  return -EFAULT;
+}
+
+//SYSCALL
+long
 sys_sched_setaffinity(pid_t pid, size_t cpusetsize, userptr<char> mask)
 {
-  u8 mask_copy[NCPU / 8] = { 0 };
+  if (pid != 0 && pid != myproc()->pid)
+    return -EINVAL;
 
-  if (cpusetsize > NCPU / 8)
-    cpusetsize = NCPU / 8;
+  u8 mask_copy[(NCPU+7) / 8] = { 0 };
+
+  if (cpusetsize > sizeof(mask_copy))
+    cpusetsize = sizeof(mask_copy);
   mask.load((char*)mask_copy, cpusetsize);
 
   int nset = 0;
