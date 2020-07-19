@@ -120,6 +120,8 @@ void set_mitigations(int style) {
 }
 
 void one_line_test(u64 (*f)(), int iter, const char* name){
+  if (iter < 1) iter = 1;
+
   printf("%s,", name);
   for(int i = 0; i < 18-strlen(name); i++)
     printf(" ");
@@ -157,6 +159,8 @@ void one_line_test(u64 (*f)(), int iter, const char* name){
 }
 
 void two_line_test(void (*f)(u64*,u64*), int iter, const char* name) {
+  if (iter < 1) iter = 1;
+
   printf("%s,", name);
   for(int i = 0; i < 18-strlen(name); i++)
     printf(" ");
@@ -227,7 +231,7 @@ void forkTest(u64 *childTime, u64 *parentTime)
 	printf("[error] unable to kill child process\n");
   } else if (forkId > 0) {
     u64 timeC = end_timer();
-    wait(&status);
+    waitpid(forkId, &status, 0);
 	*childTime = *timeB - timeA;
 	*parentTime = timeC - timeA;
     munmap(timeB, 8);
@@ -313,7 +317,7 @@ void read_warmup() {
 
 }
 u64 write_test() {
-  char *buf = (char *) malloc (sizeof(char) * file_size);
+  char *buf = (char *) mmap (0, file_size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
   for (int i = 0; i < file_size; i++) {
     buf[i] = 'a';
   }
@@ -328,7 +332,7 @@ u64 write_test() {
   u64 endTime = end_timer();
 
   close(fd);
-  free(buf);
+  munmap(buf, file_size);
   return endTime - startTime;
 }
 
@@ -418,6 +422,9 @@ u64 context_switch_test() {
     retval = close(fds2[1]);
     if (retval != 0) printf("[error] failed to close fd2.\n");
 
+    cpu_set_t oldset;
+    sched_getaffinity(getpid(), sizeof(oldset), &oldset);
+
     cpu_set_t set;
     CPU_ZERO(&set);
     CPU_SET(0, &set);
@@ -435,10 +442,13 @@ u64 context_switch_test() {
     }
     endTime = end_timer();
     int status;
-    wait(&status);
+    waitpid(forkId, &status, 0);
 
     close(fds1[1]);
     close(fds2[0]);
+
+    sched_setaffinity(getpid(), sizeof(oldset), &oldset);
+
     return (endTime - startTime) / iter;
   } else if (forkId == 0){
     retval = close(fds1[1]);
