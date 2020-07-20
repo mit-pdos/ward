@@ -109,7 +109,7 @@ schedule::enq(pproc* p)
 {
   scoped_acquire x(&lock_);
 
-  assert(p->p->get_state() == RUNNABLE);
+  assert(p->get_state() == RUNNABLE);
 
   proc_.push_back(p);
   if (p->cansteal())
@@ -135,7 +135,7 @@ schedule::deq(void)
   sanity();
   stats_.deqs++;
 
-  if (p->p->get_state() != RUNNABLE)
+  if (p->get_state() != RUNNABLE)
     panic("X non-RUNNABLE next %s %s", p->p->name, p->p->get_state() == SLEEPING ? "sleeping" : "?");
 
   return p;
