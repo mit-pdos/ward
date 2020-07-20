@@ -150,8 +150,8 @@ procexit(int status)
     panic("init exiting");
 
   myproc()->ftable.reset();
-
   myproc()->cwd.reset();
+  delete myproc()->gc;
 
   userptr<robust_list_head> head_ptr = myproc()->robust_list_ptr;
   if ((uptr)head_ptr != USERTOP) {
