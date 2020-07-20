@@ -10,6 +10,7 @@
 #include "cpu.hh"
 #include "elf.hh"
 #include "atomic_util.hh"
+#include "errno.h"
 
 // const std::nothrow_t std::nothrow;
 
@@ -220,28 +221,19 @@ static bool malloc_proc = false;
 void*
 malloc(size_t n)
 {
-  if (malloc_proc) {
-    assert(n <= sizeof(myproc()->exception_buf));
-    assert(cmpxch(&myproc()->exception_inuse, 0, 1));
-    return myproc()->exception_buf;
-  }
-
-  u64* p = (u64*) kmalloc(n+8, "cpprt malloc");
-  *p = n;
-  return p+1;
+  void* ptr;
+  assert(!posix_memalign(&ptr, n, 8));
+  return ptr;
 }
 
 // extern "C" void free(void*);
 void
 free(void* vp)
 {
-  if (vp == myproc()->exception_buf) {
-    myproc()->exception_inuse = 0;
-    return;
-  }
+  u32 total_size = ((u32*)vp)[-1];
+  u32 ptrdiff = ((u32*)vp)[-2];
 
-  u64* p = (u64*) vp;
-  kmfree(p-1, p[-1]+8);
+  kmfree((char*)vp - ptrdiff, total_size);
 }
 
 //extern "C" void* realloc(void*, size_t);
@@ -370,8 +362,17 @@ extern "C" int fprintf(void*, const char* format, ...) { panic("fprintf"); }
 extern "C" int vfprintf(void*, const char* format, va_list vlist) { panic("vfprintf"); }
 
 extern "C" int posix_memalign(void **memptr, size_t alignment, size_t size) {
-  assert(alignment < size || alignment <= 16);
-  *memptr = kmalloc(size, "posix_memalign");
+  if (alignment < sizeof(void*) || (alignment & (alignment-1)))
+    return EINVAL;
+
+  if (size >= 2<<30)
+    return ENOMEM;
+
+  void* ptr = kmalloc(alignment+size, "posix_memalign");
+  *memptr = (void*)(((((u64)ptr) + 8) | (alignment-1)) + 1);
+  ((u32*)*memptr)[-1] = alignment+size;
+  ((u32*)*memptr)[-2] = (char*)*memptr - (char*)ptr;
+
   return 0;
 }
 extern "C" void* calloc( size_t num, size_t size ) { panic("calloc"); }
