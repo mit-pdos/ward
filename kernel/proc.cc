@@ -151,6 +151,7 @@ forkret(void)
 void
 procexit(int status)
 {
+  ensure_secrets();
   if(myproc() == bootproc)
     panic("init exiting");
 

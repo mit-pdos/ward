@@ -69,7 +69,6 @@ long sys_clone(unsigned long flags, uintptr_t stack, userptr<int> parent_tid, ui
     // TODO
   }
 
-  ensure_secrets();
   clone_flags cflags = clone_flags::WARD_CLONE_ALL;
   if (flags & CLONE_VM)
     cflags |= WARD_CLONE_SHARE_VMAP;
