@@ -254,6 +254,8 @@ void vgaputc(int c) {
 
       switch(c) {
       case 'm':
+        if (args[0] == -1)
+          args[0] = 0;
         for (int i = 0; i < 4 && args[i] != -1; i++) {
           if (args[i] == 0) {
             vga_foreground_color = ansi_colors[15];
