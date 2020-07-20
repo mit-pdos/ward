@@ -190,17 +190,17 @@ procexit(int status)
 
   // Release vmap
   if (myproc()->vmap != nullptr) {
-    sref<vmap> vmap = std::move(myproc()->vmap);
-    // Switch to kernel page table, since we may be just about to
-    // destroy the current page table.
-    switchvm(vmap.get(), nullptr);
+    // sref<vmap> vmap = std::move(myproc()->vmap);
+    // // Switch to kernel page table, since we may be just about to
+    // // destroy the current page table.
+    // switchvm(vmap.get(), nullptr);
 
     // Remove user visible state associated with this proc from vmap.
-    vmap->remove((uptr)myproc(), PGSIZE);
-    vmap->remove((uptr)myproc()->kstack, KSTACKSIZE);
+    myproc()->vmap->remove((uptr)myproc(), PGSIZE);
+    myproc()->vmap->remove((uptr)myproc()->kstack, KSTACKSIZE);
 
     if (myproc()->cv) {
-      vmap->qfree(myproc()->cv);
+      myproc()->vmap->qfree(myproc()->cv);
       myproc()->cv = nullptr;
     }
   }
@@ -449,6 +449,7 @@ doclone(clone_flags flags)
 void
 finishproc(struct proc *p)
 {
+  p->vmap.reset();
   if (!xnspid->remove(p->pid, &p))
     panic("finishproc: ns_remove");
   if (p->kstack)
