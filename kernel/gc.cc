@@ -339,7 +339,7 @@ gc_delayed(rcu_freed *e)
   u64 epoch = gc_global ? global_epoch : gs->cur_epoch;
 
   if (gc_debug)
-    cprintf("(%d, %d): gc_delayed: %lu ndelayed %lu\n", c, myproc()->pid,
+    cprintf("(%d, %d): gc_delayed: %lu ndelayed %lu\n", c, myproc()->tid,
             epoch, stat[c].ndelay);
 
   if (epoch != gs->delayed[epoch % NEPOCH].epoch) {

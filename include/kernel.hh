@@ -212,6 +212,7 @@ enum clone_flags
   WARD_CLONE_NO_VMAP = 1<<2,
   WARD_CLONE_NO_FTABLE = 1<<3,
   WARD_CLONE_NO_RUN = 1<<4,
+  WARD_CLONE_THREAD = 1<<5,
 };
 ENUM_BITSET_OPS(clone_flags);
 void            finishproc(struct proc*);

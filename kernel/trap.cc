@@ -380,7 +380,7 @@ trap(struct trapframe *tf, bool had_secrets)
       kerneltrap(tf);
     } else {
       // In user space, assume process misbehaved.
-      uerr.println("pid ", myproc()->pid, ' ', myproc()->name,
+      uerr.println("tid ", myproc()->tid, ' ', myproc()->name,
                    ": trap ", (u64)tf->trapno, " err ", (u32)tf->err,
                    " on cpu ", myid(), " rip ", shex(tf->rip),
                    " rsp ", shex(tf->rsp), " addr ", shex(rcr2()),

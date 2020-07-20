@@ -34,7 +34,8 @@ struct kstack_tag kstack_tag[NCPU];
 
 enum { sched_debug = 0 };
 
-proc::proc(int npid) : p(std::unique_ptr<pproc>(new pproc(this, npid))),
+proc::proc(int tid_, int tgid_) :
+  p(std::unique_ptr<pproc>(new pproc(this, tid_, tgid_))),
   kstack(0), qstack(0), killed(0), tf(0), uaccess_(0), user_fs_(0),
   cv(nullptr), yield_(false),
   tsc(0), context(nullptr), on_qstack(false),
@@ -46,7 +47,7 @@ proc::proc(int npid) : p(std::unique_ptr<pproc>(new pproc(this, npid))),
 {
   memmove(fpu_state, fpu_initial_state, XSAVE_BYTES);
 
-  snprintf(lockname, sizeof(lockname), "cv:proc:%d", pid);
+  snprintf(lockname, sizeof(lockname), "cv:proc:%d", tid);
   lock = spinlock(lockname+3, LOCKSTAT_PROC);
 
   gc = new gc_handle();
@@ -206,22 +207,22 @@ procexit(int status)
     }
   }
 
-  // Lock the parent first, since otherwise we might deadlock.
-  if (myproc()->parent != nullptr)
-    acquire(&myproc()->parent->lock);
-
-  acquire(&(myproc()->lock));
-
   // Kernel threads might not have a parent
-  if (myproc()->parent != nullptr) {
+  if (myproc()->parent != nullptr && myproc()->tid == myproc()->tgid) {
+    // Lock the parent first, since otherwise we might deadlock.
+    acquire(&myproc()->parent->lock);
+    acquire(&(myproc()->lock));
+
     waitstub* w = new waitstub;
-    w->pid = myproc()->pid;
+    w->pid = myproc()->tgid;
     w->status = (status & __WAIT_STATUS_VAL_MASK) | __WAIT_STATUS_EXITED;
     myproc()->parent->waiting_children.push_back(w);
     myproc()->parent->childq.erase(myproc()->parent->childq.iterator_to(myproc()));
 
     release(&myproc()->parent->lock);
     myproc()->parent->cv->wake_all();
+  } else {
+    acquire(&(myproc()->lock));
   }
 
   // Jump into the scheduler, never to return.
@@ -231,12 +232,13 @@ procexit(int status)
 }
 
 proc*
-proc::alloc(void)
+proc::alloc(int tgid)
 {
   char *sp;
   proc* p;
 
-  p = new proc(xnspid->allockey());
+  int tid = xnspid->allockey();
+  p = new proc(tid, tgid == 0 ? tid : tgid);
   if (p == nullptr)
     throw_bad_alloc();
 
@@ -245,13 +247,13 @@ proc::alloc(void)
   p->mtrace_stacks.curr = -1;
 #endif
 
-  if (!xnspid->insert(p->pid, p))
+  if (!xnspid->insert(p->tid, p))
     panic("allocproc: ns_insert");
 
   // Allocate kernel stacks.
   if(!(p->qstack = (char*) kalloc("qstack", KSTACKSIZE)) ||
      !(p->kstack = (char*) kalloc("kstack", KSTACKSIZE))) {
-    if (!xnspid->remove(p->pid, &p))
+    if (!xnspid->remove(p->tid, &p))
       panic("allocproc: ns_remove");
     delete p;
     return nullptr;
@@ -325,14 +327,14 @@ proc::kill(void)
 }
 
 int
-proc::kill(int pid)
+proc::kill(int tid)
 {
   struct proc *p;
 
   // XXX The one use of lookup and it is wrong: it should return a locked
   // proc structure, or be in an RCU epoch.  Now another process can delete
   // p between lookup and kill.
-  p = xnspid->lookup(pid);
+  p = xnspid->lookup(tid);
   if (p == 0) {
     panic("kill");
     return -1;
@@ -368,7 +370,7 @@ procdumpall(void)
       name = p->name;
     
     cprintf("\n%-3d %-10s %8s %2u  %lu\n",
-            p->pid, name, state, p->cpuid, p->tsc);
+            p->tid, name, state, p->cpuid, p->tsc);
     
     if(p->get_state() == SLEEPING){
       getcallerpcs((void*)p->context->rbp, pc, NELEM(pc));
@@ -391,11 +393,12 @@ doclone(clone_flags flags)
   // cprintf("%d: fork\n", myproc()->pid);
 
   // Allocate process.
-  if((np = proc::alloc()) == 0)
+  int tgid = flags & WARD_CLONE_THREAD ? myproc()->tgid : 0;
+  if((np = proc::alloc(tgid)) == 0)
     return nullptr;
 
   auto proc_cleanup = scoped_cleanup([&np]() {
-    if (!xnspid->remove(np->pid, &np))
+    if (!xnspid->remove(np->tid, &np))
       panic("fork: ns_remove");
     delete np;
   });
@@ -432,9 +435,12 @@ doclone(clone_flags flags)
 
   np->cwd = myproc()->cwd;
   safestrcpy(np->name, myproc()->name, sizeof(myproc()->name));
-  acquire(&myproc()->lock);
-  myproc()->childq.push_back(np);
-  release(&myproc()->lock);
+
+  if (!(flags & WARD_CLONE_THREAD)) {
+    acquire(&myproc()->lock);
+    myproc()->childq.push_back(np);
+    release(&myproc()->lock);
+  }
 
   np->cpuid = mycpu()->id;
   if (!(flags & WARD_CLONE_NO_RUN)) {
@@ -451,7 +457,7 @@ void
 finishproc(struct proc *p)
 {
   p->vmap.reset();
-  if (!xnspid->remove(p->pid, &p))
+  if (!xnspid->remove(p->tid, &p))
     panic("finishproc: ns_remove");
   if (p->kstack)
     kfree(p->kstack, KSTACKSIZE);
@@ -513,7 +519,7 @@ threadalloc(void (*fn)(void *), void *arg)
     return 0;
 
   auto proc_cleanup = scoped_cleanup([&p]() {
-    if (!xnspid->remove(p->pid, &p))
+    if (!xnspid->remove(p->tid, &p))
       panic("fork: ns_remove");
     delete p;
   });
@@ -560,15 +566,15 @@ threadpin(void (*fn)(void*), void *arg, const char *name, int cpu)
 }
 
 bool
-proc::deliver_signal(int pid, int signo)
+proc::deliver_signal(int pid, int tid, int signo)
 {
   struct proc *p;
 
   // XXX The one use of lookup and it is wrong: it should return a locked
   // proc structure, or be in an RCU epoch.  Now another process can delete
   // p between lookup and kill.
-  p = xnspid->lookup(pid);
-  return p && p->deliver_signal(signo);
+  p = xnspid->lookup(tid);
+  return p && p->tgid == pid && p->deliver_signal(signo);
 }
 
 bool

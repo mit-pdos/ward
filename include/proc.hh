@@ -89,13 +89,14 @@ struct pproc {
   bool cpu_pin = false;
   ilink<pproc> cv_waiters;      // Linked list of processes waiting for oncv
   ilink<pproc> cv_sleep;        // Linked list of processes sleeping on a cv
-  const int pid;             // Process ID
+  const int tgid;               // Process ID
+  const int tid;                // Thread ID
 
 private:
   procstate_t state_ = EMBRYO;
 public:
 
-  pproc(proc* p_, int pid_) : p(p_), pid(pid_) {}
+  pproc(proc* p_, int tid_, int tgid_) : p(p_), tid(tid_), tgid(tgid_) {}
   procstate_t get_state(void) const { return state_; }
   void set_state(procstate_t s);
   bool cansteal() {
@@ -133,7 +134,8 @@ struct proc {
   sref<vnode> cwd;             // Current directory
   sref<filetable> ftable;      // File descriptor table
 
-  const int& pid = p->pid;
+  const int& tgid = p->tgid;
+  const int& tid = p->tid;
   spinlock& lock = p->lock;
   condvar*& oncv = p->oncv;
   u64& cv_wakeup = p->cv_wakeup;
@@ -188,7 +190,7 @@ public:
   u32 blocked_signals;
   u32 pending_signals;
 
-  static proc* alloc();
+  static proc* alloc(int tgid = 0);
   void         init_vmap();
   procstate_t  get_state(void) const { return state_; }
   void         set_state(procstate_t s) { p->set_state(s); }
@@ -198,13 +200,13 @@ public:
 
   static u64   hash(const u32& p);
 
-  static bool deliver_signal(int pid, int signo);
+  static bool deliver_signal(int pid, int tid, int signo);
   bool deliver_signal(int signo);
 
   NEW_DELETE_OPS(proc);
 
 private:
-  proc(int npid);
+  proc(int tid, int tgid);
   proc& operator=(const proc&) = delete;
   proc(const proc& x) = delete;
 } __page_align__;

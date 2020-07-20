@@ -10,6 +10,8 @@
 #include "errno.h"
 #include "nospec-branch.hh"
 
+#define KERNEL_STRACE_UNKNOWN 0
+
 extern "C" int __uaccess_mem(void* dst, const void* src, u64 size);
 extern "C" int __uaccess_str(char* dst, const char* src, u64 size);
 extern "C" uptr __uaccess_strend(uptr src, u64 limit);
@@ -144,28 +146,28 @@ syscall(u64 a0, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 num)
           if (strcmp(myproc()->name, STRACE_BINARY_NAME) == 0) {
             if (myproc()->syscall_param_string[0]) {
               cprintf("\033[33m%d %s: %s(%s) = %lx\033[0m\n",
-                      myproc()->pid, myproc()->name, syscall_names[num], myproc()->syscall_param_string, r);
+                      myproc()->tid, myproc()->name, syscall_names[num], myproc()->syscall_param_string, r);
             } else {
               cprintf("\033[33m%d %s: %s(%lx, %lx, %lx, %lx) = %lx\033[0m\n",
-                      myproc()->pid, myproc()->name, syscall_names[num], a0, a1, a2, a3, r);
+                      myproc()->tid, myproc()->name, syscall_names[num], a0, a1, a2, a3, r);
             }
           }
 #endif
           return r;
         }
       }
-#if KERNEL_STRACE_UNKOWN
+#if KERNEL_STRACE_UNKNOWN
       if (num < nsyscalls && syscall_names[num])
         cprintf("\033[31m%d %s: unknown sys call %s(%lx, %lx, %lx, %lx)\033[0m\n",
-                myproc()->pid, myproc()->name, syscall_names[num], a0, a1, a2, a3);
+                myproc()->tid, myproc()->name, syscall_names[num], a0, a1, a2, a3);
       else
         cprintf("\033[31m%d %s: unknown sys call %ld\033[0m\n",
-                myproc()->pid, myproc()->name, num);
+                myproc()->tid, myproc()->name, num);
 #endif
       return -ENOSYS;
 #if EXCEPTIONS
     } catch (std::bad_alloc& e) {
-      cprintf("%d: syscall retry\n", myproc()->pid);
+      cprintf("%d: syscall retry\n", myproc()->tid);
       gc_wakeup();
       yield();
     } catch (kill_exception &e) {

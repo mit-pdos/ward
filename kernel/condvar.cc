@@ -153,11 +153,11 @@ void
 condvar::wake_one(pproc *p)
 {
   if (p->get_state() != SLEEPING && p->get_state() != IDLING)
-    panic("condvar::wake_all: pid %u name %s state %u",
-          p->pid, p->p->name, p->get_state());
+    panic("condvar::wake_all: tid %u name %s state %u",
+          p->tid, p->p->name, p->get_state());
   if (p->oncv != this)
-    panic("condvar::wake_all: pid %u name %s p->cv %p cv %p",
-          p->pid, p->p->name, p->oncv, this);
+    panic("condvar::wake_all: tid %u name %s p->cv %p cv %p",
+          p->tid, p->p->name, p->oncv, this);
   if (p->cv_wakeup) {
     scoped_acquire s_l(&sleepers_lock);
     auto it = sleepers.iterator_to(p);

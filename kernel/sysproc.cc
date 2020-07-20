@@ -35,7 +35,7 @@ sys_fork_flags(int flags)
   proc *p = doclone(cflags);
   if (!p)
     return -1;
-  return p->pid;
+  return p->tid;
 }
 
 //SYSCALL
@@ -57,10 +57,6 @@ long sys_clone(unsigned long flags, uintptr_t stack, userptr<int> parent_tid, ui
   // CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND |
   // CLONE_PARENT_SETTID | CLONE_CHILD_CLEARTID | CLONE_SETTLS | CLONE_THREAD
 
-  if (flags & CLONE_THREAD) {
-    // TODO: Actually handle thread groups (i.e. TIDs and TGIDs)
-  }
-
   if (flags & CLONE_SIGHAND) {
     // TODO
   }
@@ -74,6 +70,8 @@ long sys_clone(unsigned long flags, uintptr_t stack, userptr<int> parent_tid, ui
     cflags |= WARD_CLONE_SHARE_VMAP;
   if (flags & CLONE_FILES)
     cflags |= WARD_CLONE_SHARE_FTABLE;
+  if (flags & CLONE_THREAD)
+    cflags |= WARD_CLONE_THREAD;
 
   proc *p = doclone(cflags | WARD_CLONE_NO_RUN);
   if (!p)
@@ -87,11 +85,11 @@ long sys_clone(unsigned long flags, uintptr_t stack, userptr<int> parent_tid, ui
 
   if (flags & CLONE_CHILD_SETTID) {
     static_assert(sizeof(int) == sizeof(pid_t), "'pid_t' is not 'int'");
-    if(p->vmap->safe_write(child_tid, (char*)&p->pid, sizeof(int)) < sizeof(int))
+    if(p->vmap->safe_write(child_tid, (char*)&p->tid, sizeof(int)) < sizeof(int))
       return -EFAULT;
   }
 
-  if (flags & CLONE_PARENT_SETTID && !parent_tid.store((int*)&p->pid))
+  if (flags & CLONE_PARENT_SETTID && !parent_tid.store((int*)&p->tid))
     return -EFAULT;
 
   if (flags & CLONE_CHILD_CLEARTID)
@@ -101,7 +99,7 @@ long sys_clone(unsigned long flags, uintptr_t stack, userptr<int> parent_tid, ui
   addrun(p);
   release(&p->lock);
 
-  return p->pid;
+  return p->tid;
 }
 
 //SYSCALL {"noret":true}
@@ -110,7 +108,7 @@ sys_exit(int status)
 {
 #if KERNEL_STRACE
   if (strcmp(myproc()->name, STRACE_BINARY_NAME) == 0) {
-    cprintf("\033[33m%d %s: exit(%d)\033[0m\n", myproc()->pid, myproc()->name, status);
+    cprintf("\033[33m%d %s: exit(%d)\033[0m\n", myproc()->tid, myproc()->name, status);
   }
 #endif
 
@@ -153,6 +151,7 @@ sys_wait4(pid_t pid, userptr<int> wstatus, int options, void* rusage)
 long
 sys_kill(int pid)
 {
+  // TODO: handle pid/tid
   return proc::kill(pid);
 }
 
@@ -160,14 +159,14 @@ sys_kill(int pid)
 pid_t
 sys_getpid(void)
 {
-  return myproc()->pid;
+  return myproc()->tgid;
 }
 
 //SYSCALL
 long
 sys_gettid(void)
 {
-  return myproc()->pid;
+  return myproc()->tid;
 }
 
 //SYSCALL
@@ -374,9 +373,9 @@ sys_setaffinity(int cpu)
 
 //SYSCALL
 long
-sys_sched_getaffinity(pid_t pid, size_t cpusetsize, userptr<char> mask)
+sys_sched_getaffinity(pid_t tid, size_t cpusetsize, userptr<char> mask)
 {
-  if (pid != 0 && pid != myproc()->pid)
+  if (tid != 0 && tid != myproc()->tid)
     return -EINVAL;
 
   u8 mask_copy[(NCPU+7) / 8] = { 0 };
@@ -398,9 +397,9 @@ sys_sched_getaffinity(pid_t pid, size_t cpusetsize, userptr<char> mask)
 
 //SYSCALL
 long
-sys_sched_setaffinity(pid_t pid, size_t cpusetsize, userptr<char> mask)
+sys_sched_setaffinity(pid_t tid, size_t cpusetsize, userptr<char> mask)
 {
-  if (pid != 0 && pid != myproc()->pid)
+  if (tid != 0 && tid != myproc()->tid)
     return -EINVAL;
 
   u8 mask_copy[(NCPU+7) / 8] = { 0 };
@@ -658,12 +657,13 @@ sys_sigprocmask(int how, userptr<u32> set, userptr<u32> oldset)
 
 //SYSCALL
 long
-sig_tgkill(int pid, int tid, int sig)
+sys_tgkill(int pid, int tid, int sig)
 {
   if (pid != tid)
     return -1;
 
-  proc::deliver_signal(pid, sig);
+  // TODO: report error if args are invalid.
+  proc::deliver_signal(pid, pid, sig);
   return 0;
 }
 

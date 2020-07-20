@@ -180,7 +180,7 @@ sref<vmap>
 vmap::copy()
 {
   if (SDEBUG)
-    sdebug.println("vm: copy pid ", myproc()->pid);
+    sdebug.println("vm: copy tid ", myproc()->tid);
 
   sref<vmap> nm = alloc();
   tlb_shootdown shootdown;
@@ -490,7 +490,7 @@ vmap::pagefault(uptr va, u32 err)
       return -1;
     if (SDEBUG)
       sdebug.println("vm: pagefault err ", shex(err), " va ", shex(va),
-                     " desc ", *it, " pid ", myproc()->pid);
+                     " desc ", *it, " tid ", myproc()->tid);
 
     auto &desc = *it;
     // Check for write protection violation
@@ -550,7 +550,7 @@ pagefault(vmap *vmap, uptr va, u32 err)
       return vmap->pagefault(va, err);
 #if EXCEPTIONS
     } catch (std::bad_alloc& e) {
-      cprintf("%d: pagefault retry\n", myproc()->pid);
+      cprintf("%d: pagefault retry\n", myproc()->tid);
       gc_wakeup();
       yield();
     }
@@ -598,7 +598,7 @@ pagelookup(vmap* vmap, uptr va)
       return vmap->pagelookup(va);
 #if EXCEPTIONS
     } catch (std::bad_alloc& e) {
-      cprintf("%d: pagelookup retry\n", myproc()->pid);
+      cprintf("%d: pagelookup retry\n", myproc()->tid);
       gc_wakeup();
       yield();
     }
@@ -680,7 +680,7 @@ uptr
 vmap::brk(uptr newaddr)
 {
   if (SDEBUG)
-    sdebug.println("vm: brk(", newaddr, ") pid ", myproc()->pid);
+    sdebug.println("vm: brk(", newaddr, ") tid ", myproc()->tid);
 
   scoped_acquire xlock(&brklock_);
 
@@ -698,7 +698,7 @@ int
 vmap::sbrk(ssize_t n, uptr *addr)
 {
   if (SDEBUG)
-    sdebug.println("vm: sbrk(", n, ") pid ", myproc()->pid);
+    sdebug.println("vm: sbrk(", n, ") tid ", myproc()->tid);
 
   scoped_acquire xlock(&brklock_);
 
