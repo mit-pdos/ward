@@ -93,7 +93,8 @@ AcpiOsAllocate(ACPI_SIZE size)
   uint8_t *base;
   ACPI_SIZE alloc_size = size + ALLOC_HDR;
 
-  base = (uint8_t*)kmalloc(alloc_size, "(acpi)");
+  extern void* kmalloc_untracked(u64, const char*);
+  base = (uint8_t*)kmalloc_untracked(alloc_size, "(acpi)");
   if (!base)
     return nullptr;
 
@@ -105,9 +106,10 @@ AcpiOsAllocate(ACPI_SIZE size)
 void
 AcpiOsFree(void *ptr)
 {
+  extern void* kmfree_untracked(void*, u64);
   uint8_t *base = (uint8_t*)ptr - ALLOC_HDR;
   ACPI_SIZE alloc_size = *(ACPI_SIZE*)base;
-  kmfree(base, alloc_size);
+  kmfree_untracked(base, alloc_size);
 }
 
 // Multithreading

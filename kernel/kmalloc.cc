@@ -74,9 +74,9 @@ class freelist {
   }
 
 public:
-  void* alloc(size_t nbytes, const char *name) {
+  void* alloc(size_t nbytes, const char *name, bool untracked = false) {
     void *p;
-    uint64_t mbytes = alloc_debug_info::expand_size(nbytes);
+    uint64_t mbytes = untracked ? nbytes : alloc_debug_info::expand_size(nbytes);
 
     if (mbytes > PGSIZE / 2) {
       // Full page allocation
@@ -85,7 +85,7 @@ public:
       // Sub-page allocation
       header* h;
 
-      size_t b = bucket(nbytes);
+      size_t b = bucket(mbytes);
       for (;;) {
         auto headptr = buckets[b].load();
         h = headptr.ptr();
@@ -118,35 +118,38 @@ public:
     }
 
     if (p) {
-      // // Update debug_info
-      // alloc_debug_info *adi = alloc_debug_info::of(p, nbytes);
-      // if (KERNEL_HEAP_PROFILE) {
-      //   auto alloc_rip = __builtin_return_address(0);
-      //   if (heap_profile_update(HEAP_PROFILE_KMALLOC, alloc_rip, nbytes))
-      //     adi->set_alloc_rip(HEAP_PROFILE_KMALLOC, alloc_rip);
-      //   else
-      //     adi->set_alloc_rip(HEAP_PROFILE_KMALLOC, nullptr);
-      // }
+      // Update debug_info
+      if (KERNEL_HEAP_PROFILE && !untracked) {
+        alloc_debug_info *adi = alloc_debug_info::of(p, nbytes);
+        auto alloc_rip = __builtin_return_address(0);
+        if (heap_profile_update(HEAP_PROFILE_KMALLOC, alloc_rip,
+                                round_up_to_pow2(mbytes)))
+          adi->set_alloc_rip(HEAP_PROFILE_KMALLOC, alloc_rip);
+        else
+          adi->set_alloc_rip(HEAP_PROFILE_KMALLOC, nullptr);
+      }
     }
 
     return p;
   }
 
-  void free(void *p, u64 nbytes) {
-    // // Update debug_info
-    // alloc_debug_info *adi = alloc_debug_info::of(p, nbytes);
-    // if (KERNEL_HEAP_PROFILE) {
-    //   auto alloc_rip = adi->alloc_rip(HEAP_PROFILE_KMALLOC);
-    //   if (alloc_rip)
-    //     heap_profile_update(HEAP_PROFILE_KMALLOC, alloc_rip, -nbytes);
-    // }
+  void free(void *p, u64 nbytes, bool untracked = false) {
+    // Update debug_info
+    uint64_t mbytes = untracked ? nbytes : alloc_debug_info::expand_size(nbytes);
+    if (KERNEL_HEAP_PROFILE && !untracked) {
+      alloc_debug_info *adi = alloc_debug_info::of(p, nbytes);
+      auto alloc_rip = adi->alloc_rip(HEAP_PROFILE_KMALLOC);
+      if (alloc_rip)
+        heap_profile_update(HEAP_PROFILE_KMALLOC, alloc_rip,
+                            -round_up_to_pow2(mbytes));
+    }
 
-    if (nbytes > PGSIZE / 2) {
+    if (mbytes > PGSIZE / 2) {
       // Free full page allocation
-      allocator.deallocate((char*)p, round_up_to_pow2(nbytes));
+      allocator.deallocate((char*)p, round_up_to_pow2(mbytes));
     } else {
       header* h = (header*)p;
-      int b = bucket(nbytes);
+      int b = bucket(mbytes);
 
       if (ALLOC_MEMSET)
         memset(p, 3, (1<<b));
@@ -173,6 +176,13 @@ kminit(void)
     freelists[c].name[0] = (char) c + '0';
     safestrcpy(freelists[c].name+1, "freelist", MAXNAME-1);
   }
+}
+
+void* kmalloc_untracked(u64 nbytes, const char *name) {
+  return freelists[mycpu()->id].alloc(nbytes, name, true);
+}
+void kmfree_untracked(void *p, u64 nbytes) {
+  freelists[mycpu()->id].free(p, nbytes, true);
 }
 
 void* kmalloc(u64 nbytes, const char *name) {
@@ -210,7 +220,7 @@ alloc_debug_info::expand_size(size_t size)
       // We can't just return size because that would cause a
       // sub-page allocation, so make it just big enough to force a
       // full page allocation.
-      return PGSIZE / 2;
+      return PGSIZE / 2 + 1;
     return size;
   }
   // Sub-page allocations store the alloc_debug_info at the end
