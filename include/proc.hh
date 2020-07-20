@@ -89,7 +89,7 @@ struct pproc {
   bool cpu_pin = false;
   ilink<pproc> cv_waiters;      // Linked list of processes waiting for oncv
   ilink<pproc> cv_sleep;        // Linked list of processes sleeping on a cv
-  volatile int pid;             // Process ID
+  const int pid;             // Process ID
 
 private:
   procstate_t state_ = EMBRYO;
@@ -133,7 +133,7 @@ struct proc {
   sref<vnode> cwd;             // Current directory
   sref<filetable> ftable;      // File descriptor table
 
-  volatile int& pid = p->pid;
+  const int& pid = p->pid;
   spinlock& lock = p->lock;
   condvar*& oncv = p->oncv;
   u64& cv_wakeup = p->cv_wakeup;
