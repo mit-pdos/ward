@@ -1240,6 +1240,7 @@ char* zalloc(const char* name) {
   scoped_cli cli;
   auto mem = mycpu()->mem;
   if (mem->nzero == 0) {
+    ensure_secrets();
     while (mem->nzero < KALLOC_ZERO_PAGES / 2) {
       void *page = kalloc("zalloc", PGSIZE);
       if (!page) {
