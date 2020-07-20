@@ -19,10 +19,6 @@ EXCEPTIONS ?= y
 RUN        ?= $(empty)
 # Python binary
 PYTHON     ?= python3
-# Directory containing mtrace-magic.h for HW=mtrace
-MTRACESRC  ?= ../mtrace
-# Mtrace-enabled QEMU binary
-MTRACE     ?= $(MTRACESRC)/x86_64-softmmu/qemu-system-x86_64
 # Output directory
 O           = o.$(HW)
 

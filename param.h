@@ -65,9 +65,6 @@
 #if defined(HW_qemu)
 #define MEMIDE        1
 #define AHCIIDE       1
-#elif defined(HW_mtrace)
-#define MTRACE        1
-#define QUANTUM       100
 #elif defined(HW_codex)
 #define CODEX         1
 
@@ -92,10 +89,6 @@
 // Linux user-space targets (no kernel, so most options aren't set)
 //
 #elif defined(HW_linux)
-#define MTRACE        0
-#elif defined(HW_linuxmtrace)
-#define NCPU          256
-#define MTRACE        1
 #else
 #error "Unknown HW"
 #endif
@@ -105,9 +98,6 @@
 #endif
 #ifndef CODEX
 #define CODEX 0
-#endif
-#ifndef MTRACE
-#define MTRACE 0
 #endif
 #ifndef E1000_PORT
 // Use E1000 port 0 by default

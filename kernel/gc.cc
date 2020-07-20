@@ -9,7 +9,6 @@
 #include "spercpu.hh"
 #include "gc.hh"
 #include "major.h"
-#include "mtrace.h"
 #include "file.hh"
 #include "uk/gcstat.h"
 
@@ -324,8 +323,6 @@ initgc(void)
 void
 gc_delayed(rcu_freed *e)
 {
-  mtgcdead(e);
-
 #if RCU_TYPE_DEBUG
   if (e->_rcu_next)
     panic("double gc_delayed(%p) (of type %s)", e, e->_rcu_type);
@@ -372,8 +369,6 @@ gc_begin_epoch(void)
   // We effectively need an mfence here, and cmpxch provides one
   // by virtue of being a LOCK instuction.
   gs->enqueue(myproc()->gc);
-
-  mtrcubegin();
 }
 
 void
@@ -391,7 +386,6 @@ gc_end_epoch(void)
 
   scoped_acquire x(&gs->lock_);
 
-  mtrcuend();
   gc_states[c].dequeue(myproc()->gc);
   myproc()->gc->core = -1;
 

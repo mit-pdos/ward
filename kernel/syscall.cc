@@ -6,7 +6,6 @@
 #include "proc.hh"
 #include "amd64.h"
 #include "cpu.hh"
-#include "kmtrace.hh"
 #include "errno.h"
 #include "nospec-branch.hh"
 
@@ -130,18 +129,10 @@ syscall(u64 a0, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 num)
       if(num < nsyscalls) {
         auto fn = syscalls[array_index_nospec(num, nsyscalls)];
         if (fn) {
-          u64 r;
-          mtstart(fn, myproc());
-          mtrec();
 #if KERNEL_STRACE
           myproc()->syscall_param_string[0] = '\0';
 #endif
-          {
-            mt_ascope ascope("syscall:%ld", num);
-            r = fn(a0, a1, a2, a3, a4, a5);
-          }
-          mtstop(myproc());
-          mtign();
+          u64 r = fn(a0, a1, a2, a3, a4, a5);
 #if KERNEL_STRACE
           if (strcmp(myproc()->name, STRACE_BINARY_NAME) == 0) {
             if (myproc()->syscall_param_string[0]) {

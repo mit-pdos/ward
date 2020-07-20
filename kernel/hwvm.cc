@@ -616,7 +616,6 @@ vmalloc_raw(size_t bytes, size_t guard, const char *name)
       throw_bad_alloc();
     *it.create(0) = v2p(page) | PTE_P | PTE_W;
   }
-  mtlabel(mtrace_label_heap, (void*)base, bytes, name, strlen(name));
 
   return (void*)base;
 }
@@ -637,7 +636,6 @@ vmalloc_free(void *ptr)
     kfree(p2v(PTE_ADDR(*it)));
     *it = 0;
   }
-  mtunlabel(mtrace_label_heap, ptr);
 
   // XXX Should release unused page table pages.  This requires a
   // global TLB shootdown, so we should only do it in large-ish

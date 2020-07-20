@@ -7,7 +7,6 @@
 #include "spinlock.hh"
 #include "condvar.hh"
 #include "proc.hh"
-#include "kmtrace.hh"
 #include "bits.hh"
 #include "kalloc.hh"
 #include "apic.hh"
@@ -87,7 +86,6 @@ u64
 sysentry_c(u64 a0, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 num)
 {
   if(myproc()->killed) {
-    mtstart(trap, myproc());
     procexit(-1);
   }
 
@@ -96,7 +94,6 @@ sysentry_c(u64 a0, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 num)
   u64 r = syscall(a0, a1, a2, a3, a4, a5, num);
 
   if(myproc()->killed) {
-    mtstart(trap, myproc());
     procexit(-1);
   }
 
@@ -230,20 +227,7 @@ dblfltentry_c(struct trapframe *tf)
 extern "C" void
 trap_c(struct trapframe *tf, bool had_secrets)
 {
-#if MTRACE
-  if (myproc()->mtrace_stacks.curr >= 0)
-    mtpause(myproc());
-  mtstart(trap, myproc());
-  // XXX mt_ascope ascope("trap:%d", tf->trapno);
-#endif
-
   trap(tf, had_secrets);
-
-#if MTRACE
-  mtstop(myproc());
-  if (myproc()->mtrace_stacks.curr >= 0)
-    mtresume(myproc());
-#endif
 }
 
 static void

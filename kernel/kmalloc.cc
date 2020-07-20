@@ -7,7 +7,6 @@
 #include "kernel.hh"
 #include "spinlock.hh"
 #include "kalloc.hh"
-#include "mtrace.h"
 #include "cpu.hh"
 #include "kstream.hh"
 #include "log2.hh"
@@ -128,7 +127,6 @@ public:
       //   else
       //     adi->set_alloc_rip(HEAP_PROFILE_KMALLOC, nullptr);
       // }
-      // mtlabel(mtrace_label_heap, (void*) p, nbytes, name, strlen(name));
     }
 
     return p;
@@ -178,14 +176,9 @@ kminit(void)
 }
 
 void* kmalloc(u64 nbytes, const char *name) {
-  void* p = freelists[mycpu()->id].alloc(nbytes, name);
-  if (p) {
-    mtlabel(mtrace_label_heap, (void*) h, nbytes, name, strlen(name));
-  }
-  return p;
+  return freelists[mycpu()->id].alloc(nbytes, name);
 }
 void kmfree(void *p, u64 nbytes) {
-  mtunlabel(mtrace_label_heap, p);
   freelists[mycpu()->id].free(p, nbytes);
 }
 

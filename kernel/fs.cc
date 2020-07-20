@@ -37,7 +37,6 @@
 #include "buf.hh"
 #include "file.hh"
 #include "cpu.hh"
-#include "kmtrace.hh"
 #include "dirns.hh"
 #include "kstream.hh"
 #include "lb.hh"
@@ -1093,7 +1092,6 @@ namex(sref<inode> cwd, const char *path, bool nameiparent, char *name)
     // Maybe this should return the set of inodes traversed and let
     // the caller declare the variables?  Would it help for the caller
     // to pass in an abstract scope?
-    mtreadavar("inode:%x.%x", ip->dev, ip->inum);
     if(ip->type == 0)
       panic("namex");
     if(ip->type != T_DIR)

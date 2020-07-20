@@ -10,7 +10,6 @@
 #include "vm.hh"
 #include "elf.hh"
 #include "cpu.hh"
-#include "kmtrace.hh"
 #include "filetable.hh"
 
 static int

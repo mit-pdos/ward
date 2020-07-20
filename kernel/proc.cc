@@ -7,7 +7,6 @@
 #include "proc.hh"
 #include "cpu.hh"
 #include "bits.hh"
-#include "kmtrace.hh"
 #include "kalloc.hh"
 #include "vm.hh"
 #include "ns.hh"
@@ -27,10 +26,6 @@ xns<u32, proc*, proc::hash> *xnspid __mpalign__;
 struct proc *bootproc __mpalign__;
 
 extern char fpu_initial_state[XSAVE_BYTES];
-
-#if MTRACE
-struct kstack_tag kstack_tag[NCPU];
-#endif
 
 enum { sched_debug = 0 };
 
@@ -137,9 +132,7 @@ forkret(void)
   // b/c file system code needs a process context
   // in which to call condvar::sleep().
   if(myproc()->cwd == nullptr) {
-    mtstart(forkret, myproc());
     myproc()->cwd = vfs_root()->root();
-    mtstop(myproc());
   }
 
   // Return to "caller", actually trapret (see allocproc).
@@ -243,9 +236,6 @@ proc::alloc(int tgid)
     throw_bad_alloc();
 
   p->cpuid = mycpu()->id;
-#if MTRACE
-  p->mtrace_stacks.curr = -1;
-#endif
 
   if (!xnspid->insert(p->tid, p))
     panic("allocproc: ns_insert");
@@ -504,7 +494,6 @@ void
 threadhelper(void (*fn)(void *), void *arg)
 {
   post_swtch();
-  mtstart(fn, myproc());
   fn(arg);
   procexit(0);
 }

@@ -6,7 +6,6 @@
 #include "cpu.hh"
 #include "bits.hh"
 #include "spinlock.hh"
-#include "mtrace.h"
 #include "condvar.hh"
 #include "fs.h"
 #include "file.hh"
@@ -61,15 +60,11 @@ locking(struct spinlock *lk)
     mylockstat(lk)->locking_ts = rdtsc();
   }
 #endif
-
-  mtlock(lk);
 }
 
 static inline void
 locked(struct spinlock *lk, u64 retries)
 {
-  mtacquired(lk);
-
 #if SPINLOCK_DEBUG
   // Record info about lock acquisition for debugging.
   lk->cpu = mycpu();
@@ -96,8 +91,6 @@ releasing(struct spinlock *lk)
     panic("release");
   }
 #endif
-
-  mtunlock(lk);
 
 #if SPINLOCK_DEBUG
   lk->pcs[0] = 0;

@@ -6,7 +6,6 @@
 #include "proc.hh"
 #include "cpu.hh"
 #include "spercpu.hh"
-#include "kmtrace.hh"
 #include "bits.hh"
 #include "codex.hh"
 #include "benchcodex.hh"
@@ -33,8 +32,6 @@ idleproc(void)
 void
 idleloop(void)
 {
-  mtstart(idleloop, myproc());
-
   sti();
   for (;;) {
     acquire(&myproc()->lock);

@@ -2,7 +2,6 @@
 
 #include <atomic>
 #include "cpputil.hh"
-#include "mtrace.h"
 
 using std::atomic;
 
@@ -30,7 +29,6 @@ class rcu_freed {
     : _rcu_next(nullptr), _rcu_type(debug_type)
 #endif
   {
-    mtgcregister(objbase, objsize, debug_type);
   }
 
   virtual void do_gc(void) = 0;

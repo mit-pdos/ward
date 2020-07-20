@@ -48,19 +48,6 @@ struct context {
   u64 rip;
 } __attribute__((packed));
 
-// Per-process, per-stack meta data for mtrace
-#if MTRACE
-#define MTRACE_NSTACKS 16
-#define MTRACE_TAGSHIFT 24
-#if NCPU > 256
-#error Oops -- decrease MTRACE_TAGSHIFT
-#endif
-struct mtrace_stacks {
-  int curr;
-  unsigned long tag[MTRACE_NSTACKS];
-};
-#endif
-
 struct waitstub {
   ilink<waitstub> next;
   int pid;
@@ -172,9 +159,6 @@ public:
   __page_pad__;
 
   char lockname[16];
-#if MTRACE
-  struct mtrace_stacks mtrace_stacks;
-#endif
   u64 unmap_tlbreq_;
   int data_cpuid;              // Where vmap and kstack is likely to be cached
   int run_cpuid_;

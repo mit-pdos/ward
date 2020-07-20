@@ -8,7 +8,6 @@
 #include "proc.hh"
 #include "cpu.hh"
 #include "spercpu.hh"
-#include "kmtrace.hh"
 #include "vm.hh"
 #include "hash.hh"
 

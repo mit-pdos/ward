@@ -7,7 +7,6 @@
 #include "proc.hh"
 #include "cpu.hh"
 #include "vm.hh"
-#include "kmtrace.hh"
 #include "futex.hh"
 #include "version.hh"
 #include "filetable.hh"

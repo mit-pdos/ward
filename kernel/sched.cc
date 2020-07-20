@@ -7,7 +7,6 @@
 #include "proc.hh"
 #include "cpu.hh"
 #include "bits.hh"
-#include "kmtrace.hh"
 #include "vm.hh"
 #include "major.h"
 #include "rnd.hh"
@@ -227,12 +226,6 @@ public:
       schedule_[mycpu()->id]->stats_.busy += t - schedule_[mycpu()->id]->stats_.schedstart;
     schedule_[mycpu()->id]->stats_.schedstart = t;
 
-    if (prev->get_state() == ZOMBIE)
-      mtstop(prev);
-    else
-      mtpause(prev);
-    mtign();
-
     if(cpuid::features().xsaveopt) {
       xsaveopt(prev->fpu_state, -1);
     } else {
@@ -289,11 +282,6 @@ public:
       panic("non-RUNNABLE next %s %u", next->name, next->get_state());
     next->set_state(RUNNING);
     next->tsc = rdtsc();
-
-    if (next->context->rip != (uptr)threadstub && next->context->rip != (uptr)forkret) {
-      mtresume(next);
-    }
-    mtrec();
 
     xrstor(next->fpu_state, -1);
 

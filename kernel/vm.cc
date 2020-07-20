@@ -11,7 +11,6 @@
 #include "vm.hh"
 #include "gc.hh"
 #include "cpputil.hh"
-#include "kmtrace.hh"
 #include "kstream.hh"
 #include "page_info.hh"
 #include <algorithm>
@@ -538,10 +537,6 @@ vmap::pagefault(uptr va, u32 err)
 int
 pagefault(vmap *vmap, uptr va, u32 err)
 {
-#if MTRACE
-  mt_ascope ascope("%s(%p,%#lx)", __func__, vmap, va);
-  mtwriteavar("pte:%p.%#lx", vmap, va / PGSIZE);
-#endif
 
   for (;;) {
 #if EXCEPTIONS
@@ -586,11 +581,6 @@ vmap::pagelookup(uptr va)
 void*
 pagelookup(vmap* vmap, uptr va)
 {
-#if MTRACE
-  mt_ascope ascope("%s(%#lx)", __func__, va);
-  mtwriteavar("pte:%p.%#lx", vmap, va / PGSIZE);
-#endif
-
   for (;;) {
 #if EXCEPTIONS
     try {

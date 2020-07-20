@@ -8,7 +8,6 @@
 #include "kernel.hh"
 #include "spinlock.hh"
 #include "kalloc.hh"
-#include "mtrace.h"
 #include "cpu.hh"
 #include "multiboot.hh"
 #include "page_info.hh"
@@ -359,7 +358,6 @@ struct memory {
       }
       if (!name)
         name = "kmem";
-      mtlabel(mtrace_label_block, res, size, name, strlen(name));
       return (char*)res;
     } else {
       cprintf("kalloc: out of memory\n");
@@ -397,9 +395,6 @@ struct memory {
     // Fill with junk to catch dangling refs.
     if (ALLOC_MEMSET && kinited)
       memset(v, 1, size);
-
-    if (kinited)
-      mtunlabel(mtrace_label_block, v);
 
     if (size == PGSIZE) {
       // Free to the hot list
@@ -782,7 +777,6 @@ kalloc(const char *name, size_t size)
         adi->set_alloc_rip(HEAP_PROFILE_KALLOC, nullptr);
     }
 
-    mtlabel(mtrace_label_block, res, size, name, strlen(name));
     return (char*)res;
   } else {
     cprintf("kalloc: out of memory\n");
@@ -1145,9 +1139,6 @@ kfree(void *v, size_t size)
   // Fill with junk to catch dangling refs.
   if (ALLOC_MEMSET && kinited)
     memset(v, 1, size);
-
-  if (kinited)
-    mtunlabel(mtrace_label_block, v);
 
   // Update debug_info
   alloc_debug_info *adi = alloc_debug_info::of(v, size);
