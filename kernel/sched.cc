@@ -260,6 +260,7 @@ public:
         release(&prev->lock);
 
         nop_pause();
+        wdpoke();
         // hlt();
         // thesched_dir.steal();
 
