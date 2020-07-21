@@ -780,6 +780,9 @@ page_map_cache::~page_map_cache()
 void
 page_map_cache::insert(uintptr_t va, pme_t pte)
 {
+  if (pte & PTE_P)
+    pte |= PTE_A | PTE_D;
+
   pml4s.user->find(va).create(PTE_U & pte, parent_, pml4s.user)->store(pte, memory_order_relaxed);
   if (va < KGLOBAL) {
     pml4s.kernel->find(va).create(PTE_U & pte, parent_, pml4s.user)->store(pte, memory_order_relaxed);
