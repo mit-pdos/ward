@@ -298,7 +298,7 @@ DEFINE_QPERCPU_NOINIT(struct cpu_mem, cpu_mem);
 
 static_vector<numa_node, MAX_NUMA_NODES> numa_nodes;
 
-void *percpu_offsets[NCPU];
+void *percpu_offsets[NCPU] __attribute__((section (".qdata")));
 
 static int kinited __mpalign__ __attribute__((section (".qdata")));
 

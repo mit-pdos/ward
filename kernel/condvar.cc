@@ -7,7 +7,7 @@
 #include "proc.hh"
 #include "cpu.hh"
 #include "hpet.hh"
-
+#include "apic.hh"
 
 // Intel 8253/8254/82C54 Programmable Interval Timer (PIT).
 // http://en.wikipedia.org/wiki/Intel_8253
@@ -39,6 +39,8 @@ wakeup(struct pproc *p)
   } else {
     assert(p->get_state() == IDLING);
     p->set_state(RUNNABLE);
+    if (p->cpu_halted && p->cpuid != mycpu()->id)
+      lapic->send_ipi(&cpus[p->cpuid], T_WAKE_CORE);
   }
 }
 

@@ -74,6 +74,7 @@ struct pproc {
   u64 curcycles = 0;
   unsigned cpuid = 0;
   bool cpu_pin = false;
+  bool cpu_halted = false;
   ilink<pproc> cv_waiters;      // Linked list of processes waiting for oncv
   ilink<pproc> cv_sleep;        // Linked list of processes sleeping on a cv
   const int tgid;               // Process ID

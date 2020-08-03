@@ -9,13 +9,13 @@
 
 static console_stream verbose(true);
 
-abstract_lapic *lapic;
+abstract_lapic *lapic __attribute__ ((section(".qdata")));
 // We don't call the static initializer for cpus because we fill it in
 // remotely before booting each CPU and the static initializer would
 // clear it.
 DEFINE_QPERCPU_NOINIT(struct cpu, cpus);
-int ncpu __mpalign__ = 0;
-int nsocket __mpalign__ = 0;
+int ncpu __mpalign__  __attribute__ ((section(".qdata"))) = 0;
+int nsocket __mpalign__  __attribute__ ((section(".qdata"))) = 0;
 abstract_extpic *extpic;
 
 bool initlapic_xapic(void);

@@ -232,6 +232,7 @@ public:
       xsave(prev->fpu_state, XSAVE_MASK);
     }
 
+    u64 idle_start = nsectime();
     while(!next) {
       pproc* pnext = schedule_[mycpu()->id]->deq();
       if (pnext) {
@@ -250,23 +251,26 @@ public:
         int old_cpuid = prev->cpuid;
         prev->cpu_pin = true;
         prev->cpuid = mycpu()->id;
+        prev->p->cpu_halted = nsectime() > idle_start + 10000000;
         release(&prev->lock);
 
-        nop_pause();
         wdpoke();
-        // hlt();
-        // thesched_dir.steal();
+        if (prev->p->cpu_halted)
+          hlt();
+        else
+          nop_pause();
 
         acquire(&prev->lock);
+        prev->p->cpu_halted = false;
         prev->cpu_pin = old_cpu_pin;
         prev->cpuid = old_cpuid;
-
         if (prev->get_state() == RUNNABLE) {
           assert(!prev->cpu_pin || prev->cpuid == mycpu()->id);
           next = prev;
         } else {
           assert(prev->get_state() == IDLING);
           prev->set_state(SLEEPING);
+          steal();
         }
       }
     }

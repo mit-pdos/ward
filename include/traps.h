@@ -28,6 +28,7 @@
 #define T_SAMPCONF      66      // configure event counters
 #define T_IPICALL       67      // Queued IPI call
 #define T_PAUSE         68      // pause cpu
+#define T_WAKE_CORE     69      // wake core halted in the scheduler
 #define T_DEFAULT      500      // catchall
 
 #define T_IRQ0          32      // IRQ 0 corresponds to int T_IRQ

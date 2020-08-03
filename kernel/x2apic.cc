@@ -348,7 +348,7 @@ initlapic_x2apic(void)
   }
 
   verbose.println("x2apic: Using x2APIC LAPIC");
-  static x2apic_lapic apic;
+  static x2apic_lapic apic __attribute__ ((section(".qdata")));
   lapic = &apic;
   return true;
 }

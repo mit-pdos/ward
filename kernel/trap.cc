@@ -319,6 +319,9 @@ trap(struct trapframe *tf, bool had_secrets)
     on_ipicall();
     break;
   }
+  case T_WAKE_CORE:
+    lapiceoi();
+    break;
   default:
     if (tf->trapno == T_ILLOP && (tf->cs&3) == 0 && tf->rip >= KTEXT && tf->rip < KTEXTEND) {
       u64 instr = *(u64*)tf->rip;

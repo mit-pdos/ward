@@ -159,8 +159,8 @@ sys_read(int fd, userptr<void> p, size_t total_bytes)
   if(f->get_vnode()) {
     if(f->get_vnode()->is_directory())
       return -EISDIR;
-  } else {
-    ensure_secrets();
+  // } else {
+  //   ensure_secrets();
   }
 
   if(total_bytes >= 1024 * 1024)
@@ -221,7 +221,7 @@ sys_write(int fd, const userptr<void> p, size_t total_bytes)
   if (!f)
     return -1;
 
-  if(total_bytes >= 1024 * 1024 /*|| !f->get_vnode()*/)
+  if(total_bytes >= 10 * 1024 /*|| !f->get_vnode()*/)
     ensure_secrets();
 
   return impl_write(std::move(f), p, total_bytes);
