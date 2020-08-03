@@ -59,6 +59,10 @@ ifeq ($(PLATFORM),xv6)
   # Assume everything includes sysstubs.h and types.h
   $(patsubst %,$(O)/bin/%.o,$(UPROGS_BIN)): $(O)/include/sysstubs.h $(O)/include/types.h
 else
+$(O)/bin/%: $(O)/bin/%.unstripped
+	@echo "  STRIP  $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(STRIP) -o $@ $<
   ALL += $(addprefix $(O)/bin/, $(UPROGS_NATIVE))
 endif
 

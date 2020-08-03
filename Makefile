@@ -64,7 +64,7 @@ COMFLAGS := $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1
 CFLAGS   := $(COMFLAGS) -std=c99
 CXXFLAGS := $(COMFLAGS) -std=c++14 -Wno-sign-compare -faligned-new -DEXCEPTIONS=1 -Wno-delete-non-virtual-dtor -nostdinc++ -ferror-limit=1000
 ASFLAGS  := $(ASFLAGS) -Iinclude -I$(O)/include -m64 -MD -MP -DHW_$(HW) -include param.h
-LDFLAGS  := -m elf_x86_64 --eh-frame-hdr
+LDFLAGS  :=
 
 ALL :=
 all:
