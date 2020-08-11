@@ -41,7 +41,7 @@
 #define LINT1   0x836   // Local Vector Table 2 (LINT1)
 #define ERROR   0x837   // Local Vector Table 3 (ERROR)
   #define MASKED     0x00010000   // Interrupt masked
-  #define MT_EXTINT  0x00000500
+  #define MT_INIT    0x00000500   // INIT message type
   #define MT_NMI     0x00000400   // NMI message type
   #define MT_FIX     0x00000000   // Fixed message type
 #define TICR    0x838   // Timer Initial Count
@@ -234,7 +234,7 @@ x2apic_lapic::cpu_init()
   value |= T_IRQ0 + IRQ_SPURIOUS;
   writemsr(SVR, value);
 
-  writemsr(LINT0, MT_EXTINT | MASKED);
+  writemsr(LINT0, MASKED);
   if (readmsr(ID) == 0)
     writemsr(LINT1, MT_NMI);
   else
