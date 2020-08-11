@@ -190,7 +190,9 @@ cmain(u64 mbmagic, u64 mbaddr)
   writemsr(MSR_FS_BASE, (u64)&text);
 
   initmultiboot(mbmagic, mbaddr);
-  inituart();
+  inithz();
+  inituart();              // Requires inithz
+
   debugmultiboot(mbmagic, mbaddr);
   initcmdline();           // Requires initmultiboot
   initvga();               // Requires initmultiboot, initcmdline
@@ -200,7 +202,6 @@ cmain(u64 mbmagic, u64 mbaddr)
   inittls(&cpus[0]);       // Requires initseg
   initdoublebuffer();      // Requires initpg
 
-  inithz();
   initacpitables();        // Requires initpg, inittls
   initlapic();             // Requires initpg, inithz
   initnuma();              // Requires initacpitables, initlapic
@@ -254,7 +255,7 @@ cmain(u64 mbmagic, u64 mbaddr)
   initnet();
   initrtc();               // Requires inithpet
   initdev();               // Misc /dev nodes
-  initide();      // IDE driver
+  initide();               // IDE driver
   initmemide();
   initpartition();
   initinode();     // inode cache
