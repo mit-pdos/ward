@@ -5,9 +5,12 @@
 #include "cmdline.hh"
 #include <cstring>
 #include "disk.hh"
+#include "kstream.hh"
 
 static static_vector<disk*, 64> disks;
 static static_vector<disk_listener, 64> listeners;
+
+static console_stream verbose(false);
 
 void
 disk_register(disk *d)
@@ -18,8 +21,7 @@ disk_register(disk *d)
     }
   }
   d->devno = disks.size();
-  cprintf("disk_register(%u): %s: %ld bytes: %s\n",
-          d->devno, d->dk_busloc, d->dk_nbytes, d->dk_model);
+  verbose.println("disk_register(", d->devno, "): ", d->dk_busloc, ": ", d->dk_nbytes, " bytes: ", d->dk_model);
   disks.push_back(d);
   // note: disk listeners MAY call disk_register again!
   // FIXME: make sure this recursion can't break anything

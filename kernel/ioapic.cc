@@ -14,7 +14,7 @@
 #include "bitset.hh"
 #include "critical.hh"
 
-static console_stream verbose(true);
+static console_stream verbose(false);
 
 #define REG_ID     0x00  // Register index: ID
 #define REG_VER    0x01  // Register index: version

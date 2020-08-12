@@ -353,7 +353,7 @@ e1000::attach(struct pci_func *pcif)
   }
   if (!model)
     panic("e1000attach: unrecognized devid %x", devid);
-  console.println("e1000: Found ", model->name);
+  verbose.println("e1000: Found ", model->name);
 
   // On dual-ported devices, PCI functions 0 and 1 are ports 0 and 1.
   if ((model->flags & MODEL_FLAG_DUAL_PORT) && pcif->func != E1000_PORT)
@@ -502,12 +502,12 @@ e1000::init_link()
   // XXX Modify CTRL_RFCE, CTRL_TFCE?
   ewr(WMREG_CTRL, ctrl);
 
-  console.println("e1000: Waiting for link to come up");
+  verbose.println("e1000: Waiting for link to come up");
   for (int i = 0; i < 50; i++) {
     u32 status = erd(WMREG_STATUS);
     u32 speed = status & STATUS_SPEED_MASK;
     if (status & STATUS_LU) {
-      console.println("e1000: Link up at ",
+      verbose.println("e1000: Link up at ",
                       speed == STATUS_SPEED_10 ? "10" :
                       speed == STATUS_SPEED_100 ? "100" : "1000",
                       " Mb/s",

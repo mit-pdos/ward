@@ -48,8 +48,9 @@ rtcread()
     // Wait for "update-in-progress" flag to be clear.
     int j;
     for (j = 0; rtcread1(0x0A) & (1<<7); ++j) {
-      if (j == 10)
+      if (j == 10) {
         return ((time_t)-1);
+      }
       microdelay(1000);
     }
     x.tm_sec = rtcread1(0, bcd);
@@ -57,23 +58,25 @@ rtcread()
     x.tm_hour = rtcread1(4, bcd, twelvehour);
     x.tm_mday = rtcread1(7, bcd);
     x.tm_mon = rtcread1(8, bcd) - 1;
-    x.tm_year = 100 + rtcread1(9, bcd);
+    x.tm_year = 2000 + rtcread1(9, bcd);
     stable = i > 0 && memcmp(&x, &y, sizeof x) == 0;
     y = x;
   }
-  if (!stable)
+  if (!stable) {
     return ((time_t)-1);
+  }
 
   // mktime expects local time
   x.tm_sec += RTC_TZ_SECS;      // To UTC
   x.tm_sec -= TZ_SECS;          // To local time
 
-  // Compute epoch time
-  time_t res;
-  //= mktime(&x);
-  // panic("rtcread");
-  res = 12;
-  return res;
+  long epoch_year = x.tm_year - 1970;
+  long month_offset[2][12] = {{0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334},
+                              {0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335}};
+
+  return x.tm_sec + x.tm_min * 60 + x.tm_hour * 3600
+    + (x.tm_mday + month_offset[x.tm_year%4 ? 0 : 1][x.tm_mon]) * 3600 * 24
+    + (epoch_year*365 + (epoch_year-3)/4) * 3600 * 24;
 }
 
 void

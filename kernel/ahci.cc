@@ -11,6 +11,9 @@
 #include "spinlock.hh"
 #include "condvar.hh"
 #include "cpu.hh"
+#include "kstream.hh"
+
+static console_stream verbose(false);
 
 enum { fis_debug = 0 };
 
@@ -125,14 +128,14 @@ ahci_hba::attach(struct pci_func *pcif)
   static u32 next_bus_num = 0;
 
   if (PCI_INTERFACE(pcif->dev_class) != 0x01) {
-    console.println("AHCI: not an AHCI controller");
+    verbose.println("AHCI: not an AHCI controller");
     return 0;
   }
 
-  console.println("AHCI: attaching");
+  verbose.println("AHCI: attaching");
   pci_func_enable(pcif);
   ahci_hba *hba __attribute__((unused)) = new ahci_hba(pcif, next_bus_num++);
-  console.println("AHCI: done");
+  verbose.println("AHCI: done");
   return 1;
 }
 
@@ -193,12 +196,12 @@ ahci_port::ahci_port(ahci_hba *h, int p, volatile ahci_reg_port* reg)
   /* Wait for port to quiesce */
   if (preg->cmd & (AHCI_PORT_CMD_ST | AHCI_PORT_CMD_CR |
                    AHCI_PORT_CMD_FRE | AHCI_PORT_CMD_FR)) {
-    cprintf("AHCI: port %d active, clearing..\n", pid);
+    verbose.println("AHCI: port ", pid, ": active, clearing...");
     preg->cmd &= ~(AHCI_PORT_CMD_ST | AHCI_PORT_CMD_FRE);
     microdelay(500 * 1000);
 
     if (preg->cmd & (AHCI_PORT_CMD_CR | AHCI_PORT_CMD_FR)) {
-      cprintf("AHCI: port %d still active, giving up\n", pid);
+      verbose.println("AHCI: port ", pid, ": still active, giving up");
       return;
     }
   }
@@ -221,7 +224,7 @@ ahci_port::ahci_port(ahci_hba *h, int p, volatile ahci_reg_port* reg)
   /* Check if there's anything there */
   u32 phystat = preg->ssts;
   if (!phystat) {
-    cprintf("AHCI: port %d: not connected\n", pid);
+    verbose.println("AHCI: port ", pid, ": not connected");
     return;
   }
 

@@ -2,6 +2,7 @@
 #include "string.h"
 #include "multiboot.hh"
 #include "cmdline.hh"
+#include "kstream.hh"
 
 // From http://czyborra.com/unifont
 static const char* unifont[] = {
@@ -162,6 +163,8 @@ static const u32 ansi_colors[16] = {
   0x00EEEEEC,
 };
 
+static console_stream verbose(false);
+
 const u16 BORDER = 4;
 
 u32* front_buffer = nullptr;
@@ -183,13 +186,13 @@ char ansi_escape_sequence[ESCAPE_SEQ_MAX_LEN] = { 0 };
 
 void initvga() {
   if (!cmdline_params.use_vga) {
-    cprintf("vga: disabled by command line\n");
+    verbose.println("vga: disabled by command line\n");
   } else if (multiboot.flags & MULTIBOOT_FLAG_FRAMEBUFFER) {
-    cprintf("vga: detected framebuffer at %16p [w=%d, h=%d]\n",
+    verbose.println("vga: detected framebuffer at %16p [w=%d, h=%d]\n",
             multiboot.framebuffer, multiboot.framebuffer_width, multiboot.framebuffer_height);
 
     if(multiboot.framebuffer_width > 4096 || multiboot.framebuffer_width > 4096) {
-      cprintf("vga: unsupported framebuffer size\n");
+      console.println("vga: unsupported framebuffer size\n");
       return;
     }
 
@@ -203,7 +206,7 @@ void initvga() {
     for (const char *p=DEBUG?"xv6 DEBUG VGA\n":"xv6 VGA\n"; *p; p++)
       vgaputc(*p);
   } else {
-    cprintf("vga: could not detect framebuffer\n");
+    verbose.println("vga: could not detect framebuffer\n");
   }
 }
 

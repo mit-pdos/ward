@@ -307,18 +307,18 @@ AcpiInfo (
     const char              *Format,
     ...)
 {
-    va_list                 ArgList;
+    // va_list                 ArgList;
 
 
-    ACPI_MSG_REDIRECT_BEGIN;
-    AcpiOsPrintf (ACPI_MSG_INFO);
+    // ACPI_MSG_REDIRECT_BEGIN;
+    // AcpiOsPrintf (ACPI_MSG_INFO);
 
-    va_start (ArgList, Format);
-    AcpiOsVprintf (Format, ArgList);
-    AcpiOsPrintf ("\n");
-    va_end (ArgList);
+    // va_start (ArgList, Format);
+    // AcpiOsVprintf (Format, ArgList);
+    // AcpiOsPrintf ("\n");
+    // va_end (ArgList);
 
-    ACPI_MSG_REDIRECT_END;
+    // ACPI_MSG_REDIRECT_END;
 }
 
 ACPI_EXPORT_SYMBOL (AcpiInfo)

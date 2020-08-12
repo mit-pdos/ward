@@ -3,6 +3,7 @@
 #include "cpputil.hh"
 #include "vector.hh"
 #include "disk.hh"
+#include "kstream.hh"
 #include "../third_party/zlib/zlib.h"
 
 #define SECTOR_SIZE 512
@@ -14,6 +15,8 @@
 #define PART_OFF_ID 4
 #define PART_OFF_START 8
 #define PART_OFF_LENGTH 12
+
+static console_stream verbose(false);
 
 class subdisk : public disk
 {
@@ -279,7 +282,7 @@ scan_gpt(disk *d, static_vector<partition, 128> *out)
 
   char guid[GUID_PRINTED_LENGTH];
   header.disk_guid.to_string(guid);
-  cprintf("gpt: found partition table for disk with guid %s on: %s\n", guid, d->dk_busloc);
+  verbose.println("gpt: found partition table for disk with guid ", guid, " on: ", d->dk_busloc);
 
   size_t partition_table_size = header.partition_entry_size * header.partition_entry_count;
   if (partition_table_size & 511u) {
@@ -329,7 +332,7 @@ on_disk_add(disk *d)
   static_vector<partition, 128> p;
 
   if (!scan_gpt(d, &p) && !scan_mbr(d, &p)) {
-    cprintf("not a partitioned disk: %s\n", d->dk_busloc);
+    verbose.println("not a partitioned disk: ", d->dk_busloc);
     return;
   }
 

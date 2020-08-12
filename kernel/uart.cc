@@ -148,7 +148,7 @@ inituart(void)
     uartputc(*p);
 
   // Announce that we're here.
-  for (const char *p=DEBUG?"xv6 DEBUG UART\r\n":"xv6 UART\r\n"; *p; p++)
+  for (const char *p=DEBUG?"Ward DEBUG UART\r\n":"Ward UART\r\n"; *p; p++)
     uartputc(*p);
 }
 

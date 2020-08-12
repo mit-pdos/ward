@@ -9,7 +9,7 @@
 #include "vector.hh"
 #include "iommu.hh"
 
-static console_stream verbose(true);
+static console_stream verbose(false);
 
 static bool pci_scanned;
 

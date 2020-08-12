@@ -232,15 +232,11 @@ ide_port_guard::register_disks(const char *name_master, const char *name_slave)
   u16 identity[256];
   auto p = this->acquire();
   if (p->identify(SELECT_MASTER, identity)) {
-    cprintf("ide: %s is IDE\n", name_master);
     disk_register(new ide_disk(this, SELECT_MASTER, name_master, identity));
-  } else
-    cprintf("ide: %s is not IDE\n", name_master);
+  }
   if (p->identify(SELECT_SLAVE, identity)) {
-    cprintf("ide: %s is IDE\n", name_slave);
     disk_register(new ide_disk(this, SELECT_SLAVE, name_slave, identity));
-  } else
-    cprintf("ide: %s is not IDE\n", name_slave);
+  }
   this->release();
 }
 

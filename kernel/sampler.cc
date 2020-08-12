@@ -36,6 +36,8 @@
 
 #define MAX_PMCS 2
 
+static console_stream verbose(false);
+
 static void enable_nehalem_workaround(void);
 
 struct selector_state : public perf_selector
@@ -241,11 +243,11 @@ public:
   {
     auto info = cpuid::perfmon();
     if (info.version < 2) {
-      cprintf("initsamp: Unsupported performance monitor version %d\n",
-              info.version);
+      verbose.println("initsamp: Unsupported performance monitor version ",
+                      info.version);
       return false;
     }
-    console.println("sampler: Enabling Intel support");
+    verbose.println("sampler: Enabling Intel support");
     num_pmcs = info.num_counters;
     if (cpuid::features().pdcm && cpuid::features().ds &&
         !(readmsr(MSR_INTEL_MISC_ENABLE) & MISC_ENABLE_PEBS_UNAVAILABLE)) {
@@ -803,7 +805,8 @@ initsamp(void)
     else if (cpuid::vendor_is_intel() && intel_pmu.try_init())
       pmu = &intel_pmu;
     else {
-      cprintf("initsamp: Unknown manufacturer\n");
+      if (!cpuid::vendor_is_amd() && !cpuid::vendor_is_intel())
+        cprintf("initsamp: Unknown manufacturer\n");
       pmu = &no_pmu;
       return;
     }

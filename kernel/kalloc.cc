@@ -885,8 +885,8 @@ initpageinfo(void)
         // We found our area
         break;
       } else {
-        swarn.println("kalloc: Memory at ", shex(reg.base), "..",
-                      shex(reg.end-1), " is too small to track");
+        verbose.println("kalloc: Memory at ", shex(reg.base), "..",
+                        shex(reg.end-1), " is too small to track");
         mem.remove(reg.base, reg.end);
       }
     }
@@ -938,7 +938,7 @@ initpageinfo(void)
   if (map_size >= NELEM(page_info_map))
     panic("page_info map is too large (%zu entries, %d shift)",
           map_size, shift);
-  console.println("kalloc: page_info map has ", map_size,
+  verbose.println("kalloc: page_info map has ", map_size,
                   " entries using formula",
                   " (pa+", shex(additive), ") >> ", shift);
   for (auto &area : page_info_areas) {
@@ -1070,7 +1070,7 @@ initkalloc(void)
     }
     size_t node_buddies = buddies.size() - node_low;
 
-    console.println("kalloc: ", ssize(node_stats.free), " available in node ",
+    verbose.println("kalloc: ", ssize(node_stats.free), " available in node ",
                     node.id,
                     " (metadata: ", ssize(node_stats.metadata_bytes),
                     ", waste: ", ssize(node_stats.waste_bytes), ")");

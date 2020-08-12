@@ -48,7 +48,7 @@
 #define TCCR    0x839   // Timer Current Count
 #define TDCR    0x83e   // Timer Divide Configuration
 
-static console_stream verbose(true);
+static console_stream verbose(false);
 
 static u64 x2apichz;
 

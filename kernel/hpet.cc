@@ -6,6 +6,8 @@
 #include "kernel.hh"
 #include "kstream.hh"
 
+static console_stream verbose(false);
+
 class hpet *the_hpet;
 
 // [HPET 2.3.1]
@@ -73,7 +75,7 @@ hpet::register_base(uintptr_t base)
     period /= 1000, unit = "psec";
   if (period > 1000)
     period /= 1000, unit = "nsec";
-  console.println("hpet: At ", shex(base), ", revision ", rev_id,
+  verbose.println("hpet: At ", shex(base), ", revision ", rev_id,
                   ", period ", period, " ", unit, ", ", num_timers, " timers");
 
   // [HPET 3.1]  Reset HPET.  The BIOS should do all this, but we do
