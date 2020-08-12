@@ -25,8 +25,6 @@ proc::hash(const u32 &p)
 xns<u32, proc*, proc::hash> *xnspid __mpalign__;
 struct proc *bootproc __mpalign__;
 
-extern char fpu_initial_state[XSAVE_BYTES];
-
 enum { sched_debug = 0 };
 
 proc::proc(int tid_, int tgid_) :
@@ -40,7 +38,7 @@ proc::proc(int tid_, int tgid_) :
   upath(nullptr), uargv(nullptr), exception_inuse(0),
   blocked_signals(0), pending_signals(0)
 {
-  memmove(fpu_state, fpu_initial_state, XSAVE_BYTES);
+  memset(fpu_state, 0, XSAVE_BYTES);
 
   snprintf(lockname, sizeof(lockname), "cv:proc:%d", tid);
   lock = spinlock(lockname+3, LOCKSTAT_PROC);

@@ -227,9 +227,9 @@ public:
     schedule_[mycpu()->id]->stats_.schedstart = t;
 
     if(cpuid::features().xsaveopt) {
-      xsaveopt(prev->fpu_state, -1);
+      xsaveopt(prev->fpu_state, XSAVE_MASK);
     } else {
-      xsave(prev->fpu_state, -1);
+      xsave(prev->fpu_state, XSAVE_MASK);
     }
 
     while(!next) {

@@ -390,7 +390,8 @@ clear_bit(int nr, volatile void *a)
 }
 
 enum {
-  XSAVE_BYTES = 512 + 64
+  XSAVE_BYTES = 512 + 64,
+  XSAVE_MASK = 3
 };
 
 static inline void

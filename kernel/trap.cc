@@ -23,9 +23,6 @@ extern "C" void __uaccess_end(void);
 
 struct intdesc idt[256] __attribute__((section (".qdata"), aligned(4096)));
 
-char fpu_initial_state[XSAVE_BYTES]  __attribute__((section (".qdata")));
-
-
 struct segdesc  __attribute__((aligned(16))) bootgdt[NSEGS] = {
   // null
   SEGDESC(0, 0, 0),
@@ -438,10 +435,6 @@ initfpu(void)
   fninit();
   // Don't generate interrupts for any SSE exceptions
   ldmxcsr(0x1f80);
-  // Stash away the initial FPU state to use as each process' initial
-  // FPU state
-  if (myid() == 0)
-    xsave(fpu_initial_state, -1);
 }
 
 void
