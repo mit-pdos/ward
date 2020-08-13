@@ -145,11 +145,13 @@ readi(sref<mnode> m, char* buf, u64 start, u64 nbytes)
 }
 
 s64
-writei(sref<mnode> m, const char* buf, u64 start, u64 nbytes,
+writei(sref<mnode> m, const userptr<void> data, u64 start, u64 nbytes,
        mfile::resizer* parentresize)
 {
   if (m->type() != mnode::types::file)
     return -1;
+
+  char buf[PGSIZE];
 
   u64 end = start + nbytes;
   u64 off = 0;
@@ -160,6 +162,9 @@ writei(sref<mnode> m, const char* buf, u64 start, u64 nbytes,
     u64 pgend = end - pgbase;
     if (pgend > PGSIZE)
       pgend = PGSIZE;
+
+    if (!(data + off).load_bytes(buf, pgend - pgoff))
+      break;
 
     mfile::resizer *resize = parentresize;
     mfile::resizer scoped_resize;
@@ -185,10 +190,10 @@ writei(sref<mnode> m, const char* buf, u64 start, u64 nbytes,
        */
 
       if (secrets_mapped) {
-        memmove((char*) pi->va() + pgoff, buf + off, pgend - pgoff);
+        memmove((char*) pi->va() + pgoff, buf, pgend - pgoff);
       } else {
         void* va = myproc()->vmap->map_temporary(pi->pa());
-        memmove((char*) va + pgoff, buf + off, pgend - pgoff);
+        memmove((char*) va + pgoff, buf, pgend - pgoff);
         myproc()->vmap->unmap_temporary(va);
       }
 
@@ -228,10 +233,10 @@ writei(sref<mnode> m, const char* buf, u64 start, u64 nbytes,
         break;
 
       if (secrets_mapped) {
-        memmove((char*) p + pgoff, buf + off, pgend - pgoff);
+        memmove((char*) p + pgoff, buf, pgend - pgoff);
       } else {
         void* va = myproc()->vmap->map_temporary(v2p(p));
-        memmove((char*) va + pgoff, buf + off, pgend - pgoff);
+        memmove((char*) va + pgoff, buf, pgend - pgoff);
         myproc()->vmap->unmap_temporary(va);
       }
 

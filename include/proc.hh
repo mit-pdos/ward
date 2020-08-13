@@ -88,8 +88,7 @@ public:
   procstate_t get_state(void) const { return state_; }
   void set_state(procstate_t s);
   bool cansteal() {
-    return get_state() == RUNNABLE && !cpu_pin &&
-      curcycles != 0 && curcycles > VICTIMAGE;
+    return get_state() == RUNNABLE && !cpu_pin;
   };
 
   friend struct proc;

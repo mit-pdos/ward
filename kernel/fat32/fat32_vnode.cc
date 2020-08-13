@@ -253,8 +253,15 @@ vnode_fat32::zero_range_nogrow(u64 off, size_t len)
 }
 
 int
-vnode_fat32::write_at(const char *addr, u64 off, size_t len, bool append)
+vnode_fat32::write_at(const userptr<void> data, u64 off, size_t len, bool append)
 {
+  char buf[PGSIZE];
+  if (len > PGSIZE)
+    len = PGSIZE;
+  if (!data.load_bytes(buf, len))
+    return -1;
+  char* addr = buf;
+
   size_t total_written = 0;
   if (len == 0)
     return 0;

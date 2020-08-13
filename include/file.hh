@@ -25,9 +25,9 @@ struct file {
 
   virtual int stat(struct kernel_stat*, enum stat_flags) { return -1; }
   virtual ssize_t read(char *addr, size_t n) { return -1; }
-  virtual ssize_t write(const char *addr, size_t n) { return -1; }
+  virtual ssize_t write(const userptr<void> data, size_t n) { return -1; }
   virtual ssize_t pread(char *addr, size_t n, off_t offset) { return -1; }
-  virtual ssize_t pwrite(const char *addr, size_t n, off_t offset) { return -1; }
+  virtual ssize_t pwrite(const userptr<void> data, size_t n, off_t offset) { return -1; }
 
   // Directory operations
   virtual ssize_t getdents(linux_dirent* out_dirents, size_t bytes) { return -1; }
@@ -82,9 +82,9 @@ public:
 
   int stat(struct kernel_stat*, enum stat_flags) override;
   ssize_t read(char *addr, size_t n) override;
-  ssize_t write(const char *addr, size_t n) override;
+  ssize_t write(const userptr<void> data, size_t n) override;
   ssize_t pread(char* addr, size_t n, off_t off) override;
-  ssize_t pwrite(const char *addr, size_t n, off_t offset) override;
+  ssize_t pwrite(const userptr<void> data, size_t n, off_t offset) override;
   ssize_t getdents(linux_dirent* out_dirents, size_t bytes) override;
   void onzero() override
   {
@@ -125,7 +125,7 @@ public:
   void on_ftable_remove(filetable* v) override;
 
   int stat(struct kernel_stat*, enum stat_flags) override;
-  ssize_t write(const char *addr, size_t n) override;
+  ssize_t write(const userptr<void> data, size_t n) override;
   void onzero() override;
 
 private:

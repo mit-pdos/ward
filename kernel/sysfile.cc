@@ -188,28 +188,6 @@ sys_pread(int fd, void *ubuf, size_t count, off_t offset)
   return r;
 }
 
-ssize_t
-impl_write(sref<file>&& f, const userptr<void> p, size_t total_bytes)
-{
-  char b[PGSIZE];
-  ssize_t bytes = 0;
-  while (bytes < total_bytes) {
-    size_t n = total_bytes - bytes;
-    if (n > PGSIZE)
-      n = PGSIZE;
-
-    if (!(p + bytes).load_bytes(b, n))
-      return bytes ? bytes : -1;
-
-    ssize_t ret = f->write(b, n);
-    if (ret <= 0)
-      return bytes ? bytes : ret;
-
-    bytes += ret;
-  }
-  return bytes;
-}
-
 //SYSCALL
 ssize_t
 sys_write(int fd, const userptr<void> p, size_t total_bytes)
@@ -224,12 +202,12 @@ sys_write(int fd, const userptr<void> p, size_t total_bytes)
   if(total_bytes >= 10 * 1024 /*|| !f->get_vnode()*/)
     ensure_secrets();
 
-  return impl_write(std::move(f), p, total_bytes);
+  return f->write(p, total_bytes);
 }
 
 //SYSCALL
 ssize_t
-sys_pwrite(int fd, const void *ubuf, size_t count, off_t offset)
+sys_pwrite(int fd, const userptr<void> ubuf, size_t count, off_t offset)
 {
   sref<file> f = getfile(fd);
   if (!f)
@@ -238,10 +216,7 @@ sys_pwrite(int fd, const void *ubuf, size_t count, off_t offset)
   if (count > 4*1024*1024)
     count = 4*1024*1024;
 
-  char* b = (char*)kmalloc(count, "pwritebuf");
-  auto cleanup = scoped_cleanup([&](){kmfree(b, count);});
-  fetchmem(b, ubuf, count);
-  return f->pwrite(b, count, offset);
+  return f->pwrite(ubuf, count, offset);
 }
 
 //SYSCALL
@@ -258,13 +233,9 @@ sys_writev(int fd, const void* iov, int count) {
   kernel_iovec v;
   for(int i = 0; i < count; i++) {
     ((userptr<kernel_iovec>)((kernel_iovec*)iov) + i).load(&v);
-    if (v.len == 0)
-      continue;
-    if (v.len > PGSIZE)
-      v.len = PGSIZE;
-    fetchmem(b, v.base, v.len);
-    return f->write(b, v.len);
-
+    if (v.len > 0) {
+      return f->write(userptr<void>(v.base), v.len);
+    }
   }
   return 0;
 }

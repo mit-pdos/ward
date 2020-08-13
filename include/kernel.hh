@@ -119,7 +119,6 @@ void            iunlock(sref<inode>);
 void            itrunc(inode*);
 int             readi(sref<inode>, char*, u32, u32);
 void            stati(sref<inode>, struct kernel_stat*);
-int             writei(sref<inode>, const char*, u32, u32);
 sref<inode>     nameiparent(sref<inode> cwd, const char*, char*);
 int             dirlink(sref<inode>, const char*, u32);
 void            dir_init(sref<inode> dp);

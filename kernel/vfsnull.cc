@@ -52,7 +52,7 @@ public:
     panic("not a file");
   }
 
-  int write_at(const char *addr, u64 off, size_t len, bool append) override {
+  int write_at(const userptr<void> data, u64 off, size_t len, bool append) override {
     panic("not a file");
   }
 

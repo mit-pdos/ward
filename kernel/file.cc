@@ -58,7 +58,7 @@ file_inode::read(char *addr, size_t n)
 }
 
 ssize_t
-file_inode::write(const char *addr, size_t n) {
+file_inode::write(const userptr<void> data, size_t n) {
   if (!writable)
     return -1;
 
@@ -66,13 +66,19 @@ file_inode::write(const char *addr, size_t n) {
   ssize_t r;
   u16 major, minor;
   if (ip->as_device(&major, &minor)) {
+    char buf[PGSIZE];
+    if (n > PGSIZE)
+      n = PGSIZE;
+    if (!data.load_bytes(buf, n))
+      return -1;
+
     if (major >= NDEV)
       return -1;
     if (devsw[major].write) {
-      return devsw[major].write(addr, n);
+      return devsw[major].write(buf, n);
     } else if (devsw[major].pwrite) {
       l = off_lock.guard();
-      r = devsw[major].pwrite(addr, off, n);
+      r = devsw[major].pwrite(buf, off, n);
     } else {
       return -1;
     }
@@ -80,7 +86,7 @@ file_inode::write(const char *addr, size_t n) {
     return -1;
   } else {
     l = off_lock.guard();
-    r = ip->write_at(addr, off, n, append);
+    r = ip->write_at(data, off, n, append);
   }
 
   if (r > 0)
@@ -103,7 +109,7 @@ file_inode::pread(char *addr, size_t n, off_t off)
 }
 
 ssize_t
-file_inode::pwrite(const char *addr, size_t n, off_t off)
+file_inode::pwrite(const userptr<void> data, size_t n, off_t off)
 {
   if (!writable)
     return -1;
@@ -111,9 +117,16 @@ file_inode::pwrite(const char *addr, size_t n, off_t off)
   if (ip->as_device(&major, &minor)) {
     if (major >= NDEV || !devsw[major].pwrite)
       return -1;
-    return devsw[major].pwrite(addr, off, n);
+
+    char buf[PGSIZE];
+    if (n > PGSIZE)
+      n = PGSIZE;
+    if (!data.load_bytes(buf, n))
+      return -1;
+
+    return devsw[major].pwrite(buf, off, n);
   }
-  return ip->write_at(addr, off, n, false);
+  return ip->write_at(data, off, n, false);
 }
 
 ssize_t
@@ -198,9 +211,15 @@ file_pipe_writer::stat(struct kernel_stat *st, enum stat_flags flags)
 }
 
 ssize_t
-file_pipe_writer::write(const char *addr, size_t n)
+file_pipe_writer::write(const userptr<void> data, size_t n)
 {
-  return pipewrite(pipe, addr, n);
+  char buf[PGSIZE];
+  if (n > PGSIZE)
+    n = PGSIZE;
+  if (!data.load_bytes(buf, n))
+    return -1;
+
+  return pipewrite(pipe, buf, n);
 }
 
 void

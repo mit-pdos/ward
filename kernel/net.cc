@@ -83,8 +83,14 @@ public:
     return r;
   }
 
-  ssize_t write(const char *buf, size_t n) override
+  ssize_t write(const userptr<void> data, size_t n) override
   {
+    char buf[PGSIZE];
+    if (n > PGSIZE)
+      n = PGSIZE;
+    if (!data.load_bytes(buf, n))
+      return -1;
+
     auto l = wsem_.guard();
     lwip_core_lock();
     int r = lwip_write(socket_, buf, n);

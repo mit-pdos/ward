@@ -458,7 +458,7 @@ u64 context_switch_test() {
 
     cpu_set_t set;
     CPU_ZERO(&set);
-    CPU_SET(0, &set);
+    CPU_SET(1, &set);
     retval = sched_setaffinity(getpid(), sizeof(set), &set);
     if (retval == -1) printf("[error] failed to set processor affinity.\n");
     /* retval = setpriority(PRIO_PROCESS, 0, -20);  */
@@ -489,12 +489,12 @@ int main(int argc, char *argv[])
 #ifdef HW_linux
   printf("Benchmark (linux),         Best,     Average,\n");
 #else
-  printf("Benchmark (ward),     Off  Best,    On  Best,  Fast  Best, Off Average,  On Average,    Fast Avg,\n");
+  printf("Benchmark (ward),     Off  Best,    On  Best,  Fast  Best,\n");
   fflush(stdout);
 #endif
 
   u64 mask = ~0ull;
-  if (argc >= 2) {
+  if (argc >= 2 && strcmp(argv[1], "-") != 0) {
     mask = 1ull << atoi(argv[1]);
   }
 

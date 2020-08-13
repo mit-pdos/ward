@@ -26,7 +26,7 @@ public:
   virtual u64 file_size() = 0;
   virtual bool is_offset_in_file(u64 offset) = 0; // this exists for optimization purposes
   virtual int read_at(char *data, u64 offset, size_t len) = 0;
-  virtual int write_at(const char *data, u64 offset, size_t len, bool append) = 0;
+  virtual int write_at(userptr<void> data, u64 offset, size_t len, bool append) = 0;
   virtual int truncate() = 0;
   virtual u64 mtime() = 0;
   virtual bool set_mtime(u64 time) = 0;

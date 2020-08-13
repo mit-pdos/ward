@@ -336,35 +336,42 @@ proc::kill(int tid)
 void
 procdumpall(void)
 {
-  static const char *states[] = {
-    /* [EMBRYO]   = */ "embryo",
-    /* [SLEEPING] = */ "sleep ",
-    /* [RUNNABLE] = */ "runble",
-    /* [RUNNING]  = */ "run   ",
-    /* [ZOMBIE]   = */ "zombie"
-  };
-  const char *name = "(no name)";
+  const char *name;
   const char *state;
   uptr pc[10];
 
+  cprintf("\n");
   for (proc *p : xnspid) {
-    if(p->get_state() >= 0 && p->get_state() < NELEM(states) && 
-       states[p->get_state()])
-      state = states[p->get_state()];
+    if(p->get_state() == EMBRYO)
+      state = "embryo";
+    else if(p->get_state() == SLEEPING)
+      state = "sleep";
+    else if(p->get_state() == RUNNABLE)
+      state = "runnable";
+    else if(p->get_state() == RUNNING)
+      state = "running";
+    else if(p->get_state() == ZOMBIE)
+      state = "zombie";
+    else if(p->get_state() == IDLING)
+      state = "idling";
     else
       state = "???";
-    
+
     if (p->name[0] != 0)
       name = p->name;
-    
-    cprintf("\n%-3d %-10s %8s %2u  %lu\n",
-            p->tid, name, state, p->cpuid, p->tsc);
-    
-    if(p->get_state() == SLEEPING){
-      getcallerpcs((void*)p->context->rbp, pc, NELEM(pc));
-      for(int i=0; i<10 && pc[i] != 0; i++)
-        cprintf(" %lx\n", pc[i]);
-    }
+    else
+      name = "(no name)";
+
+    cprintf("%-3d %-20s %-8s %2u  %lums\n",
+            p->tid, name, state, p->cpuid,
+            p->curcycles*TSC_PERIOD_SCALE/mycpu()->tsc_period/1000000);
+
+    // if(p->get_state() == SLEEPING || p->get_state() == IDLING){
+    //   getcallerpcs((void*)p->context->rbp, pc, NELEM(pc));
+    //   for(int i=0; i<10 && pc[i] != 0; i++)
+    //     cprintf(" %lx\n", pc[i]);
+    //   cprintf("\n");
+    // }
   }
 }
 

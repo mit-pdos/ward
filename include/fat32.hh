@@ -240,7 +240,7 @@ public:
   u64 file_size() override;
   bool is_offset_in_file(u64 offset) override;
   int read_at(char *addr, u64 off, size_t len) override;
-  int write_at(const char *addr, u64 off, size_t len, bool append) override;
+  int write_at(const userptr<void> data, u64 off, size_t len, bool append) override;
   int truncate() override;
   sref<page_info> get_page_info(u64 page_idx) override;
   u64 mtime() override { return 0; }
