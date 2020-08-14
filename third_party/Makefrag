@@ -102,3 +102,18 @@ $(LWIP_OBJ)/%.o: $(LWIP_SRC)/%.c
 $(O)/liblwip.a: $(LWIP_OBJ_FILES) $(O)/net/sys_arch.o $(O)/net/if.o
 	@echo "  AR     $@"
 	$(Q)$(AR) rcs $@ $^
+
+#zlib
+ZLIB_SRC = third_party/zlib
+ZLIB_OBJ = $(O)/zlib
+ZLIB_SRC_C_FILES := $(wildcard $(ZLIB_SRC)/*.c)
+ZLIB_OBJ_FILES := $(patsubst $(ZLIB_SRC)/%.c,$(ZLIB_OBJ)/%.o,$(ZLIB_SRC_C_FILES))
+ZLIB_FLAGS = -Wno-attributes -Wno-address -Wno-char-subscripts -Wno-format -O2 \
+	-Ithird_party/zlib/ -mcmodel=kernel -Ithird_party/libcxx/include -DXV6_KERNEL -mno-sse
+$(ZLIB_OBJ)/%.o: $(ZLIB_SRC)/%.c
+	@echo "  CC     $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(CFLAGS) $(ZLIB_FLAGS) -c -o $@ $<
+$(O)/libzlib.a: $(ZLIB_OBJ_FILES)
+	@echo "  AR     $@"
+	$(Q)$(AR) rcs $@ $^

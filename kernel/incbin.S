@@ -21,7 +21,7 @@ include_bin(kernel/bootother,bootother)
 
 #if MEMIDE
 .section .data
-include_bin(fs.part,fs_img)
+include_bin(fs.part.gz,fs_img)
 #else
 .globl _fs_img_start
 _fs_img_start:

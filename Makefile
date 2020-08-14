@@ -157,6 +157,10 @@ $(O)/fs.part: $(O)/tools/mkfs $(FSCONTENTS)
 	@echo "  GEN    $@"
 	$(Q)$(O)/tools/mkfs $@.tmp $(O)/fs
 	$(Q)mv $@.tmp $@
+$(O)/fs.part.gz: $(O)/fs.part
+	@echo "  GEN    $@"
+	$(Q)cat $^ | gzip -f -k -S ".gz.tmp" - > $@.tmp
+	$(Q)mv $@.tmp $@
 $(O)/boot.fat: $(O)/kernel.elf grub/grub.cfg grub/grub.efi $(O)/writeok
 	@echo "  GEN    $@"
 	$(Q)dd if=/dev/zero of=$@ bs=4096 count=66560 2> /dev/null

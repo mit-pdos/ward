@@ -6,6 +6,7 @@
 #include "kernel.hh"
 #include "cpputil.hh"
 #include "disk.hh"
+#include "../third_party/zlib/zlib.h"
 
 extern u8 _fs_img_start[];
 extern u64 _fs_img_size;
@@ -26,11 +27,38 @@ private:
   size_t length;
 };
 
+static void* zlib_alloc(void* opaque, unsigned int items, unsigned int size) {
+  char* ptr = (char*)kmalloc(items * size + 16, "zlib");
+  *(u64*)ptr = items * size + 16;
+  return ptr + 16;
+}
+static void zlib_free(void* opaque, void* address) {
+  u64 size = *(u64*)((char*)address - 16);
+  kmfree((char*)address - 16, size);
+}
+
 void
 initmemide(void)
 {
   if (_fs_img_size > 0) {
-    disk_register(new memdisk(_fs_img_start, _fs_img_size, 0));
+    size_t len = 32 << 20;
+    void* buf = kalloc("memide", len);
+
+    z_stream stream;
+    memset(&stream, 0, sizeof(stream));
+    stream.zalloc = zlib_alloc;
+    stream.zfree = zlib_free;
+    stream.avail_in = _fs_img_size;
+    stream.next_in = _fs_img_start;
+    stream.avail_out = len;
+    stream.next_out = (unsigned char*)buf;
+    if(inflateInit2(&stream, 16+MAX_WBITS) || inflate(&stream, Z_FINISH) != Z_STREAM_END) {
+      cprintf("Failed to decompress in-memory disk\n");
+      kfree(buf);
+    } else {
+      disk_register(new memdisk((u8*)buf, len, 0));
+    }
+    inflateEnd(&stream);
   }
 }
 
