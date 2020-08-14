@@ -198,7 +198,12 @@ ahci_port::ahci_port(ahci_hba *h, int p, volatile ahci_reg_port* reg)
                    AHCI_PORT_CMD_FRE | AHCI_PORT_CMD_FR)) {
     verbose.println("AHCI: port ", pid, ": active, clearing...");
     preg->cmd &= ~(AHCI_PORT_CMD_ST | AHCI_PORT_CMD_FRE);
-    microdelay(500 * 1000);
+
+    for (int i = 0; i < 100; i++) {
+      if (!(preg->cmd & (AHCI_PORT_CMD_CR | AHCI_PORT_CMD_FR)))
+        break;
+      microdelay(5 * 1000);
+    }
 
     if (preg->cmd & (AHCI_PORT_CMD_CR | AHCI_PORT_CMD_FR)) {
       verbose.println("AHCI: port ", pid, ": still active, giving up");
