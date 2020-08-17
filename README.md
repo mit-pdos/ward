@@ -1,32 +1,42 @@
-sv6 is a POSIX-like research operating system designed for multicore
-scalability based on [xv6](http://pdos.csail.mit.edu/6.828/xv6).
-
-sv6 is not a production kernel.  Think of it as a playground full of
-half-baked experiments, dead code, some really cool hacks, and a few
-great results.
+Ward is a Spectre and Meltdown resistant research operating system based on
+[sv6](https://github.com/aclements/sv6) which was in turn based on
+[xv6](http://pdos.csail.mit.edu/6.828/xv6).
 
 
-Building and running sv6 in QEMU
+Building and running Ward in QEMU
 --------------------------------
 
-TL;DR: `make && make qemu`
+### Linux
 
-You'll need GCC version 7.1 or later and GNU make.
+You'll need a recent version of clang, GNU make, and QEMU. Generating disk images also
+requires mtools. On Ubuntu, this should just be a matter of:
 
-There are several variables at the top of the top-level `Makefile` you
-may want to override for your build environment.  It is recommended
-you set them in `config.mk`.
+```bash
+sudo apt-get install build-essential clang mtools qemu-system-x86
+```
 
-The kernel is configured via `param.h`.  If you're just running sv6 in
-QEMU, you don't have to modify `param.h`, but you may want to read
-through it.
+Now you should be set to run:
 
-The most important `Makefile` variable is `HW`.  This controls the
-hardware target you're building for and affects many settings both in
-the `Makefile` and `param.h`.  The default `HW` is `qemu`.  Each of
-our multicore machines also has a `HW` target (like `josmp` and
-`ben`), and other interesting `HW` targets are mentioned below.
-Builds go to `o.$HW`.
+```bash
+git clone git@github.com:mit-pdos/ward && cd ward
+make -j qemu
+```
+
+The makefile also supports generating IMG, VHDX, and VDI disk images. These
+images support both MBR and UEFI booting using bundled copies of GRUB, and
+should be compatible with a range of hypervisors:
+
+```bash
+make -j img vhdx vdi
+```
+
+You can see this by running `qemu-system-x86_64 output/ward.img`, but since
+QEMU's default settings are rather suboptimal, there is a make target for using
+preferred options:
+
+```bash
+make -j qemu-grub
+```
 
 ### OSX
 To run Ward on OSX, there are some additional steps that need to be taken:
@@ -41,54 +51,41 @@ To run Ward on OSX, there are some additional steps that need to be taken:
 1. Run: `make qemu`
     * If you get the error `cannot identify root disk with bus location "ahci0.0p1"`, try `make QEMUAPPEND="root_disk=memide.0" qemu`
 
-Running sv6 on real hardware
+Running Ward on real hardware
 ----------------------------
 
-Make sure you can build and boot sv6 in QEMU first.
+Make sure you can build and run Ward in QEMU first.
 
-Start by adding a `HW` target to `param.h` using one of the "physical
-hardware targets" in `param.h` as a template.
+## USB Stick
 
-For `HW` targets where `MEMIDE` is defined to `1` (the default), the
-file system image is baked directly into the kernel image.  This makes
-it possible to boot a physical machine into the sv6 kernel with
-nothing but the kernel image itself, and without having to worry about
-messing up your disks.
+Use `dd` to copy the contents of `output/ward.img` to a flash drive, and then
+select the drive as a temporary boot device from the pre-boot menu.
 
-The kernel image is `o.$HW/kernel.elf`.  This file is
-multiboot-complaint, so both GRUB and SYSLINUX can boot it directly.
-You can also PXE boot this image over the network using PXELINUX
-(that's what we do).
+## GRUB
 
+First copy `output/ward.elf` to your `/boot` directory and then add the
+following entry to `/etc/grub.d/40_custom`:
 
-Optional components
--------------------
+```
+menuentry "ward" {
+    load_video
+    echo 'GRUB: Loading ward...'
+    multiboot2 /boot/ward.elf
+    echo 'GRUB: Booting ward...'
+}
+```
 
-### lwIP
+## PXELINUX
 
-To enable networking support, you'll need to clone lwIP.  From the
-root of your sv6 clone,
+Add the following entry to your `pxelinux.cfg`:
 
-    git clone https://git.savannah.gnu.org/git/lwip.git
-    (cd lwip && git checkout DEVEL-1_4_1 && patch -p1 < ../lwip.patch)
-    make clean
-
-(If you are building another hardware target, be sure to set `HW` when
-invoking `make clean`.)
-
-### mtrace
-
-sv6 can be run under an mtrace-enabled QEMU to monitor and analyze its
-memory access behavior.  You'll need to build and install mtrace:
-
-    git clone https://github.com/aclements/mtrace.git
-
-And build with `HW=mtrace`.  If mtrace isn't cloned next to the sv6
-repository, then set `MTRACESRC` in `config.mk` to the directory
-containing `mtrace-magic.h`.
-
-To run under mtrace, `make mtrace.out`.
-
+```
+label ward
+        say Booting ward...
+        menu label ward
+        kernel mboot.c32
+        append -aout /path/to/ward.elf
+```
 
 Supported hardware
 ------------------
@@ -107,7 +104,7 @@ probably have to add your specific model number to the table in
 `kernel/e1000.cc`, but you probably won't have to do anything else.
 
 
-Running sv6 user-space in Linux
+Running Ward user programs in Linux
 -------------------------------
 
 Much of the sv6 user-space can also be compiled for and run in Linux
@@ -121,46 +118,3 @@ can boot this on a real machine, or run a super-lightweight Linux VM
 in QEMU using
 
     make HW=linux KERN=path/to/Linux/bzImage/or/vmlinuz qemu
-
-
-How to
-======
-
-CPU profiling
--------------
-
-sv6 supports NMI-based system-wide hardware performance counter
-profiling on both Intel and AMD CPUs.  On recent Intel CPUs, it also
-supports PEBS precise event sampling and memory load latency
-profiling.
-
-To profile a command, use the `perf` tool.  E.g.,
-
-    perf mailbench -a all / 1
-
-By default, `perf` monitors unhalted CPU cycles, but other events can
-be selected from those known to `libutil/pmcdb.cc`.
-
-Once `perf` has run, the sampler data can be read from `/dev/sampler`.
-To transfer the file to your computer where it can be decoded, use the
-web server:
-
-    curl http://<hostname>/dev/sampler > sampler
-
-Finally, to decode the sample file, use `perf-report`:
-
-    ./o.$HW/tools/perf-report sampler o.$HW/kernel.elf
-
-To get stack traces from a user binary, pass its unstripped ELF image
-(e.g., `o.$HW/bin/ls.unstripped`) as the last argument instead of the
-kernel image.
-
-
-Kernel statistics
------------------
-
-The kernel continually maintains a lot of internal statistics
-counters.  To see the changes in these counters over a command, run,
-e.g.
-
-    monkstats mailbench -a all / 1
