@@ -117,3 +117,29 @@ $(ZLIB_OBJ)/%.o: $(ZLIB_SRC)/%.c
 $(O)/libzlib.a: $(ZLIB_OBJ_FILES)
 	@echo "  AR     $@"
 	$(Q)$(AR) rcs $@ $^
+
+#acpica
+ACPICA_SRC = third_party/acpica/source/components
+ACPICA_OBJ = $(O)/acpica
+ACPICA_SRC_C_FILES := $(wildcard $(ACPICA_SRC)/*/*.c)
+ACPICA_OBJ_FILES := $(patsubst $(ACPICA_SRC)/%.c,$(ACPICA_OBJ)/%.o,$(ACPICA_SRC_C_FILES))
+ACPICA_FLAGS = -O2 -mcmodel=kernel -Ithird_party/libcxx/include -mno-sse
+ACPICA_ACENV = third_party/acpica/source/include/platform/acenv.h
+
+$(ACPICA_OBJ)/%.o: $(ACPICA_SRC)/%.c $(ACPICA_ACENV)
+	@echo "  CC     $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(CFLAGS) $(ACPICA_FLAGS) -c -o $@ $<
+$(O)/libacpica.a: $(ACPICA_OBJ_FILES)
+	@echo "  AR     $@"
+	$(Q)$(AR) rcs $@ $^
+
+# ACPICA's source tree is *almost* but not quite designed to be used
+# completely untouched.  Unfortunately, acenv.h hard-codes the various
+# platforms, so wedge xv6 in.
+$(ACPICA_ACENV): $(ACPICA_ACENV).gen
+	@echo "  TWEAK  $@"
+	$(Q)cp $< $@
+$(ACPICA_ACENV).gen:
+	$(Q)sed 's/#if \(defined(_LINUX)\)/#if defined(XV6)\n#include "acpica-xv6.h"\n#elif \1/' $(ACPICA_ACENV) > $@.tmp
+	$(Q)cmp $@.tmp $@ || mv $@.tmp $@

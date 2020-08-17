@@ -93,10 +93,6 @@ OBJS = \
 
 OBJS := $(addprefix $(O)/kernel/, $(OBJS))
 
-# Include ACPICA fragment after we've set up the kernel object list,
-# but before the kernel build rules
-include kernel/Makefrag.acpica
-
 KERN = $(O)/kernel.elf
 ALL += $(KERN)
 
@@ -108,13 +104,14 @@ DDSTATUS := status=none
 endif
 
 LDEPS += $(O)/libunwind.a $(O)/libcxxabi.a $(O)/compiler-rt.a $(O)/libcxx.a \
-		$(O)/third_party/zlib/crc32.o $(O)/liblwip.a $(O)/libzlib.a
+		$(O)/third_party/zlib/crc32.o $(O)/liblwip.a $(O)/libzlib.a \
+		$(O)/libacpica.a
 
 $(KERN): tools/kmeta.py $(O)/kernel/boot.o $(OBJS) $(LDEPS) kernel/kernel.ld
 	@echo "  LD     $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(LD) $(LDFLAGS) -T kernel/kernel.ld -z max-page-size=4096 -e efi_main \
-		-o $@.tmp $(O)/kernel/boot.o $(OBJS) $(LDEPS) -L$(O) $(LFLAGS)
+		-o $@.tmp $(O)/kernel/boot.o $(OBJS) $(LDEPS) -L$(O)
 	$(Q)$(NM) $@.tmp > $(O)/kernel/kernel.nm
 	$(Q)$(OBJDUMP) -d $@.tmp > $(O)/kernel/kernel.objdump
 	$(Q)$(OBJCOPY) --dump-section .kmeta=$(O)/kernel/kmeta.bin $@.tmp

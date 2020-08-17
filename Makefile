@@ -60,7 +60,8 @@ COMFLAGS := $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1
 	        -fasynchronous-unwind-tables -g -MD -MP -O3 -Wall -msoft-float -mretpoline-external-thunk \
 	        -DXV6_HW=$(HW) -DHW_$(HW) -DXV6 -DXV6_KERNEL \
 	        -isystem include -iquote $(O)/include -include param.h -include include/compiler.h \
-	        -Ithird_party/lwip/src/include -Inet -Ithird_party/lwip/src/include/ipv4 -Ithird_party/libcxx/include
+	        -Ithird_party/lwip/src/include -Inet -Ithird_party/lwip/src/include/ipv4 -Ithird_party/libcxx/include \
+			-Ithird_party/acpica/source/include
 CFLAGS   := $(COMFLAGS) -std=c99
 CXXFLAGS := $(COMFLAGS) -std=c++14 -Wno-sign-compare -faligned-new -DEXCEPTIONS=1 -Wno-delete-non-virtual-dtor -nostdinc++ -ferror-limit=1000
 ASFLAGS  := $(ASFLAGS) -Iinclude -I$(O)/include -m64 -MD -MP -DHW_$(HW) -include param.h
@@ -171,7 +172,7 @@ $(O)/boot.fat: $(O)/kernel.elf grub/grub.cfg grub/grub.efi $(O)/writeok
 	$(Q)mcopy -i $@ grub/grub.cfg ::grub.cfg
 	$(Q)mcopy -i $@ $(O)/kernel.elf ::ward
 	$(Q)mcopy -i $@ $(O)/writeok ::writeok
-$(O)/boot.img: $(O)/boot.fat $(O)/fs.part grub/boot.img grub/core.img
+$(O)/ward.img: $(O)/boot.fat $(O)/fs.part grub/boot.img grub/core.img
 	@echo "  GEN    $@"
 	$(Q)truncate -s "101M" $@
 	$(Q)PARTED_GPT_APPLE=0 parted -s --align minimal $@ mklabel gpt \
@@ -182,12 +183,17 @@ $(O)/boot.img: $(O)/boot.fat $(O)/fs.part grub/boot.img grub/core.img
 	$(Q)dd if=$(O)/fs.part of=$@ conv=sparse obs=512 seek=143360 2> /dev/null
 	$(Q)dd bs=440 count=1 conv=notrunc if=grub/boot.img of=$@ 2> /dev/null
 	$(Q)dd bs=512 seek=64 conv=notrunc if=grub/core.img of=$@ 2> /dev/null
-$(O)/boot.vhdx: $(O)/boot.img
+$(O)/ward.vhdx: $(O)/ward.img
 	@echo "  GEN    $@"
 	$(Q)qemu-img convert -f raw -O vhdx $< $@
-$(O)/boot.vdi: $(O)/boot.img
+$(O)/ward.vdi: $(O)/ward.img
 	@echo "  GEN    $@"
 	$(Q)qemu-img convert -f raw -O vdi $< $@
+
+img: $(O)/ward.img
+vhdx: $(O)/ward.vhdx
+vdi: $(O)/ward.vdi
+ALL += img
 
 grub/boot.img:
 	@echo "  GEN    $@"
