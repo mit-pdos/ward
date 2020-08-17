@@ -62,9 +62,7 @@
 //
 // QEMU-based targets
 //
-#if defined(HW_qemu)
-#define MEMIDE        1
-#define AHCIIDE       1
+#if defined(HW_default)
 #elif defined(HW_codex)
 #define CODEX         1
 
@@ -85,10 +83,6 @@
 #define DISABLE_PREFETCH_ADJ 1
 #elif defined(HW_bhw2)
 
-//
-// Linux user-space targets (no kernel, so most options aren't set)
-//
-#elif defined(HW_linux)
 #else
 #error "Unknown HW"
 #endif
@@ -120,5 +114,5 @@
 #define MEMIDE 1
 #endif
 #ifndef AHCIIDE
-#define AHCIIDE 0
+#define AHCIIDE 1
 #endif

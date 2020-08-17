@@ -12,27 +12,18 @@ QEMUSMP    ?= 8
 # RAM to simulate (in MB)
 QEMUMEM    ?= 512
 # Default hardware build target.  See param.h for others.
-HW         ?= qemu
+HW         ?= default
 # Enable C++ exception handling in the kernel.
 EXCEPTIONS ?= y
-# Shell command to run in VM after booting
-RUN        ?= $(empty)
 # Python binary
 PYTHON     ?= python3
 # Output directory
-O           = o.$(HW)
+O           = output
 
 
 #
 # Tool definitions
 #
-ifeq ($(HW),linux)
-TOOLPREFIX :=
-PLATFORM := native
-else
-PLATFORM := xv6
-endif
-
 CC  = $(TOOLPREFIX)clang
 CXX = $(TOOLPREFIX)clang++
 AR = $(TOOLPREFIX)ar
@@ -72,16 +63,15 @@ all:
 
 
 #
-# include other makefiles
+# Include other makefiles
 #
-ifeq ($(PLATFORM),xv6)
 include net/Makefrag
 include third_party/Makefrag
 include kernel/Makefrag
-endif
 include bin/Makefrag
 include tools/Makefrag
 include metis/Makefrag
+
 
 ##
 ## generic build rules
@@ -112,7 +102,7 @@ $(O)/bootx64.efi: $(O)/kernel.elf
 
 
 ##
-## qemu
+## Qemu
 ##
 ifeq ($(QEMUSMP),1)
 QEMUNUMA := -numa node
@@ -149,8 +139,9 @@ qemu-test: $(KERN)
 
 codex: $(KERN)
 
+
 ##
-## disk images
+## Disk images
 ##
 $(O)/writeok:
 	$(Q)echo >$@
@@ -193,7 +184,6 @@ $(O)/ward.vdi: $(O)/ward.img
 img: $(O)/ward.img
 vhdx: $(O)/ward.vhdx
 vdi: $(O)/ward.vdi
-ALL += img
 
 grub/boot.img:
 	@echo "  GEN    $@"
@@ -214,10 +204,10 @@ grub/grub.efi: grub/grub-early.cfg
 	$(Q)grub-mkimage -O x86_64-efi -o $@ -p '/' -c grub/grub-early.cfg \
 		normal search part_msdos part_gpt fat multiboot multiboot2 gfxmenu echo video probe
 
-##
-## general commands
-##
 
+##
+## General commands
+##
 .PRECIOUS: $(O)/%.o
 .PHONY: clean qemu qemu-gdb qemu-grub qemu-test
 
@@ -225,4 +215,3 @@ clean:
 	rm -fr $(O)
 
 all: $(ALL)
-
