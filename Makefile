@@ -96,7 +96,7 @@ $(O)/%.o: %.S
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) $(ASFLAGS) -c -o $@ $<
 
-$(O)/bootx64.efi: $(O)/kernel.elf
+$(O)/bootx64.efi: $(KERN)
 	objcopy --set-section-alignment *=4096 -j .text -j .rodata -j .stapsdt.base -j .kmeta -j .data -j .bss \
 		-O pei-x86-64 $< $@
 
@@ -153,7 +153,7 @@ $(O)/fs.part.gz: $(O)/fs.part
 	@echo "  GEN    $@"
 	$(Q)cat $^ | gzip -f -k -S ".gz.tmp" - > $@.tmp
 	$(Q)mv $@.tmp $@
-$(O)/boot.fat: $(O)/kernel.elf grub/grub.cfg grub/grub.efi $(O)/writeok
+$(O)/boot.fat: $(KERN) grub/grub.cfg grub/grub.efi $(O)/writeok
 	@echo "  GEN    $@"
 	$(Q)dd if=/dev/zero of=$@ bs=4096 count=66560 2> /dev/null
 	$(Q)mkfs.fat -F 32 -s 8 -S 512 $@ > /dev/null
@@ -161,7 +161,7 @@ $(O)/boot.fat: $(O)/kernel.elf grub/grub.cfg grub/grub.efi $(O)/writeok
 	$(Q)mmd -i $@ ::EFI/BOOT
 	$(Q)mcopy -i $@ grub/grub.efi ::EFI/BOOT/BOOTX64.EFI
 	$(Q)mcopy -i $@ grub/grub.cfg ::grub.cfg
-	$(Q)mcopy -i $@ $(O)/kernel.elf ::ward
+	$(Q)mcopy -i $@ $(KERN) ::ward
 	$(Q)mcopy -i $@ $(O)/writeok ::writeok
 $(O)/ward.img: $(O)/boot.fat $(O)/fs.part grub/boot.img grub/core.img
 	@echo "  GEN    $@"

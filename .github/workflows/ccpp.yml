@@ -11,22 +11,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Build kernel.elf
+    - name: Build ward.elf
       run: make -j
-    - name: Upload kernel.elf
+    - name: Upload ward.elf
       uses: actions/upload-artifact@v1
       with:
-        name: kernel.elf
-        path: o.qemu/kernel.elf
+        name: ward.elf
+        path: output/ward.elf
     - name: Install mtools
       run: sudo apt-get update && sudo apt-get install -y mtools
-    - name: Build boot.img
-      run: make -j o.qemu/boot.img
-    - name: Upload boot.img
+    - name: Build ward.img
+      run: make -j img
+    - name: Upload ward.img
       uses: actions/upload-artifact@v1
       with:
-        name: boot.img
-        path: o.qemu/boot.img
+        name: ward.img
+        path: output/ward.img
     - name: Install QEMU
       run: sudo apt-get install -y qemu-system-x86
     - name: Unit tests
