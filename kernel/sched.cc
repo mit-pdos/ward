@@ -228,8 +228,10 @@ public:
 
     if(cpuid::features().xsaveopt) {
       xsaveopt(prev->fpu_state, XSAVE_MASK);
-    } else {
+    } else if(cpuid::features().xsave) {
       xsave(prev->fpu_state, XSAVE_MASK);
+    } else {
+      fxsave(prev->fpu_state);
     }
 
     u64 idle_start = nsectime();
@@ -287,7 +289,10 @@ public:
     next->set_state(RUNNING);
     next->tsc = rdtsc();
 
-    xrstor(next->fpu_state, -1);
+    if (cpuid::features().xsave)
+      xrstor(next->fpu_state, -1);
+    else
+      fxrstor(next->fpu_state);
 
     switchvm(prev->vmap.get(), next->vmap.get());
     mycpu()->ts.rsp[0] = (u64) next->kstack + KSTACKSIZE;

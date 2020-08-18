@@ -6,6 +6,7 @@
 #include "condvar.hh"
 #include "proc.hh"
 #include "cpu.hh"
+#include "cpuid.hh"
 #include "bits.hh"
 #include "kalloc.hh"
 #include "vm.hh"
@@ -25,6 +26,8 @@ proc::hash(const u32 &p)
 xns<u32, proc*, proc::hash> *xnspid __mpalign__;
 struct proc *bootproc __mpalign__;
 
+extern char fpu_initial_state[512];
+
 enum { sched_debug = 0 };
 
 proc::proc(int tid_, int tgid_) :
@@ -38,7 +41,10 @@ proc::proc(int tid_, int tgid_) :
   upath(nullptr), uargv(nullptr), exception_inuse(0),
   blocked_signals(0), pending_signals(0)
 {
-  memset(fpu_state, 0, XSAVE_BYTES);
+  if (cpuid::features().xsave)
+    memset(fpu_state, 0, XSAVE_BYTES);
+  else
+    memmove(fpu_state, fpu_initial_state, 512);
 
   snprintf(lockname, sizeof(lockname), "cv:proc:%d", tid);
   lock = spinlock(lockname+3, LOCKSTAT_PROC);
@@ -338,7 +344,6 @@ procdumpall(void)
 {
   const char *name;
   const char *state;
-  uptr pc[10];
 
   cprintf("\n");
   for (proc *p : xnspid) {

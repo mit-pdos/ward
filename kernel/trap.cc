@@ -23,6 +23,9 @@ extern "C" void __uaccess_end(void);
 
 struct intdesc idt[256] __attribute__((section (".qdata"), aligned(4096)));
 
+// Only used if xsave is not supported.
+char fpu_initial_state[512]  __attribute__((section (".qdata")));
+
 struct segdesc  __attribute__((aligned(16))) bootgdt[NSEGS] = {
   // null
   SEGDESC(0, 0, 0),
@@ -429,15 +432,17 @@ inittrap(void)
 void
 initfpu(void)
 {
-  assert(cpuid::features().xsave);
-
   // Allow usage of FPU instructions.
   lcr0(rcr0() & ~(CR0_TS | CR0_EM));
-  lcr4(rcr4() | CR4_OSXSAVE);
+  if (cpuid::features().xsave)
+    lcr4(rcr4() | CR4_OSXSAVE);
   // Initialize FPU, ignoring pending FP exceptions
   fninit();
   // Don't generate interrupts for any SSE exceptions
   ldmxcsr(0x1f80);
+
+  if (!cpuid::features().xsave)
+    fxsave(fpu_initial_state);
 }
 
 void
