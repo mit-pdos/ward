@@ -75,6 +75,9 @@ static u64 reload_cr3() {
 static u64 flush_tlb_context() {
   scoped_cli cli;
 
+  if (!cpuid::features().invpcid)
+    ensure_secrets();
+
   if(secrets_mapped) {
     mycpu()->cr3_noflush = 0;
     return reload_cr3();
@@ -561,7 +564,7 @@ switchvm(vmap* from, vmap* to)
       if (!tlb_states->flush_pcid0) {
         cr3 |= CR3_NOFLUSH;
       }
-      lcr3(cr3);
+      lcr3(cr3 & mycpu()->cr3_mask);
       mycpu()->ts.ist[1] = (u64)*nmistacktop - 16;
       tlb_states->flush_pcid0 = false;
     } else {
