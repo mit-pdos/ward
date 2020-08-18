@@ -109,6 +109,11 @@ std::atomic<pause_state_t> pause_state {Ready};
 void
 pause_other_cpus(void)
 {
+  if (ncpu == 1) {
+    pushcli();
+    return;
+  }
+
   // wait for any previously paused CPUs to resume
   pause_state_t READY = Ready;
   while (!pause_state.compare_exchange_weak(READY, Pausing)) {
@@ -124,14 +129,21 @@ pause_other_cpus(void)
   }
 
   // wait for other CPUs to actually pause
-  while (pause_state != Paused) nop_pause();
+  while (pause_state != Paused)
+    nop_pause();
 }
 
 void
 resume_other_cpus(void)
 {
+  if (ncpu == 1) {
+    popcli();
+    return;
+  }
+
   pause_state = Unpausing;
-  while (pause_state != Unpaused) nop_pause();
+  while (pause_state != Unpaused)
+    nop_pause();
   popcli();
   pause_state = Ready;
 }
