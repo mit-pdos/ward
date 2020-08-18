@@ -420,6 +420,8 @@ sys_sched_setaffinity(pid_t tid, size_t cpusetsize, userptr<char> mask)
     return myproc()->set_cpu_pin(-1);
   else if (nset == 1)
     return myproc()->set_cpu_pin(cpu);
+  else if (nset == 0)
+    return -EINVAL;
   else
     panic("Pinning to multiple cores unsupported");
 }
