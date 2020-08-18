@@ -1,6 +1,6 @@
 set architecture i386:x86-64
 target remote localhost:1234
-symbol-file o.qemu/kernel.elf
+symbol-file output/ward.elf
 #hb panic
 #hb kerneltrap
 
