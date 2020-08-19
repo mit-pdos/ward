@@ -3,6 +3,9 @@
 #include "vfs.hh"
 #include "cmdline.hh"
 #include "major.h"
+#include "kstream.hh"
+
+static console_stream verbose(false);
 
 static sref<virtual_filesystem> mounts __attribute__((section (".qdata")));
 
@@ -47,12 +50,12 @@ initvfs()
     if (fat32fs) {
       r = mounts->mount(mnt->create_dir(disk->dk_busloc), fat32fs);
       if (r) {
-        cprintf("mnt: Mounting %s FAT32 filesystem failed: %d\n", disk->dk_busloc, r);
+        verbose.println("mnt: Mounting '", disk->dk_busloc, "' FAT32 filesystem failed: ", r);
       } else if (fat32fs->resolve(sref<vnode>(), "/writeok")) {
-        cprintf("mnt: Found  FAT32 filesystem on '%s' (read write)\n", disk->dk_busloc);
+        verbose.println("mnt: Found  FAT32 filesystem on '", disk->dk_busloc, "' (read write)");
         vfs_enable_fat32_writeback(fat32fs);
       } else {
-        cprintf("mnt: Found  FAT32 filesystem on '%s' (read only)\n", disk->dk_busloc);
+        verbose.println("mnt: Found  FAT32 filesystem on '", disk->dk_busloc,"' (read only)");
       }
     }
   }

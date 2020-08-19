@@ -304,13 +304,14 @@ scan_gpt(disk *d, static_vector<partition, 128> *out)
       continue;
     }
     ent->partition_type.to_string(guid);
-    cprintf("partition: type=%s, ", guid);
+    verbose.print("partition: type=", guid, ", ");
     ent->unique_guid.to_string(guid);
-    cprintf("unique=%s, first=%lu, last=%lu, attributes=%lx, ", guid, ent->first_lba, ent->last_lba, ent->attributes);
+    verbose.print("unique=", guid, ", first=", ent->first_lba, ", last=", ent->last_lba, ", attributes=", ent->attributes);
     // no real reason this has to be the case besides to avoid using extra stack
-    static_assert(sizeof(guid) - 1 >= sizeof(ent->partition_name_utf16le) / sizeof(u16), "expected GUID buffer to be large enough for partition name");
+    static_assert(sizeof(guid) - 1 >= sizeof(ent->partition_name_utf16le) / sizeof(u16),
+                  "expected GUID buffer to be large enough for partition name");
     ent->name_to_string(guid, sizeof(guid));
-    cprintf("name=%s\n", guid);
+    verbose.println(", name=", guid);
     out->push_back(partition {
       .partition_index = i + 1,
       .start = ent->first_lba,

@@ -1,5 +1,8 @@
 #include "types.h"
 #include "fat32.hh"
+#include "kstream.hh"
+
+static console_stream verbose(false);
 
 // TODO: make the filesystem writable (and therefore include locking), instead of having it be read-only
 sref<filesystem>
@@ -12,10 +15,10 @@ vfs_new_fat32(disk *device)
   u64 cluster_size = hdr.sectors_per_cluster * SECTORSIZ;
   if (cluster_size % PGSIZE != 0) {
     // this is a restriction imposed by this implementation
-    cprintf("cannot mount FAT32 filesystem: cluster sizes of at least PGSIZE=%u are required, but found %lu\n", PGSIZE, cluster_size);
+    verbose.println("cannot mount FAT32 filesystem: cluster sizes of at least PGSIZE=", PGSIZE, " are required, but found ", cluster_size);
     return sref<filesystem>();
   }
-  cprintf("found a valid FAT32 signature with cluster size of %lu\n", cluster_size);
+  verbose.println("found a valid FAT32 signature with cluster size of ", cluster_size);
   u64 max_clusters = 1024 * 1024 / cluster_size; // use 1 MB for cluster cache
   auto cluster_cache = make_sref<fat32_cluster_cache>(device, max_clusters, cluster_size, hdr.first_data_sector() * SECTORSIZ);
   return make_sref<fat32_filesystem>(cluster_cache, hdr);
