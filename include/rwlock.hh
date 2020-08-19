@@ -9,7 +9,7 @@
 // sleeplock, but read-write lock
 class rwlock {
 public:
-  rwlock() : reader(this), writer(this), readers(0) {}
+  rwlock() : reader(this), writer(this) {}
 
   class read {
   public:
@@ -136,6 +136,6 @@ private:
   static constexpr u64 rwlock_held_for_writing = 0xFFFFFFFF;
   spinlock spin;
   condvar cond;
-  bool upgrading; // if set, DO NOT acquire the lock except by upgrade
-  u64 readers; // small integer or rwlock_held_for_writing
+  bool upgrading = false; // if set, DO NOT acquire the lock except by upgrade
+  u64 readers = 0; // small integer or rwlock_held_for_writing
 };
