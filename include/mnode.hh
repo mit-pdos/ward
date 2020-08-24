@@ -368,6 +368,10 @@ public:
       *this = other;
     }
 
+    explicit operator bool() const noexcept {
+      return value_ != 0;
+    }
+
     page_state &operator=(const page_state &other) {
       value_ = other.value_;
       page_info* pi = get_page_info_raw();

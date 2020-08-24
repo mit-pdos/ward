@@ -170,8 +170,8 @@ writei(sref<mnode> m, const userptr<void> data, u64 start, u64 nbytes,
     mfile::resizer scoped_resize;
 
     mfile::page_state ps = m->as_file()->get_page(pgbase / PGSIZE);
-    sref<page_info> pi = ps.get_page_info();
-    if (pi) {
+    if (ps) {
+      sref<page_info> pi = ps.get_page_info();
       /* File already has the page we are about to update */
       if (ps.is_partial_page() && resize == nullptr) {
         if (pos + pgend - pgoff > m->as_file()->size()) {
@@ -221,7 +221,7 @@ writei(sref<mnode> m, const userptr<void> data, u64 start, u64 nbytes,
           if (!p)
             break;
 
-          pi = sref<page_info>::transfer(new (page_info::of(p)) page_info());
+          sref<page_info> pi = sref<page_info>::transfer(new (page_info::of(p)) page_info());
           resize->resize_append(msize + PGSIZE, pi);
         }
 
@@ -240,14 +240,14 @@ writei(sref<mnode> m, const userptr<void> data, u64 start, u64 nbytes,
         myproc()->vmap->unmap_temporary(va);
       }
 
-      pi = sref<page_info>::transfer(new (page_info::of(p)) page_info());
+      sref<page_info> pi = sref<page_info>::transfer(new (page_info::of(p)) page_info());
       resize->resize_append(pos + pgend - pgoff, pi);
     }
 
     off += (pgend - pgoff);
   }
 
-  return off ?: -1;
+  return off ? off : -1;
 }
 
 static int
