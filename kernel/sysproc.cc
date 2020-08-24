@@ -216,9 +216,11 @@ sys_uptime(void)
 //SYSCALL
 void *
 sys_mmap(userptr<void> addr, size_t len, int prot, int flags, int fd,
-         off_t offset)
+         int offset)
 {
   sref<pageable> m;
+
+  STRACE_PARAMS("%p, %lx, 0x%x, 0x%x, 0x%lx, 0x%x", addr, len, prot, flags, fd, offset);
 
   // TODO: handle unmapped regions
   prot |= PROT_READ;
