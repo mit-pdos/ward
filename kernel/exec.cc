@@ -305,6 +305,8 @@ load_image(proc *p, const char *path, const char * const *argv,
   p->init_vmap();
   p->tf->rip = elf->entry;
   p->tf->rsp = sp;
+  // Set rtld_fini to 0
+  p->tf->rdx = 0;
   // Additional arguments.  We can't pass these in ABI argument
   // registers because the sysentry return path doesn't restore those.
   p->tf->r12 = phdr;         // AT_PHDR
