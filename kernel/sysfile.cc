@@ -105,7 +105,6 @@ sys_close(int fd)
 {
   STRACE_PARAMS("0x%x", fd);
 
-  ensure_secrets();
   return myproc()->ftable->close(fd) ? 0 : -1;
 }
 
