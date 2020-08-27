@@ -130,7 +130,7 @@ qemu: $(KERN)
 	$(QEMUCOMMAND)
 qemu-gdb: $(KERN)
 	$(QEMUCOMMAND) -s -S
-qemu-grub: $(O)/boot.img
+qemu-grub: $(O)/ward.img
 	$(eval QEMUKERNEL = )
 	$(QEMUCOMMAND) $<
 qemu-test: $(KERN)
