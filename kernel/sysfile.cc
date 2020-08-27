@@ -191,15 +191,15 @@ sys_pread(int fd, void *ubuf, size_t count, off_t offset)
 ssize_t
 sys_write(int fd, const userptr<void> p, size_t total_bytes)
 {
+  if(total_bytes >= 10 * 1024)
+    ensure_secrets();
+
   kstats::timer timer_fill(&kstats::write_cycles);
   kstats::inc(&kstats::write_count);
 
   sref<file> f = getfile(fd);
   if (!f)
     return -1;
-
-  if(total_bytes >= 10 * 1024 /*|| !f->get_vnode()*/)
-    ensure_secrets();
 
   return f->write(p, total_bytes);
 }
