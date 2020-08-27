@@ -3,53 +3,58 @@ Ward is a Spectre and Meltdown resistant research operating system based on
 [xv6](http://pdos.csail.mit.edu/6.828/xv6).
 
 
-Building and running Ward in QEMU
+Compiling Ward
 --------------------------------
 
-### Linux
+### On Linux
 
 You'll need a recent version of clang, GNU make, and QEMU. Generating disk images also
 requires mtools. On Ubuntu, this should just be a matter of:
 
 ```bash
-sudo apt-get install build-essential clang mtools qemu-system-x86
+sudo apt-get install git build-essential clang mtools qemu-system-x86
 ```
 
 Now you should be set to run:
 
 ```bash
-git clone git@github.com:mit-pdos/ward && cd ward
-make -j qemu
+git clone https://github.com/mit-pdos/ward && cd ward
+make -j
 ```
 
+At this point, the output directory should now contain _ward.elf_ which is a
+multiboot compatible kernel binary that can be loaded by a variety of
+bootloaders.
+
 The makefile also supports generating IMG, VHDX, and VDI disk images. These
-images support both MBR and UEFI booting using bundled copies of GRUB, and
-should be compatible with a range of hypervisors:
+images support both MBR and UEFI booting using bundled copies of GRUB, and the
+resulting _ward.img_, _ward.vhdx_, and _ward.vdi_ should be compatible with a
+range of hypervisors:
 
 ```bash
 make -j img vhdx vdi
 ```
 
-You can see this by running `qemu-system-x86_64 output/ward.img`, but since
-QEMU's default settings are rather suboptimal, there is a make target for using
-preferred options:
+Running Ward in a VM
+----------------------------
+
+To launch inside QEMU just run...
+
+```bash
+make -j qemu
+```
+(To exit, press Ctrl-a x.)
+
+Alternatively, if you want to test the generated _ward.img_ disk image, you can run:
 
 ```bash
 make -j qemu-grub
 ```
 
-### OSX
-To run Ward on OSX, there are some additional steps that need to be taken:
-1. [Install homebrew](https://brew.sh/)
-1. Install qemu: `brew install qemu`
-1. Install truncate: `brew install truncate`
-1. [Install macports](https://www.macports.org/install.php)
-1. Install x86 binaries: `sudo port install x86_64-elf-binutils`, `sudo port install x86_64-elf-gcc`
-1. Add `TOOLPREFIX = x86_64-elf-` to `config.mk`
-1. Build: `make -j`
-    * If you get the error `x86_64-elf-ar: libgcc_eh.a: No such file or directory`, you may need to find copies of `libgcc_eh.a` (and/or `libsupc++.a`) elsewhere and copy them to your `x86_64-elf-gcc` directory
-1. Run: `make qemu`
-    * If you get the error `cannot identify root disk with bus location "ahci0.0p1"`, try `make QEMUAPPEND="root_disk=memide.0" qemu`
+The simplest command would actually just be `qemu-system-x86_64 output/ward.img`, however
+QEMU's default settings are rather suboptimal (no hardware acceleration, 128MB
+of RAM, etc.)
+
 
 Running Ward on real hardware
 ----------------------------
