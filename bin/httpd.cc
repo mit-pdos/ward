@@ -369,7 +369,6 @@ client(int s)
       content_length = atoi(b + 16);
   } while (strcmp(b, "\r\n"));
 
-  fprintf(stderr, "httpd client: %s %s\n", method, url);
   if (method[0] == 'G')
     resp_get(s, url);
   else if (method[0] == 'P')
@@ -415,7 +414,6 @@ main(void)
       fprintf(stderr, "httpd accept: %d\n", ss);
       continue;
     }
-    fprintf(stderr, "httpd: connection ???\n" /*, ipaddr(&sin)*/);
 
     client(ss);
     ward_close(ss);
