@@ -16,9 +16,9 @@ struct QStats {
 }
 
 fn main() {
-    let kernel_path = format!("{}/../../o.qemu/kernel.elf", env!("CARGO_MANIFEST_DIR"));
+    let kernel_path = format!("{}/../../output/ward.elf", env!("CARGO_MANIFEST_DIR"));
 
-    let matches = App::new("QStats Viewer")
+    let matches = App::new("Warden")
         .version("0.1")
         .arg(
             Arg::with_name("hostname")
