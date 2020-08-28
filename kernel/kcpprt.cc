@@ -140,9 +140,7 @@ __cxa_atexit(void (*f)(void*), void *p, void *d)
   return 0;
 }
 
-extern "C" void abort(void);
-void
-abort(void) throw()
+extern "C" void abort(void)
 {
   panic("abort");
 }
@@ -377,7 +375,7 @@ extern "C" int posix_memalign(void **memptr, size_t alignment, size_t size) {
 }
 extern "C" void* calloc( size_t num, size_t size ) { panic("calloc"); }
 
-extern "C" void __assert_fail(const char *assertion, const char *file, unsigned int line,
+extern "C" void __assert_fail(const char *assertion, const char *file, int line,
                               const char *function) {
   panic("Assertion failed: %s, function %s, file %s, line %d",
         assertion, function, file, line);

@@ -2,7 +2,7 @@
 #include "kernel.hh"
 #include "net.hh"
 #include "filetable.hh"
-#include <uk/fcntl.h>
+#include <fcntl.h>
 #include <uk/stat.h>
 #include <uk/socket.h>
 

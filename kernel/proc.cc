@@ -13,7 +13,7 @@
 #include "ns.hh"
 #include "filetable.hh"
 #include "nospec-branch.hh"
-#include <uk/fcntl.h>
+#include <fcntl.h>
 #include <uk/unistd.h>
 #include <uk/wait.h>
 

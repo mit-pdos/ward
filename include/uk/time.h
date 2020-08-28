@@ -36,9 +36,9 @@ struct timespec {
 BEGIN_DECLS
 
 // These math functions are shared by user space and the kernel
-struct tm *gmtime_r(const time_t *timep, struct tm *result) noexcept;
-struct tm *localtime_r(const time_t *timep, struct tm *result) noexcept;
-time_t mktime(struct tm *tm) noexcept;
+struct tm *gmtime_r(const time_t *timep, struct tm *result);
+struct tm *localtime_r(const time_t *timep, struct tm *result);
+time_t mktime(struct tm *tm);
 /* long clock_gettime(int clk_id, struct timespec* tp) noexcept; */
 
 END_DECLS

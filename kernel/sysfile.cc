@@ -9,7 +9,7 @@
 #include "cpu.hh"
 #include "net.hh"
 #include "dirns.hh"
-#include <uk/fcntl.h>
+#include <fcntl.h>
 #include <uk/stat.h>
 #include "kstats.hh"
 #include <vector>
