@@ -1,10 +1,4 @@
-#include "types.h"
-#include "user.h"
-#include "amd64.h"
-#include "lib.h"
-#include "fs.h"
-#include "shutil.h"
-
+#include "sysstubs.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,24 +8,31 @@
 int
 main(int argc, char *argv[])
 {
-  u64 info = cpu_info();
-
-  printf("processor_signature = %x\n", (u32)info);
-  printf("microcode = %x\n", (u32)(info>>32));
+  unsigned long info = ward_cpu_info();
 
   char file[1024];
   snprintf(file, 1024, "intel-ucode/%02lx-%02lx-%02lx", ((info>>12) & 0xfff), ((info>>4) & 0xff), (info & 0xf));
-  printf("file = %s\n", file);
 
   int fd = open(file, O_RDONLY);
-  if(fd < 0)
-    die("unable to open ucode file");
+  if(fd < 0) {
+    printf("Failed to open '%s'\n", file);
+    return 0;
+  }
 
-  char* contents = (char*)malloc(0x100000);
-  readall(fd, contents, 0x100000);
-  printf("%x %x %x %x\n", *(u32*)contents, *(u32*)(contents+4), *(u32*)(contents+8), *(u32*)(contents+12));
+  int bytes_read = 0;
+  int max_bytes = 0x100000;
+  char* contents = (char*)malloc(max_bytes);
 
-  int ret = update_microcode(contents, 0x100000);
+  while (bytes_read < max_bytes) {
+    int r = read(fd, contents + bytes_read, max_bytes - bytes_read);
+    if (r <= 0) break;
+    bytes_read += r;
+  }
+
+  printf("%x %x %x %x\n", *(unsigned int*)contents, *(unsigned int*)(contents+4),
+         *(unsigned int*)(contents+8), *(unsigned int*)(contents+12));
+
+  int ret = ward_update_microcode(contents, 0x100000);
   printf("update_microcode returned %d\n", ret);
   return 0;
 }

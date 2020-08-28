@@ -9,6 +9,7 @@ UPROGS_BIN= \
 	lebench \
 	schedbench \
 	qrc \
+	update_ucode \
 
 # Binaries that are known to build on PLATFORM=native
 UPROGS_NATIVE := \
