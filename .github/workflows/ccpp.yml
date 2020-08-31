@@ -35,10 +35,12 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Install lld
-      run: brew install llvm
-    - name: llvm path
-      run: brew info llvm
+    - name: Install binutils
+      run: brew install binutils
+    - name: binutils info
+      run: brew info binutils
+    - name: Add llvm to path
+      run: export PATH="/usr/local/opt/llvm/bin:$PATH"
     - name: Build ward.elf
       run: make -j
     - name: Upload ward.elf
