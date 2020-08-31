@@ -47,7 +47,7 @@ jobs:
       uses: actions/upload-artifact@v1
       with:
         name: asmdefines.h
-        path: output/include/asmdefines.h
+        path: output/include/asmdefines.h*
       if: always()
     - name: Upload ward.elf
       uses: actions/upload-artifact@v1

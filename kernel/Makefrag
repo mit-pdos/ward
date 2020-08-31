@@ -146,9 +146,9 @@ $(O)/include/asmdefines.h: kernel/asmdefines.cc
 	@echo "  GEN    $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CXX) -S $(CXXFLAGS) -o $@.tmp $<
-	$(Q)sed -i -n 's/remove\$$//p' $@.tmp
-	$(Q)sed -i -n '/\#define/p' $@.tmp
-	$(Q)mv $@.tmp $@
+	$(Q)sed -n 's/remove\$$//p' $@.tmp > $@.tmp2
+	$(Q)sed -n '/\#define/p' $@.tmp2 > $@.tmp3
+	$(Q)mv $@.tmp3 $@
 
 $(O)/kernel/sysvectors.cc: tools/syscalls.py kernel/*.cc
 	$(call SYSCALLGEN,--kvectors)
