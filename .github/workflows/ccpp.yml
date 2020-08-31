@@ -38,7 +38,7 @@ jobs:
     - name: Install lld
       run: brew install llvm
     - name: llvm path
-      run: brew info llvm
+      run: brew info llvm && brew prefix llvm
     - name: Build ward.elf
       run: make -j
     - name: Upload ward.elf
