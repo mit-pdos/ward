@@ -36,7 +36,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install lld
-      run: brew install --with-lld --HEAD llvm
+      run: brew install llvm
     - name: Linker version
       run: which lld || which ld.lld
     - name: Build ward.elf
