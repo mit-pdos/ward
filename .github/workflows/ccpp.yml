@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+    - name: Install lld
+      run: sudo apt-get update && sudo apt-get install -y lld
     - name: Build ward.elf
       run: make -j
     - name: Upload ward.elf
@@ -36,7 +38,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install binutils
-      run: brew install binutils
+      run: brew install binutils x86_64-elf-gcc
     - name: Update path
       run: |
         echo "::add-path::/usr/local/opt/binutils/bin"

@@ -1,9 +1,24 @@
 # -*- makefile-gmake -*-
 
 UPROGS_BIN= \
+	init \
+	httpd \
+	halt \
+	reboot \
+	anon \
+	lebench \
+	schedbench \
+	qrc \
+	update_ucode \
+	getpid \
+	usertests \
 
 # Binaries that are known to build on PLATFORM=native
 UPROGS_NATIVE := \
+	anon \
+	smallfile \
+	lebench \
+	getpid \
 
 FSCONTENTS := $(addprefix $(O)/fs/bin/, $(UPROGS_BIN)) \
               $(addprefix $(O)/fs/bin/, $(notdir $(wildcard git/root/bin/git))) \
@@ -18,15 +33,15 @@ $(O)/include/types.h: include/types.h
 $(O)/bin/%.o: bin/%.c $(O)/include/sysstubs.h $(O)/include/types.h
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)$(CC) -std=gnu11 -g -MD -MP -O3 -Wall -static -DHW_$(HW) -DXV6_USER -iquote $(O)/include -c -o $@ $<
+	$(Q)x86_64-elf-gcc -std=gnu11 -g -MD -MP -O3 -Wall -static -DHW_$(HW) -DXV6_USER -iquote $(O)/include -c -o $@ $<
 $(O)/bin/%.o: bin/%.cc $(O)/include/sysstubs.h $(O)/include/types.h
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)$(CXX) -std=c++14 -g -MD -MP -O3 -Wall -static -DHW_$(HW) -DXV6_USER -iquote $(O)/include -c -o $@ $<
+	$(Q)x86_64-elf-g++ -std=c++14 -g -MD -MP -O3 -Wall -static -DHW_$(HW) -DXV6_USER -iquote $(O)/include -c -o $@ $<
 $(O)/bin/%.unstripped: $(O)/bin/%.o $(O)/lib/sysstubs.o
 	@echo "  LD     $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)$(CXX) -static -pthread -o $@ $^
+	$(Q)x86_64-elf-gcc -static -pthread -o $@ $^
 $(O)/fs/bin/%: $(O)/bin/%.unstripped
 	@echo "  STRIP  $@"
 	$(Q)mkdir -p $(@D)
@@ -46,15 +61,15 @@ $(O)/fs/lwip: lwip
 $(O)/native/%.o: bin/%.c
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)$(CC) -std=gnu11 -g -MD -MP -O3 -Wall -static -DHW_linux -DXV6_USER -iquote $(O)/include -c -o $@ $<
+	$(Q)x86_64-elf-gcc -std=gnu11 -g -MD -MP -O3 -Wall -static -DHW_linux -DXV6_USER -iquote $(O)/include -c -o $@ $<
 $(O)/native/%.o: bin/%.cc
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)$(CXX) -std=c++14 -g -MD -MP -O3 -Wall -static -DHW_linux -DXV6_USER -iquote $(O)/include -c -o $@ $<
+	$(Q)x86_64-elf-g++ -std=c++14 -g -MD -MP -O3 -Wall -static -DHW_linux -DXV6_USER -iquote $(O)/include -c -o $@ $<
 $(O)/native/%.unstripped: $(O)/native/%.o
 	@echo "  LD     $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)$(CXX) -static -pthread -o $@ $^
+	$(Q)x86_64-elf-gcc -static -pthread -o $@ $^
 $(O)/native/%: $(O)/native/%.unstripped
 	@echo "  STRIP  $@"
 	$(Q)mkdir -p $(@D)
