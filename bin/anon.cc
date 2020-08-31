@@ -1,5 +1,5 @@
-#ifndef POSIX_SOURCE
-#define POSIX_SOURCE
+#ifndef _POSIX_SOURCE
+#define _POSIX_SOURCE
 #endif
 
 #include <stdio.h>
