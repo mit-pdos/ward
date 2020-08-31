@@ -33,6 +33,7 @@ jobs:
       run: make qemu-test
   macos:
     runs-on: macos-latest
+	steps:
     - uses: actions/checkout@v2
     - name: Build ward.elf
       run: make -j
