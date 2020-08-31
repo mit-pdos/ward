@@ -38,7 +38,7 @@ jobs:
     - name: Install lld
       run: brew install llvm
     - name: Linker version
-      run: which ld.ld64
+      run: which ld64.lld
     - name: Build ward.elf
       run: make -j
     - name: Upload ward.elf
