@@ -26,12 +26,12 @@ O           = output
 #
 CC  = $(TOOLPREFIX)clang
 CXX = $(TOOLPREFIX)clang++
-AR = $(TOOLPREFIX)/usr/local/opt/llvm/bin/llvm-ar
-LD = $(TOOLPREFIX)/usr/local/opt/llvm/bin/ld.lld
-NM = $(TOOLPREFIX)/usr/local/opt/llvm/bin/llvm-nm
-OBJDUMP = $(TOOLPREFIX)/usr/local/opt/llvm/bin/llvm-objdump
-OBJCOPY = $(TOOLPREFIX)/usr/local/opt/binutils/bin/objcopy
-STRIP = $(TOOLPREFIX)/usr/local/opt/llvm/bin/llvm-strip
+AR = $(TOOLPREFIX)llvm-ar
+LD = $(TOOLPREFIX)ld.lld
+NM = $(TOOLPREFIX)llvm-nm
+OBJDUMP = $(TOOLPREFIX)llvm-objdump
+OBJCOPY = $(TOOLPREFIX)objcopy
+STRIP = $(TOOLPREFIX)llvm-strip
 
 define SYSCALLGEN
 	@echo "  GEN    $@"

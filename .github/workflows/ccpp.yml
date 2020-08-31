@@ -37,10 +37,10 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install binutils
       run: brew install binutils
-    - name: binutils info
-      run: brew info binutils
-    - name: Add llvm to path
-      run: export PATH="/usr/local/opt/llvm/bin:$PATH"
+    - name: Update path
+      run: |
+        echo "::add-path::/usr/local/opt/binutils/bin"
+        echo "::add-path::/usr/local/opt/llvm/bin"
     - name: Build ward.elf
       run: make -j
     - name: Upload ward.elf
