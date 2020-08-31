@@ -1,9 +1,5 @@
 #define LWIP_TIMEVAL_PRIVATE 0
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 #include <sched.h>
 #include <fcntl.h>
 #include <pthread.h>
