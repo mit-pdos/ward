@@ -147,6 +147,7 @@ $(O)/include/asmdefines.h: kernel/asmdefines.cc
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CXX) -S $(CXXFLAGS) -o $@.tmp $<
 	$(Q)sed -i -n 's/remove\$$//p' $@.tmp
+	$(Q)sed -i -n '/\#define/p' $@.tmp
 	$(Q)mv $@.tmp $@
 
 $(O)/kernel/sysvectors.cc: tools/syscalls.py kernel/*.cc
