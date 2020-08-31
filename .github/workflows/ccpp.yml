@@ -42,7 +42,7 @@ jobs:
         echo "::add-path::/usr/local/opt/binutils/bin"
         echo "::add-path::/usr/local/opt/llvm/bin"
     - name: Build ward.elf
-      run: make -j
+      run: make Q= -j
     - name: Upload ward.elf
       uses: actions/upload-artifact@v1
       with:
