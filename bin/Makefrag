@@ -42,7 +42,7 @@ $(O)/bin/%.o: bin/%.cc $(O)/include/sysstubs.h $(O)/include/types.h
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CXX) -std=c++14 -g -MD -MP -O3 -Wall -static -DHW_$(HW) -DXV6_USER \
-		-nostdinc $(MUSL_HEADERS) -iquote $(O)/include -c -o $@ $<
+		-nostdinc -nostdinc++ $(MUSL_HEADERS) -iquote $(O)/include -c -o $@ $<
 $(O)/bin/%.unstripped: $(O)/bin/%.o $(O)/lib/sysstubs.o $(O)/crt1.a $(O)/libc.a
 	@echo "  LD     $@"
 	$(Q)mkdir -p $(@D)
@@ -72,7 +72,7 @@ $(O)/native/%.o: bin/%.cc
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CXX) -std=c++14 -g -MD -MP -O3 -Wall -static -DHW_linux -DXV6_USER \
-		-nostdinc $(MUSL_HEADERS) -c -o $@ $^
+		-nostdinc -nostdinc++ $(MUSL_HEADERS) -c -o $@ $^
 $(O)/native/%.unstripped: $(O)/native/%.o $(O)/crt1.a $(O)/libc.a
 	@echo "  LD     $@"
 	$(Q)mkdir -p $(@D)

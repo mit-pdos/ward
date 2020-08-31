@@ -1,8 +1,12 @@
 #define LWIP_TIMEVAL_PRIVATE 0
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
+#include <sched.h>
 #include <fcntl.h>
 #include <pthread.h>
-#include <sched.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -16,13 +20,13 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#include <sys/syscall.h>
 #include <time.h>
 #include <unistd.h>
 
 #define PAGE_SIZE 4096
 
 #ifdef HW_linux
-  #include <sys/syscall.h>
   #include <stdint.h>
   typedef uint32_t u32;
   typedef uint64_t u64;
