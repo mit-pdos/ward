@@ -1,9 +1,4 @@
-#include "types.h"
-#include "user.h"
-#include "fs.h"
-#include "traps.h"
-#include "pthread.h"
-#include "rnd.hh"
+#include "sysstubs.h"
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -14,6 +9,14 @@
 #include <setjmp.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
+
+#define NDIRECT 10
+#define BSIZE 4096  // block size
+#define NINDIRECT (BSIZE / sizeof(u32))
+#define MAXFILE (NDIRECT + NINDIRECT + NINDIRECT*NINDIRECT)
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
@@ -410,9 +413,9 @@ preempt(void)
   }
   close(pfds[0]);
   printf("kill... ");
-  kill(pid1);
-  kill(pid2);
-  kill(pid3);
+  kill(pid1, 9);
+  kill(pid2, 9);
+  kill(pid3, 9);
   printf("wait... ");
   wait(NULL);
   wait(NULL);
@@ -467,7 +470,7 @@ mem(void)
     m1 = malloc(1024*20);
     if(m1 == 0){
       printf("couldn't allocate mem?!!\n");
-      kill(ppid);
+      kill(ppid, 9);
       exit(0);
     }
     free(m1);
@@ -819,16 +822,16 @@ concreate(void)
   fd = open(".", 0);
   n = 0;
   while(read(fd, &de, sizeof(de)) > 0){
-    if(de.inum == 0)
+    if(de.d_ino == 0)
       continue;
-    if(de.name[0] == 'C' && de.name[2] == '\0'){
-      i = de.name[1] - '0';
+    if(de.d_name[0] == 'C' && de.d_name[2] == '\0'){
+      i = de.d_name[1] - '0';
       if(i < 0 || i >= sizeof(fa)){
-        printf("concreate weird file %s\n", de.name);
+        printf("concreate weird file %s\n", de.d_name);
         exit(0);
       }
       if(fa[i]){
-        printf("concreate duplicate file %s\n", de.name);
+        printf("concreate duplicate file %s\n", de.d_name);
         exit(0);
       }
       fa[i] = 1;
@@ -1443,12 +1446,12 @@ sbrktest(void)
   #define BIG (50*1024*1024)
 
   printf("sbrk test\n");
-  oldbrk = sbrk(0);
+  oldbrk = (char*)sbrk(0);
 
-  // can one sbrk() less than a page?
-  a = sbrk(0);
+  // can one (char*)sbrk() less than a page?
+  a = (char*)sbrk(0);
   for(i = 0; i < 5000; i++){
-    b = sbrk(1);
+    b = (char*)sbrk(1);
     if(b != a){
       printf("sbrk test failed %d %p %p\n", i, a, b);
       exit(0);
@@ -1461,8 +1464,8 @@ sbrktest(void)
     printf("sbrk test fork failed\n");
     exit(0);
   }
-  c = sbrk(1);
-  c = sbrk(1);
+  c = (char*)sbrk(1);
+  c = (char*)sbrk(1);
   if(c != a + 1){
     printf("sbrk test failed post-fork\n");
     exit(0);
@@ -1472,9 +1475,9 @@ sbrktest(void)
   wait(NULL);
 
   // can one grow address space to something big?
-  a = sbrk(0);
+  a = (char*)sbrk(0);
   amt = (BIG) - (uint64_t)a;
-  p = sbrk(amt);
+  p = (char*)sbrk(amt);
   if (p != a) {
     printf("sbrk test failed to grow big address space; enough phys mem?\n");
     exit(0);
@@ -1484,22 +1487,22 @@ sbrktest(void)
   *lastaddr = 99;
 
   // can one de-allocate?
-  a = sbrk(0);
-  c = sbrk(-4096LL);
+  a = (char*)sbrk(0);
+  c = (char*)sbrk(-4096LL);
   if((long) c == -1){
     printf("sbrk could not deallocate\n");
     exit(0);
   }
-  c = sbrk(0);
+  c = (char*)sbrk(0);
   if(c != a - 4096){
     printf("sbrk deallocation produced wrong address, a %p c %p\n", a, c);
     exit(0);
   }
 
   // can one re-allocate that page?
-  a = sbrk(0);
-  c = sbrk(4096);
-  if(c != a || sbrk(0) != a + 4096){
+  a = (char*)sbrk(0);
+  c = (char*)sbrk(4096);
+  if(c != a || (char*)sbrk(0) != a + 4096){
     printf("sbrk re-allocation failed, a %p c %p\n", a, c);
     exit(0);
   }
@@ -1509,8 +1512,8 @@ sbrktest(void)
     exit(0);
   }
 
-  a = sbrk(0);
-  c = sbrk(-(sbrk(0) - oldbrk));
+  a = (char*)sbrk(0);
+  c = (char*)sbrk(-((char*)sbrk(0) - oldbrk));
   if(c != a){
     printf("sbrk downsize failed, a %p c %p\n", a, c);
     exit(0);
@@ -1531,7 +1534,7 @@ sbrktest(void)
       act.sa_handler = &exit;
       sigaction(SIGSEGV, &act, NULL);
       printf("oops could read %p = %x\n", a, *a);
-      kill(ppid);
+      kill(ppid, 9);
       exit(0);
     }
     wait(NULL);
@@ -1547,7 +1550,7 @@ sbrktest(void)
   for(i = 0; i < sizeof(pids)/sizeof(pids[0]); i++){
     if((pids[i] = fork()) == 0){
       // allocate a lot of memory
-      sbrk(BIG - (uint64_t)sbrk(0));
+      sbrk(BIG - (uint64_t)(char*)sbrk(0));
       write(fds[1], "x", 1);
       // sit around until killed
       for(;;) sleep(1000);
@@ -1560,11 +1563,11 @@ sbrktest(void)
 
   // if those failed allocations freed up the pages they did allocate,
   // we'll be able to allocate here
-  c = sbrk(4096);
+  c = (char*)sbrk(4096);
   for(i = 0; i < sizeof(pids)/sizeof(pids[0]); i++){
     if(pids[i] == -1)
       continue;
-    kill(pids[i]);
+    kill(pids[i], 9);
     wait(NULL);
   }
   if((long) c == -1){
@@ -1572,8 +1575,8 @@ sbrktest(void)
     exit(0);
   }
 
-  if(sbrk(0) > oldbrk)
-    sbrk(-(sbrk(0) - oldbrk));
+  if((char*)sbrk(0) > oldbrk)
+    sbrk(-((char*)sbrk(0) - oldbrk));
 
   printf("sbrk test OK\n");
 }
@@ -1609,7 +1612,7 @@ validatetest(void)
     }
     sleep(0);
     sleep(0);
-    kill(pid);
+    kill(pid, 9);
     wait(NULL);
 
     // try to crash the kernel by passing in a bad string pointer
@@ -1730,7 +1733,7 @@ void argptest()
     fprintf(stderr, "open failed\n");
     exit(0);
   }
-  read(fd, sbrk(0) - 1, -1);
+  read(fd, (char*)sbrk(0) - 1, -1);
   close(fd);
   printf("arg test passed\n");
 }

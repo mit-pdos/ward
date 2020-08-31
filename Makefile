@@ -136,7 +136,7 @@ qemu-grub: $(O)/ward.img
 	$(QEMUCOMMAND) $<
 qemu-test: $(KERN)
 	$(eval QEMUAPPEND += %/bin/unittests.sh)
-	timeout --foreground 15m $(QEMUCOMMAND)
+	timeout --foreground 15m $(QEMUCOMMAND) -device isa-debug-exit
 
 codex: $(KERN)
 
