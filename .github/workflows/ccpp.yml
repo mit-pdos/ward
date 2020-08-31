@@ -37,10 +37,9 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Install binutils
-      run: brew install binutils x86_64-elf-gcc
-    - name: Update path
+    - name: Install dependencies
       run: |
+        brew install binutils
         echo "::add-path::/usr/local/opt/binutils/bin"
         echo "::add-path::/usr/local/opt/llvm/bin"
     - name: Build ward.elf

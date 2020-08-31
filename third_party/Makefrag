@@ -1,5 +1,39 @@
 # -*- makefile-gmake -*-
 
+#musl
+MUSL_SRC = third_party/musl/src
+MUSL_OBJ = $(O)/musl
+MUSL_SRC_C_FILES := $(wildcard $(MUSL_SRC)/*/*.c) $(wildcard $(MUSL_SRC)/*/*/*.c)
+MUSL_OBJ_FILES := $(patsubst $(MUSL_SRC)/%.c,$(MUSL_OBJ)/%.o,$(MUSL_SRC_C_FILES))
+MUSL_FLAGS = -Ithird_party/musl/src/include -Ithird_party/musl/src/internal \
+	-Ithird_party/musl/include -isystem third_party/musl/arch/generic \
+	-isystem third_party/musl/arch/x86_64 -D_POSIX_C_SOURCE=200809 -D_XOPEN_SOURCE \
+	-static -std=c99 -g -O3 -target x86_64-pc-linux-gnu -nostdinc -nostdlib
+$(MUSL_OBJ)/%.o: $(MUSL_SRC)/%.c
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(MUSL_FLAGS) -c -o $@ $<
+$(O)/libc.a: $(MUSL_OBJ_FILES)
+	@echo "  AR     $@"
+	$(Q)$(AR) rcs $@ $^
+
+#crt1
+CRT1_FLAGS = -Ithird_party/musl/src/include -Ithird_party/musl/src/internal \
+	-Ithird_party/musl/include -isystem third_party/musl/arch/generic \
+	-isystem third_party/musl/arch/x86_64 -D_POSIX_C_SOURCE=200809 -D_XOPEN_SOURCE \
+	-static -std=c99 -g -O3 -target x86_64-pc-linux-gnu -nostdinc -nostdlib
+$(O)/crt1/crt1.o: third_party/musl/crt/crt1.c
+	@echo "  CXX    $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(CRT1_FLAGS) -c -o $@ $<
+$(O)/crt1/crti.o: third_party/musl/crt/x86_64/crti.s
+	@echo "  AS     $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) -target x86_64-pc-linux-gnu -nostdlib -c -o $@ $<
+$(O)/crt1.a: $(O)/crt1/crt1.o $(O)/crt1/crti.o
+	@echo "  AR     $@"
+	$(Q)$(AR) rcs $@ $^
+
 #libunwind
 LIBUNWIND_SRC = third_party/libunwind/src
 LIBUNWIND_OBJ = $(O)/libunwind
