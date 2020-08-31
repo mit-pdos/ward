@@ -31,3 +31,13 @@ jobs:
       run: sudo apt-get install -y qemu-system-x86
     - name: Unit tests
       run: make qemu-test
+  macos:
+	runs-on: macos-latest
+    - uses: actions/checkout@v2
+    - name: Build ward.elf
+      run: make -j
+    - name: Upload ward.elf
+      uses: actions/upload-artifact@v1
+      with:
+        name: ward.elf
+        path: output/ward.elf

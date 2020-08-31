@@ -49,7 +49,7 @@ COMFLAGS := $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1
 	        -static -fno-builtin -fno-strict-aliasing -fno-omit-frame-pointer -mcmodel=kernel -mno-sse \
 	        -fms-extensions -mno-red-zone -nostdlib -ffreestanding -fno-pie -fno-pic -funwind-tables \
 	        -fasynchronous-unwind-tables -g -MD -MP -O3 -Wall -msoft-float -mretpoline-external-thunk \
-	        -DXV6_HW=$(HW) -DHW_$(HW) -DXV6 -DXV6_KERNEL \
+	        -DXV6_HW=$(HW) -DHW_$(HW) -DXV6 -DXV6_KERNEL -target x86_64-pc-linux-gnu \
 	        -isystem include -iquote $(O)/include -include param.h -include include/compiler.h \
 	        -Ithird_party/lwip/src/include -Inet -Ithird_party/lwip/src/include/ipv4 -Ithird_party/libcxx/include \
 	        -Ithird_party/acpica/source/include -Ithird_party/musl/include -nostdinc -Ithird_party/musl/arch/x86_64 \
