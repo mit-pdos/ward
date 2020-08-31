@@ -36,7 +36,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build ward.elf
-      run: make -j
+      run: make Q=
     - name: Upload ward.elf
       uses: actions/upload-artifact@v1
       with:
