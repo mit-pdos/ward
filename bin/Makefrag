@@ -1,24 +1,9 @@
 # -*- makefile-gmake -*-
 
 UPROGS_BIN= \
-	init \
-	httpd \
-	halt \
-	reboot \
-	anon \
-	lebench \
-	schedbench \
-	qrc \
-	update_ucode \
-	getpid \
-	usertests \
 
 # Binaries that are known to build on PLATFORM=native
 UPROGS_NATIVE := \
-	anon \
-	smallfile \
-	lebench \
-	getpid \
 
 FSCONTENTS := $(addprefix $(O)/fs/bin/, $(UPROGS_BIN)) \
               $(addprefix $(O)/fs/bin/, $(notdir $(wildcard git/root/bin/git))) \
