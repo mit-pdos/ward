@@ -56,7 +56,7 @@ COMFLAGS := $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1
 	        -Ithird_party/musl/arch/generic -Ithird_party/libunwind/include
 CFLAGS   := $(COMFLAGS) -std=c99
 CXXFLAGS := $(COMFLAGS) -std=c++14 -Wno-sign-compare -faligned-new -DEXCEPTIONS=1 -Wno-delete-non-virtual-dtor -nostdinc++ -ferror-limit=1000
-ASFLAGS  := $(ASFLAGS) -Iinclude -I$(O)/include -m64 -MD -MP -DHW_$(HW) -include param.h
+ASFLAGS  := $(ASFLAGS) -target x86_64-pc-linux-gnu -Iinclude -I$(O)/include -m64 -MD -MP -DHW_$(HW) -include param.h
 LDFLAGS  :=
 
 ALL :=
