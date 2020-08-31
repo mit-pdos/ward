@@ -1,3 +1,7 @@
+#ifndef POSIX_SOURCE
+#define POSIX_SOURCE
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
