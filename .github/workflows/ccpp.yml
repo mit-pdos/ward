@@ -35,6 +35,14 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
+    - name: Clang version
+      run: clang -v
+    - name: Linker version
+      run: ld -v
+    - name: Install lld
+      run: brew install --with-clang --with-lld --with-python --HEAD llvm
+    - name: Linker version
+      run: which lld || which ld.lld
     - name: Build ward.elf
       run: make -j
     - name: Upload ward.elf
