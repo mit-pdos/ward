@@ -37,7 +37,7 @@ $(O)/bin/%.o: bin/%.c $(O)/include/sysstubs.h $(O)/include/types.h
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) -std=gnu11 -g -MD -MP -O3 -Wall -static -DHW_$(HW) -DXV6_USER \
-		-nostdinc -nostdlib $(MUSL_HEADERS) -iquote $(O)/include -c -o $@ $<
+		-nostdinc $(MUSL_HEADERS) -iquote $(O)/include -c -o $@ $<
 $(O)/bin/%.o: bin/%.cc $(O)/include/sysstubs.h $(O)/include/types.h
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
