@@ -37,8 +37,6 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install lld
       run: brew install llvm
-    - name: Linker version
-      run: which ld64.lld
     - name: Build ward.elf
       run: make -j
     - name: Upload ward.elf
