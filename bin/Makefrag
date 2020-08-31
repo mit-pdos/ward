@@ -26,9 +26,9 @@ FSCONTENTS := $(addprefix $(O)/fs/bin/, $(UPROGS_BIN)) \
               $(O)/fs/intel-ucode \
               $(O)/fs/bin/busybox \
 
-MUSL_HEADERS := -Ithird_party/musl/include \
-	            -Ithird_party/musl/arch/x86_64 \
-	            -Ithird_party/musl/arch/generic
+MUSL_HEADERS := -isystem third_party/musl/include \
+	            -isystem third_party/musl/arch/x86_64 \
+	            -isystem third_party/musl/arch/generic
 
 $(O)/include/types.h: include/types.h
 	$(Q)mkdir -p $(@D)
