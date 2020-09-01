@@ -4,9 +4,9 @@ Ward Artifact
 
 * Getting Started (5 minutes)
 * Compile Ward (5 minutes)
-* Boot Ward (1 minute)
-* Run Experiments (5 minutes)
-* Validate Results (5 minutes)
+* Boot Ward (5 minute)
+* Run Experiments (10 minutes)
+* Validate Results (10 minutes)
 * Reuse beyond paper
 
 ## 1. Getting Started
@@ -59,8 +59,8 @@ Ward Artifact
 * Run the plotting script: `python3 tools/lebench-plot.py lebench-results.csv lebench-plot.pdf`
   - This should produce a _lebench-plot.pdf_ file in the current directory.
 * Compare the resulting output to Figure 4 in the paper.
-  - Exact numbers will differ from the paper version because they are using a VM and because they were run on different hardware.
   - In particular, confirm the key claim that Ward's mitigation approach (orange bars) generally has lower runtime than running with traditional mitigations (blue bars).
+  - Exact numbers will differ from the paper version because they are using a VM and because they were run on different hardware.
 * Review _bin/lebench.cc_ to understand what each benchmark is doing.
 
 ## 6. Reuse beyond the paper
