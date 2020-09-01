@@ -1,14 +1,5 @@
 *~
-o.ben/
-o.codex/
-o.josmp/
-o.linux/
-o.linuxmtrace/
-o.mtrace/
-o.native/
-o.qemu/
-o.syslinux/
-o.tom/
+output/
 /mtrace.out
 /mtrace.txt
 /mscan.out
