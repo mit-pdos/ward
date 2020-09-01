@@ -602,13 +602,13 @@ int main(int argc, char *argv[])
   if(mask & (1ull<<25)) one_line_test(munmap_test, base_iter / 4, "huge munmap");
   if(mask & (1ull<<26)) one_line_test(page_fault_test, base_iter * 5, "huge page fault");
 
-  clock_gettime(CLOCK_MONOTONIC, &endTime);
-  endCycles = end_timer();
-  struct timespec *diffTime = calc_diff(&startTime, &endTime);
-  printf("Test took: %d.%09ld seconds\n", (int)diffTime->tv_sec, diffTime->tv_nsec);
-  printf("CPU frequency: %f cycles/ns\n", (double)(endCycles - startCycles)
-         / (1e9 * (double)diffTime->tv_sec + (double)diffTime->tv_nsec));
-  fflush(stdout);
-  free(diffTime);
+  // clock_gettime(CLOCK_MONOTONIC, &endTime);
+  // endCycles = end_timer();
+  // struct timespec *diffTime = calc_diff(&startTime, &endTime);
+  // printf("Test took: %d.%09ld seconds\n", (int)diffTime->tv_sec, diffTime->tv_nsec);
+  // printf("CPU frequency: %f cycles/ns\n", (double)(endCycles - startCycles)
+  //        / (1e9 * (double)diffTime->tv_sec + (double)diffTime->tv_nsec));
+  // fflush(stdout);
+  // free(diffTime);
   return(0);
 }
