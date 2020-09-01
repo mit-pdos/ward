@@ -47,22 +47,38 @@ fn main() {
     let port = matches.value_of("port").unwrap();
     let kernel = matches.value_of("kernel").unwrap();
 
-    let mut dst = Vec::new();
-    let mut easy = Easy::new();
-    easy.url(&format!("{}:{}/dev/qstats", hostname, port))
-        .unwrap();
-    {
-        let mut transfer = easy.transfer();
-        transfer
-            .write_function(|data| {
-                dst.extend_from_slice(data);
-                Ok(data.len())
-            })
+    let mut i = 0;
+    let qstats: QStats;
+    loop {
+        let mut dst = Vec::new();
+        let mut easy = Easy::new();
+        easy.url(&format!("{}:{}/dev/qstats", hostname, port))
             .unwrap();
-        transfer.perform().unwrap();
-    }
+        {
+            let mut transfer = easy.transfer();
+            transfer
+                .write_function(|data| {
+                    dst.extend_from_slice(data);
+                    Ok(data.len())
+                })
+                .unwrap();
+            transfer.perform().unwrap();
+        }
 
-    let qstats: QStats = toml::from_slice(&dst).unwrap();
+        match toml::from_slice(&dst) {
+            Ok(t) => {
+                qstats = t;
+                break;
+            }
+            Err(_) if i < 20 => {
+                i += 1;
+            }
+            Err(msg) => {
+                eprintln!("Failed to parse TOML: {}", msg);
+                return;
+            }
+        }
+    }
 
     let kernel_file = std::fs::read(kernel).unwrap();
     let object = addr2line::object::File::parse(&kernel_file).unwrap();
@@ -72,14 +88,19 @@ fn main() {
     exits.sort_by_key(|e| e.count);
     exits.reverse();
 
-	let mut skipped = 0;
+    let mut skipped = 0;
     let mut total = 0;
-    for ExitTrigger { backtrace, count, intentional } in exits {
+    for ExitTrigger {
+        backtrace,
+        count,
+        intentional,
+    } in exits
+    {
         total += count;
-		if count < 10 {
-			skipped += 1;
-			continue;
-		}
+        if count < 10 {
+            skipped += 1;
+            continue;
+        }
 
         if intentional {
             print!("\u{1b}[32m");
@@ -122,5 +143,9 @@ fn main() {
     }
 
     println!();
-    println!("total = {} ({:.1}% skipped)", total, 100.0 * skipped as f32 / total as f32);
+    println!(
+        "total = {} ({:.1}% skipped)",
+        total,
+        100.0 * skipped as f32 / total as f32
+    );
 }
