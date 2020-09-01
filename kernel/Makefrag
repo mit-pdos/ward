@@ -132,14 +132,14 @@ $(O)/kernel/initcode: kernel/initcode.S $(O)/lib/sysstubs.o
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) $(CFLAGS) -nostdinc -I. -c $< -o $@.o
-	$(Q)$(LD) $(LDFLAGS) -e start --section-start=.text=0x1000 -o $@.out $@.o $(O)/lib/sysstubs.o
+	$(Q)$(LD) $(LDFLAGS) -e start -Ttext=0x1000 -o $@.out $@.o $(O)/lib/sysstubs.o
 	$(Q)$(OBJCOPY) -S -O binary $@.out $@
 
 $(O)/kernel/bootother: kernel/bootother.S
 	@echo "  CC     $@"
 	$(Q)mkdir -p $(@D)
-	$(Q)$(CC) $(CFLAGS) -nostdinc -I. -c $< -o $@.o
-	$(Q)$(LD) $(LDFLAGS) -e start --section-start=.text=0x1000 -o $@.out $@.o
+	$(Q)$(CC) $(CFLAGS) -nostdinc -c $< -o $@.o
+	$(Q)$(LD) $(LDFLAGS) -e start -Ttext=0x7000 -o $@.out $@.o
 	$(Q)$(OBJCOPY) -S -O binary $@.out $@
 
 $(O)/include/asmdefines.h: kernel/asmdefines.cc
