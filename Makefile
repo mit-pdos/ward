@@ -114,7 +114,7 @@ endif
 QEMUACCEL ?= -M accel=kvm:hvf:hax:whpx:tcg
 QEMUNET := -net user,hostfwd=tcp::2323-:23,hostfwd=tcp::8080-:80 -net nic,model=e1000
 QEMUSERIAL := $(if $(QEMUOUTPUT),-serial file:$(QEMUOUTPUT),-serial mon:stdio)
-QEMUCOMMAND = $(QEMU) -cpu Haswell,+pcid,+fsgsbase,+md-clear,+spec-ctrl -nographic -device sga \
+QEMUCOMMAND = $(QEMU) -cpu Skylake-Client,+spec-ctrl,+md-clear -nographic -device sga \
 		  	  -smp $(QEMUSMP) -m $(QEMUMEM) $(QEMUACCEL) $(QEMUNUMA) $(QEMUNET) $(QEMUSERIAL) \
 		      $(QEMUEXTRA) $(QEMUKERNEL) -no-reboot
 
