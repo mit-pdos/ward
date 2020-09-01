@@ -157,7 +157,7 @@ $(O)/fs.part.gz: $(O)/fs.part
 $(O)/boot.fat: $(KERN) grub/grub.cfg grub/grub.efi $(O)/writeok
 	@echo "  GEN    $@"
 	$(Q)dd if=/dev/zero of=$@ bs=4096 count=66560 2> /dev/null
-	$(Q)mkfs.fat -F 32 -s 8 -S 512 $@ > /dev/null
+	$(Q)mkfs.fat -F 32 -s 1 -S 512 $@ > /dev/null
 	$(Q)mmd -i $@ ::EFI
 	$(Q)mmd -i $@ ::EFI/BOOT
 	$(Q)mcopy -i $@ grub/grub.efi ::EFI/BOOT/BOOTX64.EFI
@@ -169,7 +169,7 @@ $(O)/ward.img: $(O)/boot.fat $(O)/fs.part grub/boot.img grub/core.img
 	$(Q)truncate -s "101M" $@
 	$(Q)PARTED_GPT_APPLE=0 parted -s --align minimal $@ mklabel gpt \
 		mkpart primary 32KiB 1MiB \
-		mkpart primary 1MiB 70MiB set 1 legacy_boot on set 1 esp on \
+		mkpart primary 1MiB 70MiB set 1 legacy_boot on set 2 esp on \
 		mkpart primary 70MiB 100MiB
 	$(Q)dd if=$(O)/boot.fat of=$@ conv=sparse obs=512 seek=2048 2> /dev/null
 	$(Q)dd if=$(O)/fs.part of=$@ conv=sparse obs=512 seek=143360 2> /dev/null
