@@ -474,26 +474,27 @@ initpg(struct cpu *c)
       }
     }
 
+    use_invpcid = cpuid::features().invpcid;
+
     if (!cpuid::features().invpcid) {
-      use_invpcid = false;
       cprintf("WARN: invpcid instructions unsupported\n");
+    }
+    if (!cpuid::features().fsgsbase) {
+      cprintf("WARN: wrfsbase instructions unsupported\n");
+    }
+    if (!cpuid::features().md_clear) {
+      cprintf("WARN: md-clear not advertised, attempting anyway\n");
+    }
+    if (!cpuid::features().spec_ctrl) {
+      cprintf("WARN: spec-ctrl feature unavailable\n");
     }
   }
 
   set_cr3_mask(c);
   c->cr3_noflush = 0;
 
-  if (!cpuid::features().fsgsbase) {
-    cprintf("WARN: wrfsbase instructions unsupported\n");
-  } else {
+  if (cpuid::features().fsgsbase) {
     lcr4(rcr4() | CR4_FSGSBASE);
-  }
-
-  if (!cpuid::features().spec_ctrl) {
-    cprintf("WARN: md-clear not advertised, attempting anyway\n");
-  }
-  if (!cpuid::features().spec_ctrl) {
-    cprintf("WARN: spec-ctrl feature unavailable?!\n");
   }
 
   // Enable recording of last branch records (if supported).
@@ -501,7 +502,6 @@ initpg(struct cpu *c)
 
   // Configure Page Attributes Table so 7 = Write Combining instead of uncached,
   // and everything else is left at default.
-  // cprintf("%d: MSR_INTEL_PAT = %lx\n", (int)mycpu()->id, readmsr(MSR_INTEL_PAT));
   writemsr(MSR_INTEL_PAT, 0x0007040601070406llu);
 
   // Enable global pages. This has to happen on every core.
