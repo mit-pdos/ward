@@ -31,9 +31,6 @@
   #include "sysstubs.h"
 
   const int MITIGATION_STYLES = 3;
-  int kill(int pid, int sig) {
-    return ward_kill(pid);
-  }
 #endif /* HW_linux */
 
 void assert(bool b) {
@@ -64,38 +61,9 @@ static inline u64 end_timer() {
                :: "%rax", "%rbx", "%rcx", "%rdx");
   return ((u64)cycles_high << 32) | (u64)cycles_low;
 }
-struct timespec *calc_diff(struct timespec *smaller, struct timespec *bigger)
-{
-  struct timespec *diff = (struct timespec *)malloc(sizeof(struct timespec));
-  if (smaller->tv_nsec > bigger->tv_nsec)
-  {
-    diff->tv_nsec = 1000000000 + bigger->tv_nsec - smaller->tv_nsec;
-    diff->tv_sec = bigger->tv_sec - 1 - smaller->tv_sec;
-  }
-  else
-  {
-    diff->tv_nsec = bigger->tv_nsec - smaller->tv_nsec;
-    diff->tv_sec = bigger->tv_sec - smaller->tv_sec;
-  }
-  return diff;
-}
-
-int comp(const void *ele1, const void *ele2) {
-  u64 t1 = *((u64*)ele1);
-  u64 t2 = *((u64*)ele2);
-  if (t1 > t2) {
-    return 1;
-  } else if (t1 == t2) {
-    return 0;
-  } else {
-    return -1;
-  }
-}
 
 void set_mitigations(int style) {
-#ifdef HW_linux
-  assert(style == 0);
-#else
+#ifndef HW_linux
   switch(style) {
   case 0:
     ward_cmdline_change_param("lazy_barrier", "yes");
@@ -458,7 +426,7 @@ u64 context_switch_test() {
 
     cpu_set_t set;
     CPU_ZERO(&set);
-    CPU_SET(1, &set);
+    CPU_SET(0, &set);
     retval = sched_setaffinity(getpid(), sizeof(set), &set);
     if (retval == -1) printf("[error] failed to set processor affinity.\n");
     /* retval = setpriority(PRIO_PROCESS, 0, -20);  */
@@ -481,11 +449,6 @@ u64 context_switch_test() {
 
 int main(int argc, char *argv[])
 {
-  timespec startTime, endTime;
-  u64 startCycles, endCycles;
-  startCycles = start_timer();
-  clock_gettime(CLOCK_MONOTONIC, &startTime);
-
 #ifdef HW_linux
   printf("Benchmark (linux),         Best,     Average,\n");
 #else
@@ -602,13 +565,5 @@ int main(int argc, char *argv[])
   if(mask & (1ull<<25)) one_line_test(munmap_test, base_iter / 4, "huge munmap");
   if(mask & (1ull<<26)) one_line_test(page_fault_test, base_iter * 5, "huge page fault");
 
-  // clock_gettime(CLOCK_MONOTONIC, &endTime);
-  // endCycles = end_timer();
-  // struct timespec *diffTime = calc_diff(&startTime, &endTime);
-  // printf("Test took: %d.%09ld seconds\n", (int)diffTime->tv_sec, diffTime->tv_nsec);
-  // printf("CPU frequency: %f cycles/ns\n", (double)(endCycles - startCycles)
-  //        / (1e9 * (double)diffTime->tv_sec + (double)diffTime->tv_nsec));
-  // fflush(stdout);
-  // free(diffTime);
   return(0);
 }
