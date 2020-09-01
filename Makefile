@@ -28,10 +28,10 @@ CC  = $(TOOLPREFIX)clang
 CXX = $(TOOLPREFIX)clang++
 AR = $(TOOLPREFIX)llvm-ar
 LD = $(TOOLPREFIX)ld.lld
-NM = $(TOOLPREFIX)llvm-nm
-OBJDUMP = $(TOOLPREFIX)llvm-objdump
+NM = $(TOOLPREFIX)nm
+OBJDUMP = $(TOOLPREFIX)objdump
 OBJCOPY = $(TOOLPREFIX)objcopy
-STRIP = $(TOOLPREFIX)llvm-strip
+STRIP = $(TOOLPREFIX)strip
 
 define SYSCALLGEN
 	@echo "  GEN    $@"
