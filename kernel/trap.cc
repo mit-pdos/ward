@@ -52,6 +52,9 @@ DEFINE_PERCPU(char*, nmistacktop);
 // boot.S
 extern u64 trapentry[];
 
+unsigned int(*registered_trap_handlers[256])(void*) = { 0 };
+void* registered_trap_handler_contexts[256] = { 0 };
+
 static struct irq_info
 {
   irq_handler *handlers;
@@ -360,6 +363,11 @@ trap(struct trapframe *tf, bool had_secrets)
     } else if (tf->trapno == T_PGFLT && do_pagefault(tf, had_secrets) == 0) {
       if(myproc()->killed)
         procexit(-1);
+      return;
+    } else if (tf->trapno < 256 && registered_trap_handlers[tf->trapno]) {
+      ensure_secrets();
+      registered_trap_handlers[tf->trapno](
+        registered_trap_handler_contexts[tf->trapno]);
       return;
     }
 

@@ -240,9 +240,10 @@ AcpiOsInstallInterruptHandler(uint32_t interrupt_number,
                               ACPI_OSD_HANDLER service_routine,
                               void *context)
 {
-  // XXX
-  cprintf("AcpiOsInstallInterruptHandler not implemented (%u, %p, %p)\n",
-          interrupt_number, service_routine, context);
+  extern unsigned int(*registered_trap_handlers[256])(void*);
+  extern void* registered_trap_handler_contexts[256];
+  registered_trap_handlers[interrupt_number] = service_routine;
+  registered_trap_handler_contexts[interrupt_number] = context;
   return AE_OK;
 }
 
