@@ -26,8 +26,8 @@ O           = output
 #
 CC  = $(TOOLPREFIX)clang
 CXX = $(TOOLPREFIX)clang++
-AR = $(TOOLPREFIX)ar
-LD = $(TOOLPREFIX)ld
+AR = $(TOOLPREFIX)llvm-ar
+LD = $(TOOLPREFIX)ld.lld
 NM = $(TOOLPREFIX)nm
 OBJDUMP = $(TOOLPREFIX)objdump
 OBJCOPY = $(TOOLPREFIX)objcopy
@@ -49,14 +49,14 @@ COMFLAGS := $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1
 	        -static -fno-builtin -fno-strict-aliasing -fno-omit-frame-pointer -mcmodel=kernel -mno-sse \
 	        -fms-extensions -mno-red-zone -nostdlib -ffreestanding -fno-pie -fno-pic -funwind-tables \
 	        -fasynchronous-unwind-tables -g -MD -MP -O3 -Wall -msoft-float -mretpoline-external-thunk \
-	        -DXV6_HW=$(HW) -DHW_$(HW) -DXV6 -DXV6_KERNEL \
+	        -DXV6_HW=$(HW) -DHW_$(HW) -DXV6 -DXV6_KERNEL -target x86_64-pc-linux-gnu \
 	        -isystem include -iquote $(O)/include -include param.h -include include/compiler.h \
 	        -Ithird_party/lwip/src/include -Inet -Ithird_party/lwip/src/include/ipv4 -Ithird_party/libcxx/include \
 	        -Ithird_party/acpica/source/include -Ithird_party/musl/include -nostdinc -Ithird_party/musl/arch/x86_64 \
 	        -Ithird_party/musl/arch/generic -Ithird_party/libunwind/include
 CFLAGS   := $(COMFLAGS) -std=c99
 CXXFLAGS := $(COMFLAGS) -std=c++14 -Wno-sign-compare -faligned-new -DEXCEPTIONS=1 -Wno-delete-non-virtual-dtor -nostdinc++ -ferror-limit=1000
-ASFLAGS  := $(ASFLAGS) -Iinclude -I$(O)/include -m64 -MD -MP -DHW_$(HW) -include param.h
+ASFLAGS  := $(ASFLAGS) -target x86_64-pc-linux-gnu -Iinclude -I$(O)/include -m64 -MD -MP -DHW_$(HW) -include param.h
 LDFLAGS  :=
 
 ALL :=
@@ -117,7 +117,7 @@ QEMUNET := -net user,hostfwd=tcp::2323-:23,hostfwd=tcp::8080-:80 -net nic,model=
 QEMUSERIAL := $(if $(QEMUOUTPUT),-serial file:$(QEMUOUTPUT),-serial mon:stdio)
 QEMUDISK := -drive if=none,file=$(O)/fs.part,format=raw,id=drive-sata0 -device ahci,id=ahci0 \
 		   	-device ide-hd,bus=ahci0.0,drive=drive-sata0,id=sata0
-QEMUCOMMAND = $(QEMU) -cpu Haswell,+pcid,+fsgsbase,+md-clear,+spec-ctrl -nographic -device sga \
+QEMUCOMMAND = $(QEMU) -cpu Haswell,+rdtscp,+invpcid,+fsgsbase,+md-clear,+spec-ctrl -nographic -device sga \
 		  	  -smp $(QEMUSMP) -m $(QEMUMEM) $(QEMUACCEL) $(QEMUNUMA) $(QEMUNET) $(QEMUSERIAL) \
 		      $(QEMUDISK) $(QEMUEXTRA) $(QEMUKERNEL) -no-reboot
 
@@ -136,7 +136,7 @@ qemu-grub: $(O)/ward.img
 	$(QEMUCOMMAND) $<
 qemu-test: $(KERN)
 	$(eval QEMUAPPEND += %/bin/unittests.sh)
-	timeout --foreground 15m $(QEMUCOMMAND)
+	timeout --foreground 15m $(QEMUCOMMAND) -device isa-debug-exit
 
 codex: $(KERN)
 

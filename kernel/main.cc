@@ -296,6 +296,7 @@ paravirtual_exit(int exit_code)
     assert((exit_code & 1) == 1);
     if ((strcmp(cpuid::features().hypervisor_id, "KVMKVMKVM") == 0) ||
         (strcmp(cpuid::features().hypervisor_id, "TCGTCGTCGTCG") == 0)) {
+      // Requires `-device isa-debug-exit` flag to QEMU
       outw(0x501, exit_code >> 1);
     } else {
       cprintf("NOTE: paravirtual_exit(%d) but QEMU paravirtualization not detected\n", exit_code);

@@ -623,6 +623,14 @@ sys_arch_prctl(int code, userptr<u64> addr)
 
 //SYSCALL
 long
+sys_set_thread_area(void* addr)
+{
+  myproc()->user_fs_ = (uptr)addr;
+  return 0;
+}
+
+//SYSCALL
+long
 sys_sigprocmask(int how, userptr<u32> set, userptr<u32> oldset)
 {
   if (oldset) {
