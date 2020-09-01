@@ -111,15 +111,12 @@ else
 QEMUNUMA := -numa node -numa node
 endif
 
-QEMUACCEL ?= -M accel=kvm:hvf:tcg
-QEMUAPPEND += root_disk=ahci0.0
+QEMUACCEL ?= -M accel=kvm:hvf:hax:whpx:tcg
 QEMUNET := -net user,hostfwd=tcp::2323-:23,hostfwd=tcp::8080-:80 -net nic,model=e1000
 QEMUSERIAL := $(if $(QEMUOUTPUT),-serial file:$(QEMUOUTPUT),-serial mon:stdio)
-QEMUDISK := -drive if=none,file=$(O)/fs.part,format=raw,id=drive-sata0 -device ahci,id=ahci0 \
-		   	-device ide-hd,bus=ahci0.0,drive=drive-sata0,id=sata0
 QEMUCOMMAND = $(QEMU) -cpu Haswell,+pcid,+fsgsbase,+md-clear,+spec-ctrl -nographic -device sga \
 		  	  -smp $(QEMUSMP) -m $(QEMUMEM) $(QEMUACCEL) $(QEMUNUMA) $(QEMUNET) $(QEMUSERIAL) \
-		      $(QEMUDISK) $(QEMUEXTRA) $(QEMUKERNEL) -no-reboot
+		      $(QEMUEXTRA) $(QEMUKERNEL) -no-reboot
 
 # We play a Makefile trick here: variables like QEMUCOMMAND which are declared with '=' are only
 # evaluated when they are used. Thus future assignments to QEMUAPPEND and QEMUKERNEL (including this
