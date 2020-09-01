@@ -14,7 +14,7 @@ jobs:
     - name: Install lld
       run: sudo apt-get update && sudo apt-get install -y lld
     - name: Build ward.elf
-      run: make -j
+      run: make Q= -j
     - name: Upload ward.elf
       uses: actions/upload-artifact@v1
       with:
@@ -50,6 +50,6 @@ jobs:
         name: ward.elf
         path: output/ward.elf
     - name: Install qemu
-      run: brew install qemu
+      run: brew install qemu coreutils
     - name: Test ward.elf
       run: make QEMUSMP=1 qemu-test
