@@ -49,3 +49,7 @@ jobs:
       with:
         name: ward.elf
         path: output/ward.elf
+    - name: Install qemu
+      run: brew install qemu
+    - name: Test ward.elf
+      run: make QEMUSMP=1 qemu-test
