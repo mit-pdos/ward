@@ -11,8 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Install lld
-      run: sudo apt-get update && sudo apt-get install -y lld
+    - name: Install llvm and lld
+      run: sudo apt-get update && sudo apt-get install -y llvm lld
     - name: Build ward.elf
       run: make Q= -j
     - name: Upload ward.elf

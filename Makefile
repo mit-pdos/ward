@@ -117,7 +117,7 @@ QEMUNET := -net user,hostfwd=tcp::2323-:23,hostfwd=tcp::8080-:80 -net nic,model=
 QEMUSERIAL := $(if $(QEMUOUTPUT),-serial file:$(QEMUOUTPUT),-serial mon:stdio)
 QEMUDISK := -drive if=none,file=$(O)/fs.part,format=raw,id=drive-sata0 -device ahci,id=ahci0 \
 		   	-device ide-hd,bus=ahci0.0,drive=drive-sata0,id=sata0
-QEMUCOMMAND = $(QEMU) -cpu Haswell,+pcid,+fsgsbase,+md-clear,+spec-ctrl -nographic -device sga \
+QEMUCOMMAND = $(QEMU) -cpu Haswell,+rdtscp,+invpcid,+fsgsbase,+md-clear,+spec-ctrl -nographic -device sga \
 		  	  -smp $(QEMUSMP) -m $(QEMUMEM) $(QEMUACCEL) $(QEMUNUMA) $(QEMUNET) $(QEMUSERIAL) \
 		      $(QEMUDISK) $(QEMUEXTRA) $(QEMUKERNEL) -no-reboot
 
