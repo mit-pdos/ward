@@ -27,7 +27,7 @@ jobs:
     - name: Build disk images
       run: make -j disks
     - name: Upload disk images
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v2
       with:
         name: disks
         path: |
