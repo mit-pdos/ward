@@ -20,13 +20,17 @@ jobs:
         path: output/ward.elf
     - name: Install mtools
       run: sudo apt-get update && sudo apt-get install -y mtools
-    - name: Build ward.img
-      run: make -j img
-    - name: Upload ward.img
+    - name: Build disk images
+      run: make -j disks
+    - name: Upload disk images
       uses: actions/upload-artifact@v1
       with:
-        name: ward.img
-        path: output/ward.img
+        name: disks
+        path: |
+          output/ward.img
+          output/ward.vhdx
+          output/ward.vmdk
+          output/ward.vdi
     - name: Install QEMU
       run: sudo apt-get install -y qemu-system-x86
     - name: Unit tests
