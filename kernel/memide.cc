@@ -6,6 +6,7 @@
 #include "kernel.hh"
 #include "cpputil.hh"
 #include "disk.hh"
+#include "vmalloc.hh"
 #include "../third_party/zlib/zlib.h"
 
 extern u8 _fs_img_start[];
@@ -43,6 +44,8 @@ initmemide(void)
   if (_fs_img_size > 0) {
     size_t len = 32 << 20;
     void* buf = kalloc("memide", len);
+    if (!buf)
+      buf = vmalloc_raw(len, PGSIZE, "memide");
 
     z_stream stream;
     memset(&stream, 0, sizeof(stream));
