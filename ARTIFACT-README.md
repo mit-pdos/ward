@@ -83,7 +83,7 @@ Ward can run a small sample of unmodified Linux binaries. However, it supports a
 * Test your _ward.img_ disk image by running `make -j qemu-grub` or `qemu-system-x86_64 output/ward.img`.
   - This should produce similar output as before.
   - The second command uses QEMU's default options which are suboptimal but Ward should still be able boot.
-* Take one of the generated disk images boot them with your chosen hypervisor
+* Take one of the generated disk images and boot them with your chosen hypervisor
  
 ### Run on real hardware
 * Review the main [README.md](README.md) for general instructions
