@@ -6,14 +6,6 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-datafiles = [
-    'lebench.linux.mitigations.csv',
-    'lebench.linux.no_mitigations.csv',
-    'lebench.ward.no_mitigations.csv',
-    'lebench.ward.mitigations.csv',
-    'lebench.ward.fast_mitigations.csv',
-]
-
 datafile = 'lebench-results.csv'
 if len(sys.argv) > 1:
     datafile = sys.argv[1]
@@ -36,7 +28,6 @@ ind = np.arange(len(benchmarks))
 width = 0.35
 matplotlib.rc('font', size=10, family='serif')
 matplotlib.rc('text', usetex=True)
-matplotlib.rc('text.latex', preamble=r'\usepackage{mathptmx}')
 
 fig, ax = plt.subplots(figsize=(8, 3.5))
 ward_traditional_mitigation_cost = [data[bench][1] / data[bench][0] for bench in benchmarks]

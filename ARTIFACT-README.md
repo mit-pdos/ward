@@ -12,12 +12,10 @@ Ward Artifact
 ## 1. Getting Started
 * Ensure your system meets the minimum requirements:
   - A recent x86-64 processor with support for hardware virtualization.
-  - A Linux environment that is *not* inside a VM. This guide has been tested on fresh Ubuntu 20.04 install, but other distros should work as well.
-  - If necessary, you can instead run steps 1-3 inside a Linux VM and steps 4-5 outside it on a Windows/macOS host system.
+  - A Linux environment that is *not* inside a VM. This guide has been tested on fresh Ubuntu 20.04 install, but other distros should work as well. If necessary, you can instead run steps 1-3 inside a Linux VM and steps 4-5 outside it on a Windows/macOS host system.
 
-* Install dependences: `sudo apt-get install git build-essential clang qemu-system-x86`
+* Install dependences: `sudo apt-get install git build-essential clang qemu-system-x86 python3-numpy python3-matplotlib`
   - Use appropriate package manager if not running Ubuntu/Debian.
-  - mtools is optional. It is only needed for making disk images.
 * Clone our git repository: `git clone https://github.com/mit-pdos/ward && cd ward`
 * Checkout the right commit hash: `git checkout <commit-hash>`
 
@@ -52,7 +50,7 @@ Ward Artifact
   getpid,                     188,        1241,         194,
   ...
   ```
-* Once complete, copy the printed CSV contents and save them to a file.
+* Once complete, copy the printed CSV contents and save them to a file named _lebench-results.csv_.
 
 ## 5. Validate results
 
