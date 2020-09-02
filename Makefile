@@ -175,12 +175,16 @@ $(O)/ward.img: $(O)/boot.fat $(O)/fs.part grub/boot.img grub/core.img
 $(O)/ward.vhdx: $(O)/ward.img
 	@echo "  GEN    $@"
 	$(Q)qemu-img convert -f raw -O vhdx $< $@
+$(O)/ward.vmdk: $(O)/ward.img
+	@echo "  GEN    $@"
+	$(Q)qemu-img convert -f raw -O vmdk $< $@
 $(O)/ward.vdi: $(O)/ward.img
 	@echo "  GEN    $@"
 	$(Q)qemu-img convert -f raw -O vdi $< $@
 
 img: $(O)/ward.img
 vhdx: $(O)/ward.vhdx
+vmdk: $(O)/ward.vmdk
 vdi: $(O)/ward.vdi
 
 grub/boot.img:
@@ -207,7 +211,7 @@ grub/grub.efi: grub/grub-early.cfg
 ## General commands
 ##
 .PRECIOUS: $(O)/%.o
-.PHONY: clean qemu qemu-gdb qemu-grub qemu-test
+.PHONY: clean qemu qemu-gdb qemu-grub qemu-test img vhdx vmdk vdi
 
 clean:
 	rm -fr $(O)
