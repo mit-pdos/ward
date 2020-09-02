@@ -985,6 +985,14 @@ initphysmem()
     panic("multiboot header has no memory map");
   }
 
+  u64 memory_mbytes = ((mem.bytes() - 1) >> 20) + 1;
+  if (memory_mbytes < 120) {
+    cprintf("ERROR: Insufficient memory (only detected %ld MB of RAM)\n", memory_mbytes);
+    while (1);
+  } else if (memory_mbytes < 500) {
+    cprintf("WARN: Only detected %ld MB of RAM\n", memory_mbytes);
+  }
+
   // Consider first 1MB of memory unusable
   mem.remove(0, 0x100000);
 
