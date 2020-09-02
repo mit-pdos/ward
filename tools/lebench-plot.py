@@ -26,8 +26,7 @@ with open(datafile) as csvfile:
 
 ind = np.arange(len(benchmarks))
 width = 0.35
-matplotlib.rc('font', size=10, family='serif')
-matplotlib.rc('text', usetex=True)
+matplotlib.rc('font', size=10, family='sans-serif')
 
 fig, ax = plt.subplots(figsize=(8, 3.5))
 ward_traditional_mitigation_cost = [data[bench][1] / data[bench][0] for bench in benchmarks]
