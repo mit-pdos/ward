@@ -118,7 +118,6 @@ $(KERN): tools/kmeta.py $(O)/kernel/boot.o $(OBJS) $(LDEPS) kernel/kernel.ld
 		"$$(date)" "$$(git describe --all --long --dirty=+)" \
 		| dd $(DDSTATUS) conv=notrunc of=$(O)/kernel/kmeta.bin
 	$(Q)$(OBJCOPY) --update-section .kmeta=$(O)/kernel/kmeta.bin $@.tmp
-	$(Q)tools/check-stack $@.tmp
 	$(Q)mv $@.tmp $@
 
 $(O)/kernel/incbin.o: ASFLAGS+=-DMAKE_OUT=$(O)

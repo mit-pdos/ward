@@ -37,7 +37,7 @@ define SYSCALLGEN
 	@echo "  GEN    $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)$(PYTHON) tools/syscalls.py $(1) kernel/*.cc > $@.tmp
-	$(Q)cmp -s $@.tmp $@ || mv $@.tmp $@
+	$(Q)mv $@.tmp $@
 endef
 
 
