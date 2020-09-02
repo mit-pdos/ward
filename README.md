@@ -28,13 +28,13 @@ At this point, the output directory should now contain _ward.elf_ which is a
 multiboot compatible kernel binary that can be loaded by a variety of
 bootloaders.
 
-The makefile also supports generating IMG, VHDX, and VDI disk images. These
-images support both MBR and UEFI booting using bundled copies of GRUB, and the
-resulting _ward.img_, _ward.vhdx_, and _ward.vdi_ should be compatible with a
-range of hypervisors:
+The makefile also supports generating IMG, VHDX, VMDK, and VDI disk
+images. These images support both MBR and UEFI booting using bundled copies of
+GRUB, and the resulting _ward.img_, _ward.vhdx_, _ward.vmdk_, and _ward.vdi_
+should be compatible with a range of hypervisors:
 
 ```bash
-make -j img vhdx vdi
+make -j disks
 ```
 
 Running Ward in a VM
