@@ -151,6 +151,9 @@ impl_read(sref<file>&& f, userptr<void> p, size_t total_bytes)
 ssize_t
 sys_read(int fd, userptr<void> p, size_t total_bytes)
 {
+  if(total_bytes >= 10 * 1024)
+    ensure_secrets();
+
   sref<file> f = getfile(fd);
   if (!f)
     return -EBADF;
@@ -161,9 +164,6 @@ sys_read(int fd, userptr<void> p, size_t total_bytes)
   // } else {
   //   ensure_secrets();
   }
-
-  if(total_bytes >= 1024 * 1024)
-    ensure_secrets();
 
   return impl_read(std::move(f), p, total_bytes);
 }

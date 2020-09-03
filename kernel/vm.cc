@@ -899,7 +899,6 @@ vmap::map_temporary(paddr pa)
 void
 vmap::unmap_temporary(void* va)
 {
-  cache.insert((uintptr_t)va, 0);
   tlb_shootdown shootdown;
   cache.invalidate((uintptr_t)va, PGSIZE, &shootdown);
   shootdown.perform();

@@ -75,7 +75,7 @@ static u64 reload_cr3() {
 static u64 flush_tlb_context() {
   scoped_cli cli;
 
-  if (!cpuid::features().invpcid)
+  if (!use_invpcid)
     ensure_secrets();
 
   if(secrets_mapped) {
@@ -726,6 +726,7 @@ tlb_shootdown::perform() const
   {
     scoped_cli cli;
     if (targets[myid()]) {
+      targets.reset(myid());
       if (!pcids_enabled()) {
         reload_cr3();
       } else if (end_ > start_ && end_ - start_ <= 4 * PGSIZE && use_invpcid) {
@@ -737,7 +738,6 @@ tlb_shootdown::perform() const
       } else {
         flush_tlb_context();
       }
-      targets.reset(myid());
     }
   }
 
