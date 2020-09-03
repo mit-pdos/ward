@@ -1,5 +1,3 @@
-#define LWIP_TIMEVAL_PRIVATE 0
-
 #include <fcntl.h>
 #include <pthread.h>
 #include <sched.h>
@@ -18,27 +16,19 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #define PAGE_SIZE 4096
 
 #ifdef HW_linux
   #include <sys/syscall.h>
-  #include <stdint.h>
   typedef uint32_t u32;
   typedef uint64_t u64;
   const int MITIGATION_STYLES = 1;
 #else /* HW_linux */
   #include "sysstubs.h"
-
   const int MITIGATION_STYLES = 3;
 #endif /* HW_linux */
-
-void assert(bool b) {
-  if(!b) {
-    printf("Assertion failed!\n");
-    exit(-1);
-  }
-}
 
 static inline u64 start_timer() {
   u32 cycles_low, cycles_high;
