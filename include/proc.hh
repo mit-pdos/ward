@@ -144,6 +144,10 @@ public:
   userptr<robust_list_head> robust_list_ptr;
   userptr<u32> tid_address;
 
+  sigaction sig[NSIG];
+  u32 blocked_signals = 0;
+  u32 pending_signals = 0;
+
   char fpu_state[XSAVE_BYTES] __attribute__ ((aligned (64)));
 
 #if KERNEL_STRACE
@@ -170,9 +174,6 @@ public:
 
   std::atomic<int> exception_inuse;
   u8 exception_buf[256];
-  sigaction sig[NSIG];
-  u32 blocked_signals;
-  u32 pending_signals;
 
   static proc* alloc(int tgid = 0);
   void         init_vmap();

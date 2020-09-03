@@ -38,8 +38,7 @@ proc::proc(int tid_, int tgid_) :
   transparent_barriers(0), intentional_barriers(0),
   robust_list_ptr((robust_list_head*)USERTOP), tid_address((u32*)USERTOP),
   parent(0), unmap_tlbreq_(0), data_cpuid(-1),
-  upath(nullptr), uargv(nullptr), exception_inuse(0),
-  blocked_signals(0), pending_signals(0)
+  upath(nullptr), uargv(nullptr), exception_inuse(0)
 {
   if (cpuid::features().xsave)
     memset(fpu_state, 0, XSAVE_BYTES);
