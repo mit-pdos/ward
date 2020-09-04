@@ -21,7 +21,7 @@ Ward Artifact
   - Then between steps 3 and 4, copy _output/ward.elf_ (or the entire _output_ directory) from the guest to the host
 
 ## 1. Getting Started
-* Install dependences: `sudo apt-get install git build-essential clang qemu-system-x86 python3-numpy python3-matplotlib`
+* Install dependencies: `sudo apt-get install git build-essential clang qemu-system-x86 python3-numpy python3-matplotlib`
   - Use an appropriate package manager if not running Ubuntu/Debian.
 * Clone our git repository: `git clone https://github.com/mit-pdos/ward && cd ward`
 * Checkout the right commit hash: `git checkout <commit-hash>`
@@ -72,7 +72,7 @@ Ward Artifact
 ## 6. Reuse beyond the paper
 
 ### Try out the Warden tool
-* Install Rust compiler via [rustup](https://rustup.rs/).
+* Install the Rust compiler via [rustup](https://rustup.rs/).
 * Navigate to _tools/warden_.
 * While an instance of Ward is running (i.e. started via `make -j qemu`), run Warden: `cargo run`
   - You should see a list of backtraces of where world barriers occurred (green means intentional, the rest are transparent world barriers).
@@ -90,10 +90,10 @@ Ward can run a small sample of unmodified Linux binaries. However, it supports a
   - This should produce _ward.img_, _ward.vhdx_, _ward.vmdk_, and _vard.vdi_ files in the output directory.
 * Test your _ward.img_ disk image by running `make -j qemu-grub` or `qemu-system-x86_64 output/ward.img`.
   - You should see similar output as before.
-  - The second command uses QEMU's default options which are suboptimal but Ward should still be able boot.
+  - The second command uses QEMU's default options which are sub-optimal but Ward should still be able boot.
 * Take one of the generated disk images and boot them with your chosen hypervisor
 
-Ward disk images have been tested in both VirtualBox (_ward.vdi_) and Hyper-V (_ward.vhdx_). 
+Ward disk images have been tested in both VirtualBox (_ward.vdi_) and Hyper-V (_ward.vhdx_).
 
 ### Run on real hardware
 * Review the main [README.md](README.md) for general instructions
