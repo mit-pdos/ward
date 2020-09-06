@@ -200,7 +200,7 @@ grub/grub.efi: grub/grub-early.cfg
 	@echo "  GEN    $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)grub-mkimage -O x86_64-efi -o $@ -p '/' -c grub/grub-early.cfg \
-		normal search part_msdos part_gpt fat multiboot multiboot2 gfxmenu echo video probe
+		normal search part_msdos part_gpt fat multiboot multiboot2 all_video gfxmenu gfxterm echo video probe
 
 
 ##
