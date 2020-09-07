@@ -132,7 +132,7 @@ do_pagefault(struct trapframe *tf, bool had_secrets)
     if(r >= 0 || myproc()->deliver_signal(SIGSEGV)){
       return 0;
     }
-  } else if (myproc()->uaccess_) {
+  } else if (myproc() && myproc()->uaccess_) {
     // Normally __uaccess_* functions must be called with interrupts disabled so
     // that we can process page faults caused by unmapped pages. However, futex
     // critical sections need to hold a lock while checking user memory, so we
@@ -418,7 +418,11 @@ inittrap(void)
   // And reserve interrupt 255 (Intel SDM Vol. 3 suggests this can't
   // be used for MSI).
   irq_info[255 - T_IRQ0].in_use = true;
+}
 
+void
+initvectoredtrap(void)
+{
   // Configure double fault handling. Any double fault results in a kernel
   // panic, so it is harmless to just share double fault stacks globally.
   for (int c = 0; c < ncpu; c++) {
@@ -555,6 +559,10 @@ initseg(struct cpu *c)
   writemsr(MSR_STAR, star);
   writemsr(MSR_LSTAR, (u64)&sysentry);
   writemsr(MSR_SFMASK, FL_TF | FL_IF);
+
+  extern u64 text;
+  writefs(UDSEG);
+  writemsr(MSR_FS_BASE, (u64)&text);
 }
 
 // Pushcli/popcli are like cli/sti except that they are matched:

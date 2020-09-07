@@ -241,14 +241,14 @@ OPTIONAL("lazy_barrier", "no")
 OPTIONAL_OR_NOPS("lazy_barrier")
         movq %rsp, %rdi  // first argument to trap
         movq (secrets_mapped), %rsi  // second argument to trap
-OPTIONAL("fsgsbase", "yes")
-        rdfsbase %rax
-OPTIONAL_OR_CALL("fsgsbase", emulate_rdfsbase)
+OPTIONAL("fsgsbase", "no")
+        call emulate_rdfsbase
+OPTIONAL_OR_INSTR("fsgsbase", rdfsbase %rax)
         pushq %rax
         movq $text, %rax
-OPTIONAL("fsgsbase", "yes")
-        wrfsbase %rax
-OPTIONAL_OR_CALL("fsgsbase", emulate_wrfsbase)
+OPTIONAL("fsgsbase", "no")
+        call emulate_wrfsbase
+OPTIONAL_OR_INSTR("fsgsbase", wrfsbase %rax)
         subq $8, %rsp
         call trap_c
         addq $8, %rsp
@@ -259,9 +259,9 @@ OPTIONAL_OR_CALL("fsgsbase", emulate_wrfsbase)
 .balign 8
 trapret:
         cli
-OPTIONAL("fsgsbase", "yes")
-        wrfsbase %rax
-OPTIONAL_OR_CALL("fsgsbase", emulate_wrfsbase)
+OPTIONAL("fsgsbase", "no")
+        call emulate_wrfsbase
+OPTIONAL_OR_INSTR("fsgsbase", wrfsbase %rax)
         addq $0x10, %rsp
         RESTORE_REGISTERS
         addq $0x10, %rsp  // trapno, err

@@ -15,7 +15,7 @@ struct patch {
   u64 opcode;
   u64 alternative;
   u64 end;
-  u64 padding;
+  u64 string_len;
 };
 
 #define PATCH_SEGMENT_KTEXT 0x1
@@ -169,9 +169,12 @@ void apply_hotpatches()
           remove_range(text_bases[i], p->start+5, p->end);
           break;
         case PATCH_OPCODE_OR_STRING:
+          assert(p->string_len > 0);
+          assert(p->string_len <= p->end - p->start);
           memcpy(&text_bases[i][p->start - KTEXT],
                  (char*)p->alternative,
-                 p->end - p->start);
+                 p->string_len);
+          remove_range(text_bases[i], p->start + p->string_len, p->end);
           break;
         default:
           panic("hotpatch: bad opcode");

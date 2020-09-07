@@ -29,6 +29,7 @@ void cleanuppg(void);
 void inittls(struct cpu *);
 void initcodex(void);
 void inittrap(void);
+void initvectoredtrap(void);
 void initfpu(void);
 void initmsr(void);
 void initseg(struct cpu *);
@@ -180,43 +181,39 @@ bootothers(void)
 void
 cmain(u64 mbmagic, u64 mbaddr)
 {
-
   // Make cpus[0] work.  CPU 0's percpu data is pre-allocated directly
   // in the image.  *cpu and such won't work until we inittls.
   percpu_offsets[0] = __percpu_start;
 
-  extern u64 text;
-  writefs(UDSEG);
-  writemsr(MSR_FS_BASE, (u64)&text);
+  // Initialize trap handling
+  initseg(&cpus[0]);
+  inittls(&cpus[0]);       // Requires initseg
+  inittrap();
 
+  // Initialize output
   initmultiboot(mbmagic, mbaddr);
   inithz();
   inituart();              // Requires inithz
-
   debugmultiboot(mbmagic, mbaddr);
   initcmdline();           // Requires initmultiboot
   initvga();               // Requires initmultiboot, initcmdline
+
   initphysmem();           // Requires initmultiboot
   initpg(&cpus[0]);        // Requires initphysmem
-  initseg(&cpus[0]);
-  inittls(&cpus[0]);       // Requires initseg
+  initvectoredtrap();      // Requires initpg
   initdoublebuffer();      // Requires initpg
-
   initacpitables();        // Requires initpg, inittls
   initlapic();             // Requires initpg, inithz
   initnuma();              // Requires initacpitables, initlapic
   initpercpu();            // Requires initnuma
-  initcpus();              // Requires initnuma, initpercpu,
-                           // suggests initacpitables
-
-  initpic();       // interrupt controller
+  initcpus();              // Requires initnuma, initpercpu, suggests initacpitables
+  initpic();               // interrupt controller
   initiommu();             // Requires initlapic
   initextpic();            // Requires initpic
   // Interrupt routing is now configured
 
   inituartcons();          // Requires interrupt routing
   initcga();
-
   initpageinfo();          // Requires initnuma
 
   // Some global constructors require mycpu()->id (via myid()) which
@@ -232,17 +229,16 @@ cmain(u64 mbmagic, u64 mbaddr)
       (*__init_array_start[i])(0, nullptr, nullptr);
 
   inithotpatch();
-  inittrap();              // Requires inithotpatch
   inithpet();              // Requires initacpitables
   inittsc();               // Requires inithpet
   initfpu();               // Requires nothing
   initmsr();               // Requires nothing
   initkalloc();            // Requires initpageinfo
-  initproc();      // process table
-  initsched();     // scheduler run queues
+  initproc();
+  initsched();
   initidle();
-  initgc();        // gc epochs and threads
-  initrefcache();  // Requires initsched
+  initgc();
+  initrefcache();          // Requires initsched
   initconsole();
   initsamp();
   initlockstat();
@@ -254,11 +250,11 @@ cmain(u64 mbmagic, u64 mbaddr)
   initpci();               // Suggests initacpi
   initnet();
   initrtc();               // Requires inithpet
-  initdev();               // Misc /dev nodes
-  initide();               // IDE driver
+  initdev();
+  initide();
   initmemide();
   initpartition();
-  initinode();     // inode cache
+  initinode();
   initmfs();
 
   // XXX hack until mnodes can load from disk
@@ -269,13 +265,13 @@ cmain(u64 mbmagic, u64 mbaddr)
 #if CODEX
   initcodex();
 #endif
-  bootothers();    // start other processors
+  bootothers();
   cleanuppg();             // Requires bootothers
   initcpprt();
   initwd();                // Requires initnmi
   initattack(); // for spectre demo
 
-  inituser();      // first user process
+  inituser();
   idleloop();
 
   panic("Unreachable");

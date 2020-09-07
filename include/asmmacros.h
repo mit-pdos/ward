@@ -28,6 +28,16 @@
     .previous; \
     91:
 
+#define OPTIONAL_OR_INSTR(option, instr) \
+    .section .hotpatch, "a";             \
+    .quad 0x6, 94f, 91f, 95f-94f;        \
+    .previous;                           \
+    .section .rodata;                    \
+94: instr;                               \
+95:                                      \
+    .previous;                           \
+91:
+
 /*
  * Taken from Linux: Fill the CPU return stack buffer.
  *
