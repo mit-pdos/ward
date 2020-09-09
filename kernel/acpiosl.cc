@@ -12,6 +12,7 @@ extern "C" {
 #include "semaphore.hh"
 #include "spinlock.hh"
 #include "pci.hh"
+#include "multiboot.hh"
 #include <new>
 
 // Environment
@@ -31,6 +32,11 @@ AcpiOsTerminate(void)
 ACPI_PHYSICAL_ADDRESS
 AcpiOsGetRootPointer(void)
 {
+  if (multiboot.flags & MULTIBOOT2_FLAG_ACPI_RSDP_V2)
+    return v2p(multiboot.acpi_rsdpv2);
+  if (multiboot.flags & MULTIBOOT2_FLAG_ACPI_RSDP_V1)
+    return v2p(multiboot.acpi_rsdpv1);
+
   ACPI_SIZE ret;
   AcpiFindRootPointer(&ret);
   return ret;

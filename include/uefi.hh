@@ -125,7 +125,7 @@ struct efi_system_table {
   void* console_err_handle;
   void* console_err_prot;
   efi_runtime_services* runtime_services;
-  paddr boot_services;
+  efi_boot_services* boot_services;
   u64 num_table_entries;
   void* configuration_table;
 };

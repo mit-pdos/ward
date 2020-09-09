@@ -94,6 +94,9 @@ struct multiboot_saved
 
   // Only ever provided by multiboot2. Available if MULTIBOOT2_FLAG_EFI_SYSTEM_TABLE is set.
   u64 efi_system_table;
+
+  u8 acpi_rsdpv1[20]; // If MULTIBOOT2_FLAG_ACPI_RSDP_V1 set
+  u8 acpi_rsdpv2[36]; // If MULTIBOOT2_FLAG_ACPI_RSDP_V2 set
 };
 extern multiboot_saved multiboot;
 
@@ -105,6 +108,8 @@ extern multiboot_saved multiboot;
 #define MULTIBOOT_FLAG_VBE               (1 << 11)
 #define MULTIBOOT_FLAG_FRAMEBUFFER       (1 << 12)
 
+#define MULTIBOOT2_FLAG_ACPI_RSDP_V1     (1 << 27)
+#define MULTIBOOT2_FLAG_ACPI_RSDP_V2     (1 << 28)
 #define MULTIBOOT2_FLAG_EFI_IMAGE_HANDLE (1 << 29)
 #define MULTIBOOT2_FLAG_EFI_MMAP         (1 << 30)
 #define MULTIBOOT2_FLAG_EFI_SYSTEM_TABLE (1 << 31)

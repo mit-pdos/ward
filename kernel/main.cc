@@ -23,6 +23,7 @@ void initcga(void);
 void initvga(void);
 void initdoublebuffer(void);
 void initconsole(void);
+void initdirectmap();
 void initpg(struct cpu *c);
 void inithz(void);
 void cleanuppg(void);
@@ -90,10 +91,6 @@ mpboot(void)
   extern void (*__percpuinit_array_end[])(size_t);
   for (size_t i = 0; i < __percpuinit_array_end - __percpuinit_array_start; i++)
       (*__percpuinit_array_start[i])(bcpuid);
-
-  extern u64 text;
-  writefs(UDSEG);
-  writemsr(MSR_FS_BASE, (u64)&text);
 
   initlapic();
   inittsc();
@@ -185,22 +182,21 @@ cmain(u64 mbmagic, u64 mbaddr)
   // in the image.  *cpu and such won't work until we inittls.
   percpu_offsets[0] = __percpu_start;
 
+  // Initialize output
+  initmultiboot(mbmagic, mbaddr);
+  inithz();
+  inituart();              // Requires inithz
+  initcmdline();           // Requires initmultiboot
+  initphysmem();
+  initdirectmap();         // Requires initmultiboot
+  initvga();               // Requires initcmdline, initdirectmap
+
   // Initialize trap handling
   initseg(&cpus[0]);
   inittls(&cpus[0]);       // Requires initseg
   inittrap();
 
-  // Initialize output
-  initmultiboot(mbmagic, mbaddr);
-  inithz();
-  inituart();              // Requires inithz
-  debugmultiboot(mbmagic, mbaddr);
-  initcmdline();           // Requires initmultiboot
-  initvga();               // Requires initmultiboot, initcmdline
-
-  initphysmem();           // Requires initmultiboot
-  initpg(&cpus[0]);        // Requires initphysmem
-  initvectoredtrap();      // Requires initpg
+  initpg(&cpus[0]);        // Requires initphysmem, initvga
   initdoublebuffer();      // Requires initpg
   initacpitables();        // Requires initpg, inittls
   initlapic();             // Requires initpg, inithz
@@ -210,6 +206,7 @@ cmain(u64 mbmagic, u64 mbaddr)
   initpic();               // interrupt controller
   initiommu();             // Requires initlapic
   initextpic();            // Requires initpic
+  initvectoredtrap();      // Requires initpercpu
   // Interrupt routing is now configured
 
   inituartcons();          // Requires interrupt routing

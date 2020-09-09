@@ -84,6 +84,18 @@ struct multiboot2_efi_memory_map {
   } descriptors[];
 };
 
+struct multiboot2_acpi_rsdpv1_tag {
+  u32 type;
+  u32 size;
+  u8 desc[20];
+};
+
+struct multiboot2_acpi_rsdpv2_tag {
+  u32 type;
+  u32 size;
+  u8 desc[36];
+};
+
 struct vesa_mode_info {
   uint16_t mode_attr;
   uint8_t win_attr[2];
@@ -121,6 +133,40 @@ struct vesa_mode_info {
 
   uint8_t reserved[206];
 } __attribute__ ((packed));
+
+void multiboot2_early(u64 mbaddr, multiboot_saved* mb) {
+    multiboot2_info* info = (multiboot2_info*)mbaddr;
+    multiboot2_tag* t = (multiboot2_tag*)(mbaddr + sizeof(multiboot2_info));
+    void* end = (void*)(mbaddr + info->total_size);
+
+    while (t < end) {
+      if (t->type == 8) {
+        auto tag = (multiboot2_framebuffer_tag*)t;
+        mb->framebuffer = (u32*)p2v(tag->framebuffer_addr);
+        mb->framebuffer_pitch = tag->framebuffer_pitch;
+        mb->framebuffer_width = tag->framebuffer_width;
+        mb->framebuffer_height = tag->framebuffer_height;
+        mb->framebuffer_bpp = tag->framebuffer_bpp;
+        mb->framebuffer_red_field_position = tag->framebuffer_red_field_position;
+        mb->framebuffer_red_mask_size = tag->framebuffer_red_mask_size;
+        mb->framebuffer_green_field_position = tag->framebuffer_green_field_position;
+        mb->framebuffer_green_mask_size = tag->framebuffer_green_mask_size;
+        mb->framebuffer_blue_field_position = tag->framebuffer_blue_field_position;
+        mb->framebuffer_blue_mask_size = tag->framebuffer_blue_mask_size;
+        mb->flags |= MULTIBOOT_FLAG_FRAMEBUFFER;
+      } else if (t->type == 12) {
+        auto tag = (multiboot2_pointer_tag*)t;
+        mb->efi_system_table = tag->addr;
+        mb->flags |= MULTIBOOT2_FLAG_EFI_SYSTEM_TABLE;
+      } else if (t->type == 20) {
+        auto tag = (multiboot2_pointer_tag*)t;
+        mb->efi_image_handle = tag->addr;
+        mb->flags |= MULTIBOOT2_FLAG_EFI_IMAGE_HANDLE;
+      }
+
+      t = (multiboot2_tag*)((char*)t + ((t->size + 7) & ~7));
+    }
+}
 
 void initmultiboot(u64 mbmagic, u64 mbaddr) {
   if (mbmagic == 0x2BADB002) {
@@ -242,7 +288,15 @@ void initmultiboot(u64 mbmagic, u64 mbaddr) {
         auto tag = (multiboot2_pointer_tag*)t;
         multiboot.efi_system_table = tag->addr;
         multiboot.flags |= MULTIBOOT2_FLAG_EFI_SYSTEM_TABLE;
-      } else if (t->type == 17) {
+      } else if (t->type == 14) {
+        auto tag = (multiboot2_acpi_rsdpv1_tag*)t;
+        memcpy(multiboot.acpi_rsdpv1, tag->desc, 20);
+        multiboot.flags |= MULTIBOOT2_FLAG_ACPI_RSDP_V1;
+      } else if (t->type == 15) {
+        auto tag = (multiboot2_acpi_rsdpv2_tag*)t;
+        memcpy(multiboot.acpi_rsdpv2, tag->desc, 36);
+        multiboot.flags |= MULTIBOOT2_FLAG_ACPI_RSDP_V2;
+      } else if (t->type == 17 && !(multiboot.flags & MULTIBOOT2_FLAG_EFI_MMAP)) {
         auto tag = (multiboot2_efi_memory_map*)t;
         multiboot.efi_mmap_descriptor_size = tag->descriptor_size;
         multiboot.efi_mmap_descriptor_version = tag->descriptor_version;

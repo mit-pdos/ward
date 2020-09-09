@@ -386,9 +386,16 @@ refresh_pcid_mask(void) {
   }
 }
 
-// Create a direct mapping starting at PA 0 to VA KBASE up to
-// KBASEEND.  This augments the KCODE mapping created by the
-// bootloader.  Perform per-core control register set up.
+
+void
+initdirectmap()
+{
+  int level = cpuid::features().page1GB ? pgmap::L_1G : pgmap::L_2M;
+  for (auto it = kpml4.find(KBASE, level); it.index() < KBASEEND; it += it.span()) {
+    *it.create(0) = (it.index() - KBASE) | PTE_W | PTE_P | PTE_PS | PTE_NX;
+  }
+}
+
 void
 initpg(struct cpu *c)
 {
@@ -409,12 +416,6 @@ initpg(struct cpu *c)
     // Make the text and rodata segments read only
     *kpml4.find(KTEXT, pgmap::L_2M).create(0) = v2p((void*)KTEXT) | PTE_P | PTE_PS;
     reload_cr3();
-
-    // Create direct map region
-    for (auto it = kpml4.find(KBASE, level); it.index() < KBASEEND; it += it.span()) {
-      *it.create(0) = (it.index() - KBASE) | PTE_W | PTE_P | PTE_PS | PTE_NX;
-    }
-    assert(!kpml4.find(KBASEEND, level).is_set());
 
     // Memory mapped I/O region might have MTRRs to set its caching mode, so we
     // can't use 1GB pages. This also lets us set the framebuffer with write
@@ -452,27 +453,27 @@ initpg(struct cpu *c)
       assert(!it.is_set());
     }
 
-    // Create UEFI area.
-    if (multiboot.flags & MULTIBOOT2_FLAG_EFI_MMAP) {
-      for (int i = 0; i < multiboot.efi_mmap_descriptor_count; i++) {
-        auto d = (efi_memory_descriptor*)&multiboot.efi_mmap[multiboot.efi_mmap_descriptor_size*i];
-        if (!(d->attributes & EFI_MEMORY_RUNTIME))
-          continue;
+    // // Create UEFI area.
+    // if (multiboot.flags & MULTIBOOT2_FLAG_EFI_MMAP) {
+    //   for (int i = 0; i < multiboot.efi_mmap_descriptor_count; i++) {
+    //     auto d = (efi_memory_descriptor*)&multiboot.efi_mmap[multiboot.efi_mmap_descriptor_size*i];
+    //     if (!(d->attributes & EFI_MEMORY_RUNTIME))
+    //       continue;
 
-        u64 perm = PTE_P;
-        if (!(d->attributes & EFI_MEMORY_WB)) {
-          if (d->attributes & EFI_MEMORY_WT) perm |= PTE_PWT;
-          else if (d->attributes & EFI_MEMORY_UC) perm |= PTE_PCD;
-          else panic("No supported cache mode for region");
-        }
-        if (d->attributes & EFI_MEMORY_XP) perm |= PTE_NX;
-        if (!(d->attributes & EFI_MEMORY_WP)) perm |= PTE_W;
+    //     u64 perm = PTE_P;
+    //     if (!(d->attributes & EFI_MEMORY_WB)) {
+    //       if (d->attributes & EFI_MEMORY_WT) perm |= PTE_PWT;
+    //       else if (d->attributes & EFI_MEMORY_UC) perm |= PTE_PCD;
+    //       else panic("No supported cache mode for region");
+    //     }
+    //     if (d->attributes & EFI_MEMORY_XP) perm |= PTE_NX;
+    //     if (!(d->attributes & EFI_MEMORY_WP)) perm |= PTE_W;
 
-        for (int offset = 0; offset < d->npages*PGSIZE; offset += PGSIZE) {
-          *kpml4.find(d->vaddr+offset).create(0) = (d->paddr + offset) | perm;
-        }
-      }
-    }
+    //     for (int offset = 0; offset < d->npages*PGSIZE; offset += PGSIZE) {
+    //       *kpml4.find(d->vaddr+offset).create(0) = (d->paddr + offset) | perm;
+    //     }
+    //   }
+    // }
 
     use_invpcid = cpuid::features().invpcid;
 
