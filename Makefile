@@ -156,8 +156,10 @@ $(O)/boot.fat: $(KERN) grub/grub.cfg grub/grub.efi $(O)/writeok
 	$(Q)dd if=/dev/zero of=$@ bs=4096 count=66560 2> /dev/null
 	$(Q)mkfs.fat -F 32 -s 1 -S 512 $@ > /dev/null
 	$(Q)mmd -i $@ ::EFI
-	$(Q)mmd -i $@ ::EFI/BOOT
-	$(Q)mcopy -i $@ grub/grub.efi ::EFI/BOOT/BOOTX64.EFI
+	$(Q)mmd -i $@ ::EFI/Boot
+	$(Q)mmd -i $@ ::EFI/Grub
+	$(Q)mcopy -i $@ grub/grub.efi ::EFI/Boot/bootx64.efi
+	$(Q)mcopy -i $@ grub/grub.efi ::EFI/Grub/grub.efi
 	$(Q)mcopy -i $@ grub/grub.cfg ::grub.cfg
 	$(Q)mcopy -i $@ $(KERN) ::ward
 	$(Q)mcopy -i $@ $(O)/writeok ::writeok
