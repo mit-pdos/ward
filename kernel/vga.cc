@@ -202,10 +202,15 @@ void initvga() {
     // Only clear screen on first call to initvga.
     if (front_buffer != multiboot.framebuffer) {
       front_buffer = multiboot.framebuffer;
+      for (int j = 0; j < 30; j++) {
+        for (int i = 0; i < screen_width * screen_height; i++) {
+          for (int d = 0; d < 3; d++)
+            ((u8*)&front_buffer[i])[d] = (4 * (int)((u8*)&front_buffer[i])[d] + (int)((u8*)&vga_background_color)[d]) / 5;
+        }
+        microdelay(16667);
+      }
       for (int i = 0; i < screen_width * screen_height; i++)
         front_buffer[i] = vga_background_color;
-      for (const char *p=DEBUG?"xv6 DEBUG VGA\n":"xv6 VGA\n"; *p; p++)
-        vgaputc(*p);
     }
   } else {
     verbose.println("vga: could not detect framebuffer\n");
