@@ -90,7 +90,7 @@ struct multiboot_saved
   u64 efi_mmap_descriptor_size;
   u32 efi_mmap_descriptor_version;
   u64 efi_mmap_descriptor_count;
-  u8 efi_mmap[0x2000];
+  u8 efi_mmap[0x10000];
 
   // Only ever provided by multiboot2. Available if MULTIBOOT2_FLAG_EFI_SYSTEM_TABLE is set.
   u64 efi_system_table;
