@@ -195,7 +195,7 @@ grub/core.img: grub/grub-early.cfg
 	@echo "  GEN    $@"
 	$(Q)mkdir -p $(@D)
 	$(Q)grub-mkimage -O i386-pc -o $@.tmp -p '/' -c grub/grub-early.cfg \
-		biosdisk normal search part_msdos part_gpt fat multiboot multiboot2 gfxmenu echo probe
+		biosdisk normal search part_msdos part_gpt fat multiboot multiboot2 all_video gfxmenu gfxterm echo probe
 	$(Q)$(PYTHON) -c "print('\x41')" | dd of=$@.tmp bs=1 seek=500 count=1 conv=notrunc 2> /dev/null
 	$(Q)mv $@.tmp $@
 grub/grub.efi: grub/grub-early.cfg
