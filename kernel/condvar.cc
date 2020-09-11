@@ -53,7 +53,6 @@ nsectime(void)
   }
 
   if (the_hpet) {
-    assert(!used_ticks);
     return the_hpet->read_nsec();
   }
   // XXX Ticks don't happen when interrupts are disabled, which means
