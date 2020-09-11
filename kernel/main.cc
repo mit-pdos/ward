@@ -21,7 +21,6 @@ void inituart(void);
 void inituartcons(void);
 void initcga(void);
 void initvga(void);
-void initdoublebuffer(void);
 void initconsole(void);
 void initdirectmap();
 void initpg(struct cpu *c);
@@ -197,7 +196,6 @@ cmain(u64 mbmagic, u64 mbaddr)
   inittrap();
 
   initpg(&cpus[0]);        // Requires initphysmem, initvga
-  initdoublebuffer();      // Requires initpg
   initacpitables();        // Requires initpg, inittls
   initlapic();             // Requires initpg, inithz
   initnuma();              // Requires initacpitables, initlapic
