@@ -1,5 +1,4 @@
-#pragma GCC push_options
-#pragma GCC optimize ("O0")
+#pragma clang optimize off
 
 #include "types.h"
 #include "amd64.h"
@@ -94,5 +93,3 @@ initattack(void)
   spectre_target_addr = (u64*)palloc("spectre_target_addr");
   *spectre_target_addr = (u64)&safe_target;
 }
-
-#pragma GCC pop_options
