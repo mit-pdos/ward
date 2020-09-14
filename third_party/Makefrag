@@ -53,7 +53,8 @@ LIBCXX_SRC_C_FILES := $(wildcard $(LIBCXX_SRC)/*.c)
 LIBCXX_SRC_CXX_FILES := $(wildcard $(LIBCXX_SRC)/*.cpp)
 LIBCXX_OBJ_FILES := $(patsubst $(LIBCXX_SRC)/%.c,$(LIBCXX_OBJ)/%.o,$(LIBCXX_SRC_C_FILES)) \
 						$(patsubst $(LIBCXX_SRC)/%.cpp,$(LIBCXX_OBJ)/%.o,$(LIBCXX_SRC_CXX_FILES))
-LIBCXX_FLAGS = -D_NOEXCEPT=noexcept -D_LIBCPP_BUILDING_LIBRARY -Ithird_party/libcxx/include -msse
+LIBCXX_FLAGS = -D_NOEXCEPT=noexcept -D_LIBCPP_BUILDING_LIBRARY \
+	-D_LIBCPP_PROVIDES_DEFAULT_RUNE_TABLE -Ithird_party/libcxx/include -msse
 $(LIBCXX_OBJ)/%.o: $(LIBCXX_SRC)/%.cpp
 	@echo "  CXX    $@"
 	$(Q)mkdir -p $(@D)
