@@ -2,7 +2,6 @@
 #define NCPU         64  // maximum number of cpus
 #define NPROC        64  // maximum number of processes
 #define KSTACKSIZE 32768 // size of per-process kernel stack
-#define NOFILE      450  // open files per process
 #define NBUF      10000  // size of disk block cache
 #define NINODE     5000  // maximum number of active i-nodes
 #define NDEV         16  // maximum major device number

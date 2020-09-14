@@ -7,6 +7,8 @@
 #include "file.hh"
 #include "errno.h"
 
+const u64 FILETABLE_SIZE = 450;
+
 class filetable_entries {
   struct entry {
     u16 refcount = 0;
@@ -20,10 +22,10 @@ class filetable_entries {
     entry(sref<file>&& _f, u16 partner) : f(_f), refcount(1), partner_index(partner),
                                           has_partner(true) {}
   };
-  entry entries_[NOFILE];
+  entry entries_[FILETABLE_SIZE];
 
   int alloc(int min = 0) {
-    for (int i = min; i < NOFILE; i++)
+    for (int i = min; i < FILETABLE_SIZE; i++)
       if (!entries_[i].f)
         return i;
 
@@ -49,7 +51,7 @@ public:
 
   filetable_entries copy() {
     filetable_entries t;
-    for (int i = 0; i < NOFILE; i++) {
+    for (int i = 0; i < FILETABLE_SIZE; i++) {
       t.entries_[i] = entries_[i];
       t.entries_[i].mapped = false;
     }
@@ -80,7 +82,7 @@ public:
   }
 
   void clear(filetable* t) {
-    for(int i = 0; i < NOFILE; i++)
+    for(int i = 0; i < FILETABLE_SIZE; i++)
       if (entries_[i].f)
         remove(i, t);
   }
@@ -111,7 +113,7 @@ public:
     t->cloexec_ = cloexec_;
     t->entries_ = entries_.copy();
 
-    for(int fd = 0; fd < NOFILE; fd++)
+    for(int fd = 0; fd < FILETABLE_SIZE; fd++)
       t->table_[fd] = table_[fd];
 
     return sref<filetable>::transfer(t);
@@ -119,7 +121,7 @@ public:
 
   void close_cloexec() {
     scoped_acquire lk(&lock_);
-    for (int fd = 0; fd < NOFILE; fd++) {
+    for (int fd = 0; fd < FILETABLE_SIZE; fd++) {
       if (open_[fd] && cloexec_[fd]) {
         __replace(fd, sref<file>());
       }
@@ -129,7 +131,7 @@ public:
   // Return the file referenced by FD fd.  If fd is not open, returns
   // sref<file>().
   sref<file> getfile(int fd) {
-    if (fd < 0 || fd >= NOFILE)
+    if (fd < 0 || fd >= FILETABLE_SIZE)
       return sref<file>();
 
     scoped_acquire lk(&lock_);
@@ -145,7 +147,7 @@ public:
   int allocfd(sref<file>&& f, int minfd, bool cloexec) {
     scoped_acquire lk(&lock_);
 
-    for (int fd = minfd; fd < NOFILE; fd++) {
+    for (int fd = minfd; fd < FILETABLE_SIZE; fd++) {
       if (!open_[fd]) {
         __replace(fd, std::move(f), cloexec);
         return fd;
@@ -160,7 +162,7 @@ public:
 
     *fd1 = -1;
     *fd2 = -1;
-    for (int i = 0; i < NOFILE; i++) {
+    for (int i = 0; i < FILETABLE_SIZE; i++) {
       if (open_[i])
         continue;
 
@@ -186,7 +188,7 @@ public:
   }
 
   bool close(int fd) {
-    if (fd < 0 || fd >= NOFILE) {
+    if (fd < 0 || fd >= FILETABLE_SIZE) {
       return false;
     }
 
@@ -202,10 +204,10 @@ public:
   long dup(int ofd) {
     scoped_acquire lk(&lock_);
 
-    if (ofd < 0 || ofd >= NOFILE || !open_[ofd])
+    if (ofd < 0 || ofd >= FILETABLE_SIZE || !open_[ofd])
       return -EBADF;
 
-    for (int nfd = 0; nfd < NOFILE; nfd++) {
+    for (int nfd = 0; nfd < FILETABLE_SIZE; nfd++) {
       if (!open_[nfd]) {
         open_.set(nfd);
         cloexec_.reset(nfd);
@@ -219,7 +221,7 @@ public:
   long dup2(int ofd, int nfd) {
     scoped_acquire lk(&lock_);
 
-    if (ofd < 0 || ofd >= NOFILE || nfd < 0 || nfd >= NOFILE || !open_[ofd])
+    if (ofd < 0 || ofd >= FILETABLE_SIZE || nfd < 0 || nfd >= FILETABLE_SIZE || !open_[ofd])
       return -EBADF;
 
     if (ofd == nfd)
@@ -241,7 +243,7 @@ public:
   }
 
   bool set_cloexec(int fd, bool value) {
-    if (fd < 0 || fd >= NOFILE || !open_[fd])
+    if (fd < 0 || fd >= FILETABLE_SIZE || !open_[fd])
       return false;
 
     cloexec_.set(fd, value);
@@ -252,7 +254,7 @@ public:
 
 private:
   filetable(sref<vmap> v): vmap_(v) {
-    for (int i = 0; i < NOFILE; i++)
+    for (int i = 0; i < FILETABLE_SIZE; i++)
       assert(!open_[i]);
   }
 
@@ -285,8 +287,8 @@ private:
   spinlock lock_;
 
   filetable_entries entries_;
-  u16 table_[NOFILE];
-  bitset<NOFILE> open_;
-  bitset<NOFILE> cloexec_;
+  u16 table_[FILETABLE_SIZE];
+  bitset<FILETABLE_SIZE> open_;
+  bitset<FILETABLE_SIZE> cloexec_;
 
 };
