@@ -151,6 +151,11 @@ $(O)/include/asmdefines.h: kernel/asmdefines.cc
 $(O)/kernel/sysvectors.cc: tools/syscalls.py kernel/*.cc
 	$(call SYSCALLGEN,--kvectors)
 
+$(O)/lib/sysstubs.o: $(O)/lib/sysstubs.S
+	@echo "  CC     $@"
+	$(Q)mkdir -p $(@D)
+	$(Q)$(CC) $(ASFLAGS) -c -o $@ $<
+
 .PRECIOUS: $(O)/kernel/%.o
 -include $(O)/kernel/*.d
 -include $(O)/kernel/fat32/*.d
