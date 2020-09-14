@@ -29,8 +29,11 @@ main(int argc, char *argv[])
     bytes_read += r;
   }
 
-  printf("%x %x %x %x\n", *(unsigned int*)contents, *(unsigned int*)(contents+4),
-         *(unsigned int*)(contents+8), *(unsigned int*)(contents+12));
+  unsigned int revision = *(unsigned int*)(contents+4);
+  unsigned int date = *(unsigned int*)(contents+8);
+  printf("Loading microcode revision=0x%x released=%x/%x/%x\n",
+         revision, date >> 24, (date >> 16) & 0xff, (date & 0xffff));
+  fflush(stdout);
 
   int ret = ward_update_microcode(contents, 0x100000);
   printf("update_microcode returned %d\n", ret);
