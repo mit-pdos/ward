@@ -214,7 +214,6 @@ void initvga() {
       front_buffer = multiboot.framebuffer;
       back_buffer = (u32*)kalloc("back_buffer", screen_width * screen_height * 4);
       memcpy(back_buffer, front_buffer, screen_width * screen_height * 4);
-      vga_boot_animation();
     }
   } else {
     verbose.println("vga: could not detect framebuffer\n");
@@ -222,18 +221,23 @@ void initvga() {
 }
 
 void vga_boot_animation() {
-  extern u64 cpuhz;
-  for (int j = 0; j < 29; j++) {
-    for (int i = 0; i < screen_width * screen_height; i++) {
-      for (int d = 0; d < 3; d++)
-        ((u8*)&back_buffer[i])[d] = (4 * (int)((u8*)&back_buffer[i])[d] + (int)((u8*)&vga_background_color)[d]) / 5;
+  if (front_buffer && back_buffer) {
+    for (int j = 0; j < 29; j++) {
+      u64 t = nsectime();
+      for (int i = 0; i < screen_width * screen_height; i++) {
+        for (int d = 0; d < 3; d++)
+          ((u8*)&back_buffer[i])[d] = (4 * (int)((u8*)&back_buffer[i])[d] + (int)((u8*)&vga_background_color)[d]) / 5;
+      }
+      swap_buffers();
+      u64 dt = nsectime() - t;
+      if (dt < 16666667) {
+        microdelay((16666667 - dt) / 1000);
+      }
     }
+    for (int i = 0; i < screen_width * screen_height; i++)
+      back_buffer[i] = vga_background_color;
     swap_buffers();
-    microdelay(16667);
   }
-  for (int i = 0; i < screen_width * screen_height; i++)
-    back_buffer[i] = vga_background_color;
-  swap_buffers();
 }
 
 bool get_framebuffer(paddr* out_address, u64* out_size) {

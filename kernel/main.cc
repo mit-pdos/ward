@@ -13,6 +13,7 @@
 #include "mfs.hh"
 #include "cpuid.hh"
 
+void vga_boot_animation();
 void initmultiboot(u64 mbmagic, u64 mbaddr);
 void debugmultiboot(u64 mbmagic, u64 mbaddr);
 void initpic(void);
@@ -196,6 +197,7 @@ cmain(u64 mbmagic, u64 mbaddr)
   inittrap();
 
   initpg(&cpus[0]);        // Requires initphysmem, initvga
+  vga_boot_animation();    // Requires initpg
   initacpitables();        // Requires initpg, inittls
   initlapic();             // Requires initpg, inithz
   initnuma();              // Requires initacpitables, initlapic
