@@ -32,12 +32,12 @@
 #ifndef __LWIP_ARCH_H__
 #define __LWIP_ARCH_H__
 
-#ifndef LITTLE_ENDIAN
-#define LITTLE_ENDIAN 1234
+#ifndef LWIP_LITTLE_ENDIAN
+#define LWIP_LITTLE_ENDIAN 1234
 #endif
 
-#ifndef BIG_ENDIAN
-#define BIG_ENDIAN 4321
+#ifndef LWIP_BIG_ENDIAN
+#define LWIP_BIG_ENDIAN 4321
 #endif
 
 #include "arch/cc.h"
