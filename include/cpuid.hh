@@ -44,6 +44,8 @@ private:
 
   char vendor_[13];
 
+  unsigned int arch_capabilities_;
+
   cpuid();
 
   static class cpuid instance_
@@ -105,6 +107,16 @@ public:
   {
     leaf l = get_leaf(leafid::basic);
     return l.b == 0x68747541 && l.d == 0x69746e65 && l.c == 0x444d4163;
+  }
+
+  static bool meltdown_bug()
+  {
+    return !vendor_is_amd() && !(get_instance().arch_capabilities_ & 0x1);
+  }
+
+  static bool mds_bug()
+  {
+    return !vendor_is_amd() && !(get_instance().arch_capabilities_ & 0x20);
   }
 
   // Leaf features
@@ -190,6 +202,7 @@ public:
     // 7.EDX
     bool md_clear : 1;
     bool spec_ctrl : 1;
+    bool arch_capabilities : 1;
 
     // 80000001.EDX
     bool page1GB : 1;

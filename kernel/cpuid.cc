@@ -1,7 +1,8 @@
+#include "amd64.h"
 #include "cpuid.hh"
 #include <string.h>
 
-cpuid cpuid::instance_;
+class cpuid cpuid::instance_;
 
 cpuid::cpuid() : basic_{}, extended_{}
 {
@@ -44,6 +45,7 @@ cpuid::cpuid() : basic_{}, extended_{}
   features_.intel_pt = l.b & (1<<25);
   features_.md_clear = l.d & (1<<10);
   features_.spec_ctrl = l.d & (1<<26);
+  features_.arch_capabilities = l.d & (1<<29);
 
   l = get_leaf(leafid::ext_state, 1);
   features_.xsaveopt = l.a & (1<<0);
@@ -62,4 +64,6 @@ cpuid::cpuid() : basic_{}, extended_{}
 
   l = get_leaf(leafid::extended_features);
   features_.page1GB = l.d & (1<<26);
+
+  arch_capabilities_ = features_.arch_capabilities ? readmsr(0x10A) : 0;
 }

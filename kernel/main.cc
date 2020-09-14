@@ -268,6 +268,9 @@ cmain(u64 mbmagic, u64 mbaddr)
   initwd();                // Requires initnmi
   initattack(); // for spectre demo
 
+  cprintf("meltdown: %s\n", cpuid::meltdown_bug() ? "yes" : "no");
+  cprintf("mds: %s\n", cpuid::mds_bug() ? "yes" : "no");
+
   inituser();
   idleloop();
 
