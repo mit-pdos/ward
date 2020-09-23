@@ -551,6 +551,8 @@ sys_update_microcode(const void* data, u64 len)
   if (((u32*)microcode)[3] != cpuid::get_leaf(cpuid::leafid::features).a)
     return -1;
 
+  cprintf("Old microcode revision=0x%x\n", microcode_rev());
+
   auto install_microcode = [microcode]() -> bool {
     u32 initial_rev = microcode_rev();
     writemsr(MSR_INTEL_UCODE_WRITE, (u64)microcode + 48);
