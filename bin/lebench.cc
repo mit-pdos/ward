@@ -105,10 +105,10 @@ void one_line_test(u64 (*f)(), int iter, const char* name){
     }
   }
 
-  for(int j=0; j < MITIGATION_STYLES; j++)
-    printf("%12ld,", best[j]);
   // for(int j=0; j < MITIGATION_STYLES; j++)
-  //   printf("%12ld,", sum[j] / iter);
+  //   printf("%12ld,", best[j]);
+  for(int j=0; j < MITIGATION_STYLES; j++)
+    printf("%12ld,", sum[j] / iter);
 
   printf("\n");
   fflush(stdout);
@@ -153,20 +153,20 @@ void two_line_test(void (*f)(u64*,u64*), int iter, const char* name) {
     }
   }
 
-  for(int j=0; j < MITIGATION_STYLES; j++)
-    printf("%12ld,", bestParent[j]);
   // for(int j=0; j < MITIGATION_STYLES; j++)
-  //   printf("%12ld,", sumParent[j] / iter);
+  //   printf("%12ld,", bestParent[j]);
+  for(int j=0; j < MITIGATION_STYLES; j++)
+    printf("%12ld,", sumParent[j] / iter);
   printf("\n");
 
   printf("%s-child,", name);
   for(int i = 0; i < 12-strlen(name); i++)
     printf(" ");
 
-  for(int j=0; j < MITIGATION_STYLES; j++)
-    printf("%12ld,", bestChild[j]);
   // for(int j=0; j < MITIGATION_STYLES; j++)
-  //   printf("%12ld,", sumChild[j] / iter);
+  //   printf("%12ld,", bestChild[j]);
+  for(int j=0; j < MITIGATION_STYLES; j++)
+    printf("%12ld,", sumChild[j] / iter);
   printf("\n");
   fflush(stdout);
 
@@ -440,9 +440,9 @@ u64 context_switch_test() {
 int main(int argc, char *argv[])
 {
 #ifdef HW_linux
-  printf("Benchmark (linux),         Best,     Average,\n");
+  printf("Benchmark (linux),  Mean cycles,\n");
 #else
-  printf("Benchmark (ward),     Off  Best,    On  Best,  Fast  Best,\n");
+  printf("Benchmark (ward),     Off  Mean,    On  Mean,  Fast  Mean,\n");
   fflush(stdout);
 #endif
 
