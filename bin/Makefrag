@@ -24,7 +24,7 @@ FSCONTENTS := $(addprefix $(O)/fs/bin/, $(UPROGS_BIN)) \
               $(addprefix $(O)/fs/bin/, $(notdir $(wildcard git/root/bin/git))) \
               $(addprefix $(O)/fs/, $(notdir $(wildcard lwip))) \
               $(O)/fs/bin/unittests.sh \
-              $(O)/fs/intel-ucode \
+              $(addprefix $(O)/fs/, $(wildcard intel-ucode/*)) \
               $(O)/fs/bin/busybox \
 
 $(O)/include/types.h: include/types.h
@@ -49,9 +49,9 @@ $(O)/fs/bin/%: $(O)/bin/%.unstripped
 $(O)/fs/bin/%: bin/%
 	$(Q)mkdir -p $(@D)
 	$(Q)cp $< $@
-$(O)/fs/intel-ucode: intel-ucode
+$(O)/fs/intel-ucode/%: intel-ucode/%
 	$(Q)mkdir -p $(@D)
-	$(Q)cp -r $< $@
+	$(Q)cp $< $@
 $(O)/fs/bin/git: git/root/bin/git
 	$(Q)mkdir -p $(O)/fs/bin
 	$(Q)cp -r git/root/bin/git $(O)/fs/bin/git
