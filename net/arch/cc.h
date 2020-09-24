@@ -36,8 +36,8 @@ typedef uptr mem_ptr_t;
 #define LWIP_PLATFORM_DIAG(x)	lwip_cprintf x
 #define LWIP_PLATFORM_ASSERT(x)	lwip_panic(x)
 
-#ifndef BYTE_ORDER
-#define BYTE_ORDER LITTLE_ENDIAN
+#ifndef LWIP_BYTE_ORDER
+#define LWIP_BYTE_ORDER LWIP_LITTLE_ENDIAN
 #endif
 
 // We define our own htonx so we can use them in userspace without

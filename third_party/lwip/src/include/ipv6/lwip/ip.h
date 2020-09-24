@@ -82,7 +82,7 @@ extern "C" {
 
 /* The IPv6 header. */
 struct ip_hdr {
-#if BYTE_ORDER == LWIP_LITTLE_ENDIAN
+#if LWIP_BYTE_ORDER == LWIP_LITTLE_ENDIAN
   u8_t tclass1:4, v:4;
   u8_t flow1:4, tclass2:4;  
 #else

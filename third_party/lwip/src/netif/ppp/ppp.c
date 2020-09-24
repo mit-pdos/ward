@@ -1703,9 +1703,9 @@ pppInput(void *arg)
         LWIP_ASSERT("pbuf_header failed\n", 0);
         goto drop;
       }
-#if BYTE_ORDER == LWIP_LITTLE_ENDIAN
+#if LWIP_BYTE_ORDER == LWIP_LITTLE_ENDIAN
       protocol = htons(protocol);
-#endif /* BYTE_ORDER == LWIP_LITTLE_ENDIAN */
+#endif /* LWIP_BYTE_ORDER == LWIP_LITTLE_ENDIAN */
       SMEMCPY(nb->payload, &protocol, sizeof(protocol));
       lcp_sprotrej(pd, nb->payload, nb->len);
     }
