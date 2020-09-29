@@ -259,9 +259,6 @@ trap(struct trapframe *tf, bool had_secrets)
     }
     if (mycpu()->id == 0) {
       timerintr();
-      // Work around a bug on X1 Carbon Laptop where keyboard interrupts stop
-      // arriving. TODO: Figure out what is going wrong.
-      kbdintr();
     }
     refcache::mycache->tick();
     lapiceoi();
