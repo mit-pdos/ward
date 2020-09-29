@@ -171,6 +171,7 @@ void            pmfree(void*, u64 nbytes);
 
 // kbd.c
 void            kbdintr(void);
+void            mouseintr(void);
 
 // main.c
 void            halt(void) __attribute__((noreturn));

@@ -199,3 +199,10 @@ kbdintr(void)
 {
   consoleintr(kbdgetc);
 }
+
+void
+mouseintr(void)
+{
+  // Ignore mouse input
+  inb(KBDATAP);
+}

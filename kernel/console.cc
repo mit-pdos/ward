@@ -524,4 +524,5 @@ initconsole(void)
   devsw[MAJ_CONSOLE].read = consoleread;
 
   extpic->map_isa_irq(IRQ_KBD).enable();
+  extpic->map_isa_irq(IRQ_MOUSE).enable();
 }

@@ -287,6 +287,11 @@ trap(struct trapframe *tf, bool had_secrets)
     lapiceoi();
     piceoi();
     break;
+  case T_IRQ0 + IRQ_MOUSE:
+    mouseintr();
+    lapiceoi();
+    piceoi();
+    break;
   case T_IRQ0 + IRQ_COM2:
   case T_IRQ0 + IRQ_COM1:
     uartintr();

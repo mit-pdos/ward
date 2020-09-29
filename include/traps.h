@@ -37,6 +37,7 @@
 #define IRQ_KBD          1
 #define IRQ_COM2         3
 #define IRQ_COM1         4
+#define IRQ_MOUSE       12
 #define IRQ_IDE         14
 #define IRQ_ERROR       19
 #define IRQ_SPURIOUS    31
