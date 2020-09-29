@@ -12,6 +12,7 @@ UPROGS_BIN= \
 	update_ucode \
 	getpid \
 	usertests \
+	benchbarriers \
 
 # Binaries that are known to build on PLATFORM=native
 UPROGS_NATIVE := \
