@@ -255,13 +255,13 @@ public:
       auto perfcap = readmsr(MSR_INTEL_PERF_CAPABILITIES);
       pebs_version = (perfcap >> 8) & 0xF;
       if (pebs_version > 1) {
-        console.println("sampler: Unknown PEBS version ", pebs_version);
+        verbose.println("sampler: Unknown PEBS version ", pebs_version);
       } else {
         if (pebs_version == 0)
           pebs_record_size = sizeof(pebs_record_v0);
         else if (pebs_version == 1)
           pebs_record_size = sizeof(pebs_record_v1);
-        console.println("sampler: PEBS version ", pebs_version, " enabled");
+        verbose.println("sampler: PEBS version ", pebs_version, " enabled");
         have_pebs = true;
       }
     }
@@ -890,7 +890,6 @@ initwd(void)
     wd_selector.enable = true;
     wd_selector.period = (mycpu()->tsc_period * 1000000000) / TSC_PERIOD_SCALE;
     wd_selector.on_overflow = wdcheck;
-    console.println("wd: Enabled");
   } else if (!wd_selector.enable) {
     return;
   }
