@@ -238,6 +238,8 @@ public:
     while(!next) {
       pproc* pnext = schedule_[mycpu()->id]->deq();
       if (pnext) {
+        if (pnext->tgid != prev->tgid)
+          ensure_secrets();
         next = pnext->p;
       } else if (!intena || prev->get_state() == ZOMBIE ||
                  (prev->cpu_pin && prev->cpuid != mycpu()->id)) {
