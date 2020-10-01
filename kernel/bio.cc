@@ -4,7 +4,7 @@
 #include "weakcache.hh"
 #include "disk.hh"
 
-static weakcache<buf::key_t, buf> bufcache(512 << 10);
+static public_weakcache<buf::key_t, buf> bufcache(512 << 10);
 
 sref<buf>
 buf::get(u32 dev, u64 block)

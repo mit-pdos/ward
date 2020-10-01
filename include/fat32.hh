@@ -200,7 +200,7 @@ private:
   u64 clusters_used = 0;
   bool allow_writeback = false;
   cluster *first_try_free = nullptr;
-  chainhash<s64, cluster*> cached_clusters;
+  public_chainhash<s64, cluster*> cached_clusters;
 };
 
 class fat32_alloc_table : public referenced {

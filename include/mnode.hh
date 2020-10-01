@@ -155,7 +155,7 @@ class mdir : public mnode {
 private:
   // ~32K cache
   mdir(mfs* fs, u64 inum) : mnode(fs, inum), map_(1367), mount_data(nullptr) {}
-  NEW_DELETE_OPS(mdir);
+  PUBLIC_NEW_DELETE_OPS(mdir);
   friend class mnode;
   friend class mfs;
 
@@ -163,7 +163,7 @@ private:
   // would be to make this a resizable hash table.  Linux uses a
   // unified directory cache hash table, but that would make
   // serializing a directory much harder for us.
-  chainhash<strbuf<DIRSIZ>, u64> map_;
+  public_chainhash<strbuf<DIRSIZ>, u64> map_;
 
 public:
   void *mount_data;

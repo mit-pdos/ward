@@ -9,16 +9,18 @@
 #include "lockwrap.hh"
 #include "hash.hh"
 #include "ilist.hh"
+#include "log2.hh"
+#include "kernel.hh"
 
 template<class K, class V>
-class chainhash {
+class public_chainhash {
 private:
   struct item : public rcu_freed {
     item(const K& k, const V& v)
       : rcu_freed("chainhash::item", this, sizeof(*this)),
         key(k), val(v) {}
     void do_gc() override { delete this; }
-    NEW_DELETE_OPS(item);
+    PUBLIC_NEW_DELETE_OPS(item);
 
     islink<item> link;
     seqcount<u32> seq;
@@ -37,6 +39,8 @@ private:
         gc_delayed(i);
       }
     }
+
+    PUBLIC_NEW_DELETE_OPS(bucket);
   };
 
   u64 nbuckets_;
@@ -44,16 +48,19 @@ private:
   bucket* buckets_;
 
 public:
-  chainhash(u64 nbuckets) : nbuckets_(nbuckets), dead_(false) {
-    buckets_ = new bucket[nbuckets_];
-    assert(buckets_);
+  public_chainhash(u64 nbuckets) : nbuckets_(nbuckets), dead_(false) {
+    buckets_ = (bucket*)palloc("chainhash_buckets",
+                               round_up_to_pow2(sizeof(bucket) * nbuckets));
+    new(buckets_) bucket[nbuckets];
   }
 
-  ~chainhash() {
-    delete[] buckets_;
+  ~public_chainhash() {
+    for (int i = 0; i < nbuckets_; i++)
+      buckets_[i].~bucket();
+    pfree(buckets_);
   }
 
-  NEW_DELETE_OPS(chainhash);
+  PUBLIC_NEW_DELETE_OPS(public_chainhash);
 
   bool insert(const K& k, const V& v) {
     if (dead_ || lookup(k))
@@ -96,7 +103,7 @@ public:
   }
 
   bool replace_from(const K& kdst, const V* vpdst,
-                    chainhash* src, const K& ksrc,
+                    public_chainhash* src, const K& ksrc,
                     const V& vsrc)
   {
     /*

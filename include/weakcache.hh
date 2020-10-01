@@ -5,9 +5,10 @@
 #include "refcache.hh"
 #include "hash.hh"
 #include "log2.hh"
+#include "kernel.hh"
 
 template<class K, class V>
-class weakcache
+class public_weakcache
 {
 public:
   struct stats
@@ -29,10 +30,10 @@ private:
     islink<item> link_;
 
     item(const K& k, V* v, bucket* b)
-      : rcu_freed("weakcache::item", this, sizeof(*this)),
+      : rcu_freed("public_weakcache::item", this, sizeof(*this)),
         key_(k), weakref_(v), parent_(b) {}
     void do_gc() override { delete this; }
-    NEW_DELETE_OPS(item)
+    PUBLIC_NEW_DELETE_OPS(item)
   };
 
   class bucket
@@ -105,24 +106,24 @@ public:
   // Construct a weak cache whose bucket array fits in size bytes.
   // This must be called before initkalloc since it requires large,
   // raw allocations from the boot allocator.
-  weakcache(std::size_t size)
+  public_weakcache(std::size_t size)
     : mask_(round_down_to_pow2(size / sizeof *buckets_) - 1)
   {
-    buckets_ = (bucket*)early_kalloc((mask_ + 1) * sizeof *buckets_, PGSIZE);
+    buckets_ = (bucket*)palloc("weakcache", (mask_ + 1) * sizeof *buckets_);
     if (!buckets_)
       throw_bad_alloc();
     new (buckets_) bucket[mask_ + 1];
   }
 
-  ~weakcache()
+  ~public_weakcache()
   {
-    panic("weakcache::~weakcache");
+    panic("public_weakcache::~public_weakcache");
   }
 
-  weakcache(const weakcache &o) = delete;
-  weakcache(weakcache &&o) = delete;
-  weakcache &operator=(const weakcache &o) = delete;
-  weakcache &operator=(weakcache &&o) = delete;
+  public_weakcache(const public_weakcache &o) = delete;
+  public_weakcache(public_weakcache &&o) = delete;
+  public_weakcache &operator=(const public_weakcache &o) = delete;
+  public_weakcache &operator=(public_weakcache &&o) = delete;
 
   sref<V>
   lookup(const K& k) const
