@@ -496,7 +496,7 @@ vnode_mfs::get_socket()
   return this->node->as_sock()->get_sock();
 }
 
-filesystem_mfs filesystem_mfs::_singleton;
+filesystem_mfs filesystem_mfs::_singleton __attribute__((section (".qdata")));
 
 sref<vnode>
 filesystem_mfs::root()

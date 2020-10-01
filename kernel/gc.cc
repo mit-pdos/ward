@@ -71,10 +71,10 @@ public:
   void inc_cur_epoch(void);
 };
 
-DEFINE_PERCPU(gc_state, gc_states, NO_MIGRATE);
-DEFINE_PERCPU(gc_stat, stat, NO_CRITICAL);
-int ngc_cpu;
-int gc_batchsize;
+DEFINE_QPERCPU(gc_state, gc_states, NO_MIGRATE);
+DEFINE_QPERCPU(gc_stat, stat, NO_CRITICAL);
+int ngc_cpu __attribute__((section (".qdata")));
+int gc_batchsize __attribute__((section (".qdata")));
 
 // Increment of global_epoch acquires gc_lock, but processes cannot read it
 // without locks
@@ -82,7 +82,7 @@ static struct gc_lock {
   struct spinlock l __mpalign__;
   gc_lock() : l("gc", LOCKSTAT_GC) { }
 } gc_lock;
-atomic<u64> global_epoch __mpalign__;
+atomic<u64> global_epoch __mpalign__ __attribute__((section (".qdata")));
 
 // Sceheme 2a: Increment global_epoch if (1) each core has freed all epochs <=
 // global-2 and (2) each core has no processes in an epoch <= global - 2 This
