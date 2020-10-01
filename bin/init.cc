@@ -15,8 +15,8 @@ static const char *app_argv[][2] = {
 
 static const char* busybox_aliases[] = {
   "/bin/cat", "/bin/cp", "/bin/clear", "/bin/du", "/bin/echo", "/bin/ls", "/bin/mkdir", "/bin/sh",
-  "/bin/nsh", "/bin/time", "/bin/sleep", "/bin/cp", "/bin/rm", "/bin/mv", "/bin/tee", "/bin/ln",
-  "/bin/dd", 0 };
+  "/bin/nsh", "/bin/sleep", "/bin/cp", "/bin/rm", "/bin/mv", "/bin/tee", "/bin/ln",
+  "/bin/dd", "/bin/less", 0 };
 
 static int
 startone(const char * const *argv)
