@@ -133,13 +133,13 @@ u8 kbd_ctl_map(u8 c)
       C('O'),  C('P'),  '\0',    '\0',    '\r',    '\0',    C('A'),  C('S'),
       C('D'),  C('F'),  C('G'),  C('H'),  C('J'),  C('K'),  C('L'),  '\0', // 0x20
       '\0',    '\0',    '\0',    C('\\'), C('Z'),  C('X'),  C('C'),  C('V'),
-      C('B'),  C('N'),  C('M'),  '\0',    '\0',    C('/'),  '\0',    '\0', // 0x30
+      C('B'),  C('N'),  C('M'),  '\0',    '\0',    '\0',  '\0',    '\0', // 0x30
     };
     return map[c];
   }
   switch(c) {
   case 0x9C: return '\r';      // KP_Enter
-  case 0xB5: return C('/');    // KP_Div
+  case 0xB5: return '\0';      // KP_Div
   case 0xC8: return KEY_UP;
   case 0xD0: return KEY_DN;
   case 0xC9: return KEY_PGUP;
