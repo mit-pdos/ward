@@ -84,6 +84,7 @@ menuentry "ward" {
     echo 'GRUB: Booting ward...'
 }
 ```
+Don't forget to run `sudo update-grub` or the appropriate `grub-mkconfig` command afterwards!
 
 ### PXELINUX
 
