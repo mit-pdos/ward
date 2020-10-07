@@ -38,16 +38,20 @@ safe_target(void)
   return 4;
 }
 
-u64 *spectre_target_addr __attribute__((section (".qdata"))); // always equal to &safe_target
+u64 *spectre_target_addr; // always equal to &safe_target
 
-//SYSCALL
 int
-sys_spectre_victim(u8 *channel, u8 *addr, int input) // channel and addr will be passed to gadget
+spectre_victim_impl(u8 *channel, u8 *addr, int input) // channel and addr will be passed to gadget
 {
+  // This victim code has to be an almost exact match with the training code in
+  // spectrev2.cc. Normally, it would be written in C and the attacker version
+  // would be copied from the compiled kernel output. We can't do that here
+  // because we want the attack demo to be robust against different
+  // kernel/compiler versions.
   int result;
   __asm volatile("   mov %1, %%r11\n"
                  "   mov $0, %%rdx\n"
-                 "1: cmp $0x64, %%rdx\n"
+                 "1: cmp $0x264, %%rdx\n"
                  "   jle 2f\n"
                  "   jmp 4f\n"
                  "2: jmp 3f\n"
@@ -57,6 +61,14 @@ sys_spectre_victim(u8 *channel, u8 *addr, int input) // channel and addr will be
                  "   movl %%eax, %0\n"
                  : "=r" (result) : "r" (*spectre_target_addr): "rdx", "r11");
   return result;
+}
+
+//SYSCALL
+int
+sys_spectre_victim(u8 *channel, u8 *addr, int input)
+{
+  ensure_secrets();
+  return spectre_victim_impl(channel, addr, input);
 }
 
 //SYSCALL
@@ -78,6 +90,6 @@ sys_spectre_flush_target(void)
 void
 initattack(void)
 {
-  spectre_target_addr = (u64*)palloc("spectre_target_addr");
+  spectre_target_addr = (u64*)kalloc("spectre_target_addr");
   *spectre_target_addr = (u64)&safe_target;
 }

