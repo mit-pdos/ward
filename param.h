@@ -54,7 +54,7 @@
 #define RANDOMIZE_KMALLOC 1
 // Track kernel memory usage
 #define KERNEL_HEAP_PROFILE 0
-#define ENABLE_PARAVIRT 0
+#define ENABLE_PARAVIRT 1
 #define KERNEL_STRACE 0
 #define STRACE_BINARY_NAME "lebench"
 

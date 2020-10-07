@@ -126,9 +126,11 @@ bool patch_needed(patch* p, bool ktext) {
     cmdline_value = cmdline_params.spectre_v2;
   } else if(strcmp(p->option, "retpolines") == 0) {
     cmdline_value = ktext ? cmdline_params.spectre_v2 : cmdline_params.keep_retpolines;
-#if ENABLE_PARAVIRT
   } else if(strcmp(p->option, "kvm_paravirt") == 0) {
+#if ENABLE_PARAVIRT
     cmdline_value = (strcmp(cpuid::features().hypervisor_id, "KVMKVMKVM") == 0);
+#else
+    cmdline_value = false;
 #endif
   } else if(strcmp(p->option, "kpti") == 0) {
     cmdline_value = cmdline_params.kpti;

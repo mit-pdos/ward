@@ -223,11 +223,12 @@ trapcommon:
         SAVE_REGISTERS
         subq  $0x10, %rsp
 OPTIONAL("kvm_paravirt", "yes")
-        // If single-step mode was enabled, re-enable it for us too (for gdb'ing qemu)
-        testq $0x100, TF_RFLAGS(%rsp)
+        testq $0x100, TF_RFLAGS(%rsp) // If single step mode was enabled
         jz 2f
+        cmpq $0x20, TF_TRAPNO(%rsp)  // ...and this wasn't a timer interrupt
+        je 2f
         pushf
-        orq   $0x100, (%rsp)
+        orq   $0x100, (%rsp)          // ...then re-enable it for us too (for gdb'ing qemu).
         popf
 2:
 OPTIONAL_OR_NOPS("kvm_paravirt")
