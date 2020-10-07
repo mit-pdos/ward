@@ -947,7 +947,7 @@ initpageinfo(void)
       assert(!page_info_map[i].array);
       page_info_map[i].phys_base = area.phys_base;
       page_info_map[i].array = (page_info*)((char*)p2v(area.base) - KBASE + KPUBLIC);
-      register_public_range(page_info_map[i].array, (area.end - area.base) / PGSIZE);
+      register_public_range(page_info_map[i].array, (area.phys_base - area.base) / PGSIZE);
     }
   }
   page_info_map_add = additive;
@@ -1296,8 +1296,7 @@ char* palloc(const char* name, size_t size) {
 
   if(size > PGSIZE) {
     void* data = kalloc("pallc", size) - KBASE + KPUBLIC;
-    for(auto i = 0; i < size; i += PGSIZE)
-      register_public_pages(&data, 1);
+    register_public_range(data, size);
     return (char*)data;
   }
 
