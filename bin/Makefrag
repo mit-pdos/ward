@@ -15,6 +15,8 @@ UPROGS_BIN= \
 	benchbarriers \
 	time \
 	param \
+	spectrev2 \
+	spectrev2u \
 
 # Binaries that are known to build on PLATFORM=native
 UPROGS_NATIVE := \

