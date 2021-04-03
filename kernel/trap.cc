@@ -107,6 +107,17 @@ int
 do_pagefault(struct trapframe *tf, bool had_secrets)
 {
   uptr addr = rcr2();
+
+  if (addr == 123) {
+    extern u64* ENTRY_TIMES;
+    extern u64 ENTRY_COUNT;
+    u64 start = (tf->rax & 0xffffffff) | ((tf->rdx & 0xffffffff) << 32);
+    u64 end = (tf->padding3[1] & 0xffffffff) | ((tf->padding3[0] & 0xffffffff) << 32);
+    ENTRY_TIMES[ENTRY_COUNT++] = end - start;
+    tf->rip += 8;
+    return 0;
+  }
+
   if (((tf->cs&3) == 0 || myproc() == 0) &&
       !had_secrets && addr >= KGLOBAL) {
     // Page fault was probably caused by trying to access secret
@@ -259,6 +270,17 @@ trap(struct trapframe *tf, bool had_secrets)
     }
     if (mycpu()->id == 0) {
       timerintr();
+
+      extern u64* ENTRY_TIMES;
+      extern u64 ENTRY_COUNT;
+      if (ENTRY_COUNT != 0xffffffff) {
+        u64 start = (tf->rax & 0xffffffff) | ((tf->rdx & 0xffffffff) << 32);
+        u64 end = (tf->padding3[1] & 0xffffffff) | ((tf->padding3[0] & 0xffffffff) << 32);
+        ENTRY_TIMES[ENTRY_COUNT++] = end - start;
+        
+        if (ENTRY_COUNT == 100)
+          tf->rip = 0x100f;
+      }
     }
     refcache::mycache->tick();
     lapiceoi();
@@ -356,6 +378,20 @@ trap(struct trapframe *tf, bool had_secrets)
         tf->rip += 5;
         return;
       }
+    } else if (tf->trapno == T_ILLOP && (tf->cs&3) == 3) {
+        u64 instr = *(u64*)tf->rip;
+        if ((instr & 0xffff) == 0x0b0f) {
+          extern u64* ENTRY_TIMES;
+          extern u64 ENTRY_COUNT;
+
+          u64 start = (tf->rax & 0xffffffff) | ((tf->rdx & 0xffffffff) << 32);
+          u64 end = (tf->padding3[1] & 0xffffffff) | ((tf->padding3[0] & 0xffffffff) << 32);
+
+          ENTRY_TIMES[ENTRY_COUNT++] = end - start;
+
+          tf->rip += 2;
+          return;
+        }
     } else if (tf->trapno >= T_IRQ0 && irq_info[tf->trapno - T_IRQ0].handlers) {
       for (auto h = irq_info[tf->trapno - T_IRQ0].handlers; h; h = h->next)
         h->handle_irq();

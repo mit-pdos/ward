@@ -473,6 +473,18 @@ static inline uint64_t rdtscp_and_serialize() {
   return ((uint64_t)cycles_high << 32) | (uint64_t)cycles_low;
 }
 
+static inline uint64_t rdpmc_and_serialize(uint32_t pmc) {
+  uint32_t counter_low, counter_high;
+  __asm volatile("mov %2, %%ecx\n\t"
+                 "RDPMC\n\t"
+                 "mov %%edx, %0\n\t"
+                 "mov %%eax, %1\n\t"
+                 "CPUID\n\t"
+                 : "=r" (counter_high), "=r" (counter_low)
+                 : "r" (pmc) : "%rax", "%rbx", "%rcx", "%rdx");
+  return ((uint64_t)counter_high << 32) | (uint64_t)counter_low;
+}
+
 static inline void clflush(volatile void *p)
 {
   __asm volatile("clflush (%0)" :: "r" (p));
@@ -487,7 +499,7 @@ static inline void mfence()
 // hardware and by trapasm.S, and passed to trap().
 // Also used by sysentry (but sparsely populated).
 struct trapframe {
-  uint16_t padding3[8];
+  uint64_t padding3[2];
 
   // amd64 ABI callee saved registers
   uint64_t r15;

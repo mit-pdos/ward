@@ -34,7 +34,7 @@
 
 #define LOG2_HASH_BUCKETS 12
 
-#define MAX_PMCS 2
+#define MAX_PMCS 4
 
 static console_stream verbose(false);
 
@@ -895,6 +895,34 @@ initwd(void)
   }
 
   wdpoke();
+  pushcli();
+  pmu->configure(&wd_selector - selectors, wd_selector);
+  popcli();
+}
+
+void
+initpmc(void)
+{
+  selector_state &wd_selector = selectors[2];
+
+  // We go through here on CPU 1 first since CPU 0 is still
+  // bootstrapping.
+  static bool configured;
+  if (!configured) {
+    configured = true;
+    if (dynamic_cast<intel_pmu*>(pmu)) {
+      wd_selector.selector =
+        0x80a1 | PERF_SEL_USR | PERF_SEL_OS | (0ull << PERF_SEL_CMASK_SHIFT);
+    } else {
+      return;
+    }
+    wd_selector.enable = true;
+    wd_selector.period = 0;
+    wd_selector.on_overflow = nullptr;
+  } else if (!wd_selector.enable) {
+    return;
+  }
+
   pushcli();
   pmu->configure(&wd_selector - selectors, wd_selector);
   popcli();
