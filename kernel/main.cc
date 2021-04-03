@@ -63,6 +63,7 @@ void initlapic(void);
 void initiommu(void);
 void initacpi(void);
 void initwd(void);
+void initpmc(void);
 void initdev(void);
 void inithpet(void);
 void inittsc(void);
@@ -175,6 +176,35 @@ bootothers(void)
   }
 }
 
+void aaa() { __asm volatile(""); }
+void bbb() { __asm volatile("nop"); }
+void ccc() { __asm volatile("nop; nop"); }
+void ddd() { __asm volatile("nop; nop; nop"); }
+unsigned int hash_int(unsigned int x) {
+    x += ( x << 10u );
+    x ^= ( x >>  6u );
+    x += ( x <<  3u );
+    x ^= ( x >> 11u );
+    x += ( x << 15u );
+    return x;
+}
+
+u64* ENTRY_TIMES;
+u64 ENTRY_COUNT;
+
+
+void(**branch_target)() = nullptr;
+u64 time_branch() {
+  volatile unsigned int h = 5;
+  for(int i = 0; i < 50; i++)
+    h = hash_int(h);
+
+  clflush(branch_target);
+  u64 t = serialize_and_rdtsc();
+  (*branch_target)();
+  return rdtscp_and_serialize() - t;
+}
+
 void
 cmain(u64 mbmagic, u64 mbaddr)
 {
@@ -265,8 +295,104 @@ cmain(u64 mbmagic, u64 mbaddr)
   bootothers();
   cleanuppg();             // Requires bootothers
   initcpprt();
-  initwd();                // Requires initnmi
+  //initwd();                // Requires initnmi
+  initpmc();
   initattack(); // for spectre demo
+
+  inituser();
+
+  extern char usercode_segment[];
+  char* usercode = kalloc("usercode");
+  memmove(usercode, usercode_segment, 4096);
+
+  extern u64 kpml4[];
+  u64* pml3 = (u64*)zalloc("");
+  u64* pml2 = (u64*)zalloc("");
+  u64* pml1 = (u64*)zalloc("");
+  pml1[1] = v2p(usercode) | PTE_A | PTE_D | PTE_U | PTE_P;
+  pml2[0] = v2p(pml1) | PTE_A | PTE_D | PTE_U | PTE_P;
+  pml3[0] = v2p(pml2) | PTE_A | PTE_D | PTE_U | PTE_P;
+  kpml4[0] = v2p(pml3) | PTE_A | PTE_D | PTE_U | PTE_P;
+
+  ENTRY_TIMES = (u64*)kalloc("times", 8 * 1024);
+
+  // cprintf("kpml2 = %lx\n", (u64)v2p(pml2));
+  // cprintf("kpml3 = %lx\n", (u64)v2p(pml3));
+  // cprintf("kpml4 = %lx\n", (u64)v2p(kpml4));
+
+  // cprintf("kpml2[1] = %lx\n", (u64)pml2[1]);
+  // cprintf("kpml3[0] = %lx\n", (u64)pml3[0]);
+  // cprintf("kpml4[0] = %lx\n", (u64)kpml4[0]);
+
+//   extern char syscall_init[];
+//   writemsr(MSR_LSTAR, (u64)syscall_init);
+// //  __asm volatile("syscall; syscall_init:" ::: "r11", "rcx");
+//   __asm volatile("pushq $59; pushq $0x200; pushq $51; pushq $1000; iretq; syscall_init:" ::: "r11", "rcx");
+
+  extern char syscall_over[];
+  writemsr(MSR_LSTAR, (u64)syscall_over);
+  cprintf("IA32_ARCH_CAPABILITIES = %lx\n", readmsr(0x10A));
+  //assert(readmsr(0x10A) & 0x2);
+
+  // writemsr(0x48, 0x1); // IA32_SPEC_CTRL: Enable IBRS
+  // cprintf("IA32_SPEC_CTRL = %lx\n", readmsr(0x48));
+
+  branch_target = (void(**)())kalloc("branch_target");
+  *branch_target = aaa;
+  for (int i = 0; i < 1000; i++)
+    time_branch();
+
+  for  (int i = 0; i < 10; i++) {
+    u64 t1 = time_branch();
+    cprintf("t1 = %ld\n", t1);
+  }
+
+  *branch_target = bbb;
+  u64 t1 = time_branch();
+  cprintf("\nt2 = %ld\n", t1);
+
+  // int j = 0;
+  // for (int i = 0; i < 1024000; i++) {
+  //   u64 t = rdpmc(2);
+  //   //__asm volatile("syscall; syscall_over:" ::: "r11", "rcx");
+
+  //   // int k = 0;
+  //   // void(*arr[4])()  = { &aaa, &bbb, &ccc, &ddd };
+  //   // while (rdtsc() - t < 1000)
+  //   //   /* (arr[hash_int(k++) % 4])() */;
+
+  //   uint32_t cycles_low, cycles_high;
+  //   __asm volatile("movq $0x200, %%r11; movq $0x1000, %%rcx; sysretq; syscall_over: mov %%edx, %0; mov %%eax, %1" 
+  //       : "=r" (cycles_high), "=r" (cycles_low) :: "eax", "ebx", "rcx", "edx", "r11");
+
+
+  //   // u64 t1 = serialize_and_rdtsc();
+  //   // writemsr(0x48, 0x1);
+
+  //   u64 t2 = rdtscp_and_serialize();
+  //   //u64 t2 = rdpmc_and_serialize(2);
+
+  //   u64 dt = t2 - ((((u64)cycles_high) << 32) | cycles_low);
+  //   if (dt > 10 || true) {
+  //     times[j++] = dt;
+  //     if (j >= 1024) {
+  //       cprintf("N = %d\n", i+1);
+  //       break;
+  //     }
+  //   }
+  // }
+
+  __asm volatile("movq $0x200, %%r11; movq $0x1000, %%rcx; sysretq; syscall_over:" 
+      ::: "eax", "ebx", "rcx", "edx", "r11");
+
+  kpml4[0] = 0;
+  writemsr(MSR_LSTAR, (u64)&sysentry);
+
+  // for (int i = 0; i < ENTRY_COUNT; i++)
+  //   cprintf("%d\n", ENTRY_TIMES[i]);
+  ENTRY_COUNT = 0xffffffff;
+
+  kfree(ENTRY_TIMES);
 
   idleloop();
 

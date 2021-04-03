@@ -104,9 +104,9 @@ $(O)/%.o: %.S
 QEMUACCEL ?= -M accel=kvm:hvf:hax:whpx:tcg
 QEMUNET := -net user,hostfwd=tcp::2323-:23,hostfwd=tcp::8080-:80 -net nic,model=e1000
 QEMUSERIAL := $(if $(QEMUOUTPUT),-serial file:$(QEMUOUTPUT),-serial mon:stdio)
-QEMUCOMMAND = $(QEMU) -cpu Skylake-Client,+spec-ctrl,+md-clear -nographic -device sga \
-			  -smp $(QEMUSMP) -m size=$(QEMUMEM) $(QEMUACCEL) $(QEMUNET) $(QEMUSERIAL) \
-		      $(QEMUEXTRA) $(QEMUKERNEL) -no-reboot #-d int,cpu_reset
+QEMUCOMMAND = $(QEMU) -cpu host,+pdpe1gb -nographic -device sga \
+		  	  -smp $(QEMUSMP) -m $(QEMUMEM) $(QEMUACCEL) $(QEMUNUMA) $(QEMUNET) $(QEMUSERIAL) \
+		      $(QEMUEXTRA) $(QEMUKERNEL) -no-reboot
 
 # We play a Makefile trick here: variables like QEMUCOMMAND which are declared with '=' are only
 # evaluated when they are used. Thus future assignments to QEMUAPPEND and QEMUKERNEL (including this

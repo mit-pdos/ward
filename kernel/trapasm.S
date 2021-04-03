@@ -221,7 +221,10 @@ OPTIONAL_OR_NOPS("mds")
 
 trapcommon:
         SAVE_REGISTERS
-        subq  $0x10, %rsp
+        rdtsc
+        push %rax
+        push %rdx
+        //subq  $0x10, %rsp
 OPTIONAL("kvm_paravirt", "yes")
         testq $0x100, TF_RFLAGS(%rsp) // If single step mode was enabled
         jz 2f
@@ -380,6 +383,19 @@ emulate_rdfsbase:
     pop %rcx
     pop %rdx
     ret
+
+.balign 4096
+.globl usercode_segment
+usercode_segment:
+    mov $100, %r8
+1:  rdtsc
+    //mov 123, %r11
+    //ud2
+    //dec %r8
+    jnz 1b
+    syscall
+
+.balign 4096
 
 .data
 .balign 8
