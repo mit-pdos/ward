@@ -64,18 +64,25 @@
 #define COM_MODEM_STATUS           6
 #define COM_SCRATCH                7
 
-static int com;
-static int irq_com;
-static int uart;    // is there a uart?
+static bool uart_exists[2] = {false, false};
 
-void
-uartputc(char c)
-{
-  int i;
+static struct {
+  int com;
+  int irq;
+} UART_CONF[] = {
+  // COM1 (aka ttyS0), this is what QEMU emulates.
+  { COM1, IRQ_COM1 },
+  // COM2 (aka ttyS1), this is usually used for SOL with IPMI.
+  { COM2, IRQ_COM2 },
+};
 
-  if (!uart)
+static void uartputc_one(unsigned int port, char c) {
+  assert(port < 2);
+  if (!uart_exists[port])
     return;
-  for (i = 0; i < 128 && !(inb(com+COM_LINE_STATUS) & COM_LINE_XMIT_HOLDING);
+
+  int com = UART_CONF[port].com;
+  for (int i = 0; i < 128 && !(inb(com+COM_LINE_STATUS) & COM_LINE_XMIT_HOLDING);
        i++)
     microdelay(10);
 #ifdef UART_SEND_DELAY_USEC
@@ -87,40 +94,46 @@ uartputc(char c)
 #endif
 }
 
-static int
-uartgetc(void)
-{
-  if (!uart)
+void uartputc(char c) {
+  uartputc_one(0, c);
+  uartputc_one(1, c);
+}
+
+static void uartputs(unsigned int port, const char* s) {
+  for (auto p = s; *p; p++) {
+    uartputc_one(port, *p);
+  }
+}
+
+static int uartgetc_one(unsigned int port) {
+  assert(port < 2);
+  if (!uart_exists[port])
     return -1;
+
+  int com = UART_CONF[port].com;
   if (!(inb(com+COM_LINE_STATUS) & COM_LINE_DATA_READY))
     return -1;
   return inb(com+COM_IN_RECEIVE);
 }
 
-void
-uartintr(void)
-{
+static int uartgetc() {
+  for (unsigned int i = 0; i < 2; i++) {
+    int v = uartgetc_one(i);
+    if (v != -1)
+      return v;
+  }
+  return -1;
+}
+
+void uartintr() {
   consoleintr(uartgetc);
 }
 
-void
-inituart(void)
-{
-  static struct {
-    int com;
-    int irq;
-  } conf[] = {
-    // Try COM2 (aka ttyS1) first, because it usually does SOL for IPMI.
-    { COM2, IRQ_COM2 },
-    // Still try COM1 (aka ttyS0), because it is what QEMU emulates.
-    { COM1, IRQ_COM1 },
-  };
-
-  int i;
+void inituart(void) {
   int baud = UART_BAUD;
-  for (i = 0; i < 2; i++) {
-    com = conf[i].com;
-    irq_com = conf[i].irq;
+  for (int i = 0; i < 2; i++) {
+    int com = UART_CONF[i].com;
+    int irq_com = UART_CONF[i].irq;
 
     // Turn off the FIFO
     outb(com+COM_OUT_FIFO_CTL, 0);
@@ -135,21 +148,20 @@ inituart(void)
     outb(com+COM_MODEM_CTL, COM_MODEM_DTR | COM_MODEM_RTS | COM_MODEM_AUX_OUT_2);
     
     // If status is 0xFF, no serial port.
-    if(inb(com+COM_LINE_STATUS) != 0xFF)
-      break;
+    if (inb(com+COM_LINE_STATUS) != 0xFF) {
+      uart_exists[i] = true;
+
+      // Clean up the serial console (beginning of line, erase down)
+      uartputs(i, "\r\x1b[J");
+
+      // Announce that we're here.
+      uartputs(i, "Ward ");
+      if (DEBUG) {
+        uartputs(i, "DEBUG ");
+      }
+      uartputs(i, i==0 ? "UART0\r\n" : "UART1\r\n");
+    }
   }
-  if (i == 2)
-    return;
-
-  uart = 1;
-
-  // Clean up the serial console (beginning of line, erase down)
-  for (const char *p="\r\x1b[J"; *p; p++)
-    uartputc(*p);
-
-  // Announce that we're here.
-  for (const char *p=DEBUG?"Ward DEBUG UART\r\n":"Ward UART\r\n"; *p; p++)
-    uartputc(*p);
 }
 
 void
@@ -157,7 +169,12 @@ inituartcons(void)
 {
   // Acknowledge pre-existing interrupt conditions;
   // enable interrupts.
-  extpic->map_isa_irq(irq_com).enable();
-  inb(com+COM_IN_IIR);
-  inb(com+COM_IN_RECEIVE);
+  for (int i = 0; i < 2; i++) {
+    extpic->map_isa_irq(UART_CONF[i].irq).enable();
+    if (uart_exists[i]) {
+      int com = UART_CONF[i].com;
+      inb(com+COM_IN_IIR);
+      inb(com+COM_IN_RECEIVE);
+    }
+  }
 }
