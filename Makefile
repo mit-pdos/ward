@@ -105,17 +105,11 @@ $(O)/bootx64.efi: $(KERN)
 ##
 ## Qemu
 ##
-ifeq ($(QEMUSMP),1)
-QEMUNUMA := -numa node
-else
-QEMUNUMA := -numa node -numa node
-endif
-
 QEMUACCEL ?= -M accel=kvm:hvf:hax:whpx:tcg
 QEMUNET := -net user,hostfwd=tcp::2323-:23,hostfwd=tcp::8080-:80 -net nic,model=e1000
 QEMUSERIAL := $(if $(QEMUOUTPUT),-serial file:$(QEMUOUTPUT),-serial mon:stdio)
 QEMUCOMMAND = $(QEMU) -cpu host,+pdpe1gb -nographic -device sga \
-		  	  -smp $(QEMUSMP) -m $(QEMUMEM) $(QEMUACCEL) $(QEMUNUMA) $(QEMUNET) $(QEMUSERIAL) \
+		  	  -smp $(QEMUSMP) -m $(QEMUMEM) $(QEMUACCEL) $(QEMUNET) $(QEMUSERIAL) \
 		      $(QEMUEXTRA) $(QEMUKERNEL) -no-reboot
 
 # We play a Makefile trick here: variables like QEMUCOMMAND which are declared with '=' are only

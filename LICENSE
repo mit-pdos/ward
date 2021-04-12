@@ -1,4 +1,8 @@
-The xv6 software is:
+The Ward software is:
+
+Copyright (c) 2019-2021 The Ward Developers
+
+Ward is a derivative of sv6 and is:
 
 Copyright (c) 2006-2011 Frans Kaashoek, Robert Morris, Russ Cox,
                         Massachusetts Institute of Technology

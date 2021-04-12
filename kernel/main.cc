@@ -263,6 +263,7 @@ cmain(u64 mbmagic, u64 mbaddr)
   initkalloc();            // Requires initpageinfo
   initproc();
   initsched();
+  inituser();
   initidle();
   initgc();
   initrefcache();          // Requires initsched
@@ -298,8 +299,6 @@ cmain(u64 mbmagic, u64 mbaddr)
   //initwd();                // Requires initnmi
   initpmc();
   initattack(); // for spectre demo
-
-  inituser();
 
   extern char usercode_segment[];
   char* usercode = kalloc("usercode");

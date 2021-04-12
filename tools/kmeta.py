@@ -46,11 +46,11 @@ for line in open(symbol_file):
 indirect_branches = []
 registers = ["ax", "cx", "dx", "bx", "sp", "bp", "si", "di", "8", "9", "10", "11", "12", "13", "14", "15"]
 register_indexes = { reg:i for (i, reg) in enumerate(registers) }
-opcode_indexes = { "callq" : 0, "jmpq" : 1 }
+opcode_indexes = { "call" : 0, "jmp" : 1 }
 
 # Match a jump or call to retpoline thunk. Then extract (1) the address, (2)
 # whether it was a call or jump, and (3) which register it targeted.
-indirect_branch_re = re.compile("([a-f0-9]*):.*(callq|jmpq).*<__x86_indirect_thunk_r(ax|cx|dx|bx|sp|bp|si|di|8|9|10|11|12|13|14|15)>.*")
+indirect_branch_re = re.compile("([a-f0-9]*):.*(call|jmp).*<__x86_indirect_thunk_r(ax|cx|dx|bx|sp|bp|si|di|8|9|10|11|12|13|14|15)>.*")
 for line in open(objdump_file):
     m = indirect_branch_re.match(line)
     if m is None: continue
