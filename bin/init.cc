@@ -1,11 +1,11 @@
 // init: The initial user-level program
 
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
-#include <fcntl.h>
-
 #include "sysstubs.h"
+
+#define O_RDONLY  00
+#define O_WRONLY  01
+#define O_RDWR    02
+#define O_CREAT   0100
 
 static const char *sh_argv[] = { "sh", 0 };
 static const char *app_argv[][2] = {
@@ -18,6 +18,27 @@ static const char* busybox_aliases[] = {
   "/bin/nsh", "/bin/sleep", "/bin/cp", "/bin/rm", "/bin/mv", "/bin/tee", "/bin/ln",
   "/bin/dd", "/bin/less", 0 };
 
+char*
+strchr(const char *s, int c)
+{
+  for (; *s; s++)
+    if (*s == c)
+      return (char*)s;
+  return 0;
+}
+
+void fputs(int fd, const char* msg) {
+  size_t len = 0;
+  while(msg[len]) len++;
+
+  size_t bytes_written = 0;
+  while (bytes_written < len) {
+    int n = ward_write(fd, msg+bytes_written, len - bytes_written);
+    if (n < 0) break;
+    bytes_written += n;
+  }
+}
+
 static int
 startone(const char * const *argv)
 {
@@ -25,12 +46,14 @@ startone(const char * const *argv)
 
   pid = ward_fork_flags(0);
   if(pid < 0){
-    fprintf(stderr, "init: fork failed");
+    fputs(1, "init: fork failed");
     ward_exit(-1);
   }
   if(pid == 0){
     ward_execv(argv[0], const_cast<char * const *>(argv));
-    fprintf(stderr, "init: exec %s failed", argv[0]);
+    fputs(1, "init: exec ");
+    fputs(1, argv[0]);
+    fputs(1, " failed\n");
     ward_exit(-1);
   }
   return pid;
@@ -59,7 +82,9 @@ runcmdline(void)
 
   if ((b = strchr(buf, '%'))) {
     argv[2] = b+1;
-    printf("init: Starting %s\n", argv[2]);
+    fputs(0, "init: Starting '");
+    fputs(0, argv[2]);
+    fputs(0, "'\n");
     startone(argv);
   }
 }
@@ -87,9 +112,7 @@ main(void)
   for (auto &argv : app_argv)
     startone(argv);
 
-  time_t now = ward_time(nullptr);
-  printf("init complete at %s", ctime(&now));
-  fflush(stdout);
+  fputs(0, "init complete\n");
 
   runcmdline();
 
