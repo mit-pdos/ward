@@ -233,6 +233,7 @@ cmain(u64 mbmagic, u64 mbaddr)
   initkalloc();            // Requires initpageinfo
   initproc();
   initsched();
+  inituser();
   initidle();
   initgc();
   initrefcache();          // Requires initsched
@@ -268,7 +269,6 @@ cmain(u64 mbmagic, u64 mbaddr)
   initwd();                // Requires initnmi
   initattack(); // for spectre demo
 
-  inituser();
   idleloop();
 
   panic("Unreachable");
