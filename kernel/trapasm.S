@@ -387,12 +387,12 @@ emulate_rdfsbase:
 .balign 4096
 .globl usercode_segment
 usercode_segment:
-    mov $100, %r8
+    //mov $100, %r8
 1:  rdtsc
     //mov 123, %r11
     //ud2
     //dec %r8
-    jnz 1b
+    //jnz 1b
     syscall
 
 .balign 4096

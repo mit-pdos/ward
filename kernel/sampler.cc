@@ -912,7 +912,7 @@ initpmc(void)
     configured = true;
     if (dynamic_cast<intel_pmu*>(pmu)) {
       wd_selector.selector =
-        0x80a1 | PERF_SEL_USR | PERF_SEL_OS | (0ull << PERF_SEL_CMASK_SHIFT);
+        0x0114 | PERF_SEL_USR | PERF_SEL_OS | (1ull << PERF_SEL_CMASK_SHIFT) | PERF_SEL_EDGE;
     } else {
       return;
     }

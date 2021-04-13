@@ -48,7 +48,7 @@ COMFLAGS := $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1
 			$(shell $(CC) -fcf-protection=none -E -x c /dev/null >/dev/null 2>&1 && echo -fcf-protection=none) \
 	        -static -fno-builtin -fno-strict-aliasing -fno-omit-frame-pointer -mcmodel=kernel -mno-sse \
 	        -fms-extensions -mno-red-zone -nostdlib -ffreestanding -fno-pie -fno-pic -funwind-tables \
-	        -fasynchronous-unwind-tables -g -MD -MP -O3 -Wall -msoft-float -mretpoline-external-thunk \
+	        -fasynchronous-unwind-tables -g -MD -MP -O3 -Wall -msoft-float \
 	        -DXV6_HW=$(HW) -DHW_$(HW) -DXV6 -DXV6_KERNEL \
 	        -isystem include -iquote $(O)/include -include param.h -include include/compiler.h \
 	        -Ithird_party/lwip/src/include -Inet -Ithird_party/lwip/src/include/ipv4 -Ithird_party/libcxx/include \
@@ -104,8 +104,8 @@ $(O)/%.o: %.S
 QEMUACCEL ?= -M accel=kvm:hvf:hax:whpx:tcg
 QEMUNET := -net user,hostfwd=tcp::2323-:23,hostfwd=tcp::8080-:80 -net nic,model=e1000
 QEMUSERIAL := $(if $(QEMUOUTPUT),-serial file:$(QEMUOUTPUT),-serial mon:stdio)
-QEMUCOMMAND = $(QEMU) -cpu host,+pdpe1gb -nographic -device sga \
-		  	  -smp $(QEMUSMP) -m $(QEMUMEM) $(QEMUACCEL) $(QEMUNUMA) $(QEMUNET) $(QEMUSERIAL) \
+QEMUCOMMAND = $(QEMU) -cpu host,+pmu,+pdpe1gb -nographic -device sga \
+		  	  -smp $(QEMUSMP) -m $(QEMUMEM) $(QEMUACCEL) $(QEMUNET) $(QEMUSERIAL) \
 		      $(QEMUEXTRA) $(QEMUKERNEL) -no-reboot
 
 # We play a Makefile trick here: variables like QEMUCOMMAND which are declared with '=' are only

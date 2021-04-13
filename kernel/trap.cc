@@ -271,7 +271,7 @@ trap(struct trapframe *tf, bool had_secrets)
     if (mycpu()->id == 0) {
       timerintr();
 
-      extern u64* ENTRY_TIMES;
+      /*extern u64* ENTRY_TIMES;
       extern u64 ENTRY_COUNT;
       if (ENTRY_COUNT != 0xffffffff) {
         u64 start = (tf->rax & 0xffffffff) | ((tf->rdx & 0xffffffff) << 32);
@@ -280,7 +280,7 @@ trap(struct trapframe *tf, bool had_secrets)
         
         if (ENTRY_COUNT == 100)
           tf->rip = 0x100f;
-      }
+      }*/
     }
     refcache::mycache->tick();
     lapiceoi();
