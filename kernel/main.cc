@@ -176,7 +176,14 @@ bootothers(void)
   }
 }
 
-void aaa() { __asm volatile(""); }
+void aaa() { 
+  // serialize_and_rdtsc();
+  __asm volatile("mov $3456, %%rax; mov $7654, %%rdx; mov $123456789355, %%rcx; divq %%rcx" ::: "rax", "rdx", "rcx" );
+  __asm volatile("mov $3456, %%rax; mov $7654, %%rdx; mov $123456789355, %%rcx; divq %%rcx" ::: "rax", "rdx", "rcx" );
+  __asm volatile("mov $3456, %%rax; mov $7654, %%rdx; mov $123456789355, %%rcx; divq %%rcx" ::: "rax", "rdx", "rcx" );
+  __asm volatile("mov $3456, %%rax; mov $7654, %%rdx; mov $123456789355, %%rcx; divq %%rcx" ::: "rax", "rdx", "rcx" );
+  __asm volatile("mov $3456, %%rax; mov $7654, %%rdx; mov $123456789355, %%rcx; divq %%rcx" ::: "rax", "rdx", "rcx" );
+}
 void bbb() { __asm volatile("nop"); }
 void ccc() { __asm volatile("nop; nop"); }
 void ddd() { __asm volatile("nop; nop; nop"); }
@@ -194,15 +201,36 @@ u64 ENTRY_COUNT;
 
 
 void(**branch_target)() = nullptr;
-u64 time_branch() {
-  volatile unsigned int h = 5;
-  for(int i = 0; i < 50; i++)
-    h = hash_int(h);
 
+/*
+u64 time_branch2(int i) {
+  if ( i > 0) {
+    __asm volatile("");
+    return time_branch2(i - 1);
+  } else {
+    u64 t = rdpmc(2);
+    (*branch_target)();
+    return rdpmc(2) - t;
+  }
+}
+*/
+
+__attribute__((noinline)) u64 time_branch() {
   clflush(branch_target);
-  u64 t = serialize_and_rdtsc();
+
+  //return time_branch2(50);
+  //clflush(branch_target);
+  //volatile unsigned int h = 5;
+  for(int i = 0; i < 150; i++)
+    __asm volatile("");
+
+  u64 t = rdpmc(2);
+  cpuid(0, 0, 0, 0, 0);
+  //serialize_and_rdtsc();
   (*branch_target)();
-  return rdtscp_and_serialize() - t;
+  cpuid(0, 0, 0, 0, 0);
+  //rdtscp_and_serialize();
+  return rdpmc(2) - t;
 }
 
 void
@@ -313,7 +341,8 @@ cmain(u64 mbmagic, u64 mbaddr)
   pml3[0] = v2p(pml2) | PTE_A | PTE_D | PTE_U | PTE_P;
   kpml4[0] = v2p(pml3) | PTE_A | PTE_D | PTE_U | PTE_P;
 
-  ENTRY_TIMES = (u64*)kalloc("times", 8 * 1024);
+  ENTRY_TIMES = (u64*)kalloc("times", 8 * 1024 * 8);
+  u64* DIV_COUNTS = (u64*)kalloc("div_counts", 8*1024 *8);
 
   // cprintf("kpml2 = %lx\n", (u64)v2p(pml2));
   // cprintf("kpml3 = %lx\n", (u64)v2p(pml3));
@@ -330,65 +359,86 @@ cmain(u64 mbmagic, u64 mbaddr)
 
   extern char syscall_over[];
   writemsr(MSR_LSTAR, (u64)syscall_over);
-  cprintf("IA32_ARCH_CAPABILITIES = %lx\n", readmsr(0x10A));
+  //cprintf("IA32_ARCH_CAPABILITIES = %lx\n", readmsr(0x10A));
   //assert(readmsr(0x10A) & 0x2);
 
-  // writemsr(0x48, 0x1); // IA32_SPEC_CTRL: Enable IBRS
-  // cprintf("IA32_SPEC_CTRL = %lx\n", readmsr(0x48));
+  writemsr(0x48, readmsr(0x48) | (0x1)); // IA32_SPEC_CTRL: Enable IBRS
+  cprintf("IA32_SPEC_CTRL = %lx\n", readmsr(0x48));
 
   branch_target = (void(**)())kalloc("branch_target");
   *branch_target = aaa;
-  for (int i = 0; i < 1000; i++)
-    time_branch();
 
-  for  (int i = 0; i < 10; i++) {
-    u64 t1 = time_branch();
-    cprintf("t1 = %ld\n", t1);
-  }
+  // void(*ptrs[8])() = { aaa, bbb, aaa, aaa, aaa, aaa, aaa, aaa };
+  // for (int i = 0; i < 1000; i++) {
+  //   *branch_target = ptrs[((i)) & 0x7];
+  //   ENTRY_TIMES[ENTRY_COUNT++] = time_branch();
+  // }
+  // // *branch_target = bbb;
+  // // u64 t1 = time_branch();
+  // // cprintf("\nt2 = %ld\n", t1);
 
-  *branch_target = bbb;
-  u64 t1 = time_branch();
-  cprintf("\nt2 = %ld\n", t1);
-
-  // int j = 0;
-  // for (int i = 0; i < 1024000; i++) {
-  //   u64 t = rdpmc(2);
-  //   //__asm volatile("syscall; syscall_over:" ::: "r11", "rcx");
-
-  //   // int k = 0;
-  //   // void(*arr[4])()  = { &aaa, &bbb, &ccc, &ddd };
-  //   // while (rdtsc() - t < 1000)
-  //   //   /* (arr[hash_int(k++) % 4])() */;
-
-  //   uint32_t cycles_low, cycles_high;
-  //   __asm volatile("movq $0x200, %%r11; movq $0x1000, %%rcx; sysretq; syscall_over: mov %%edx, %0; mov %%eax, %1" 
-  //       : "=r" (cycles_high), "=r" (cycles_low) :: "eax", "ebx", "rcx", "edx", "r11");
-
-
-  //   // u64 t1 = serialize_and_rdtsc();
-  //   // writemsr(0x48, 0x1);
-
-  //   u64 t2 = rdtscp_and_serialize();
-  //   //u64 t2 = rdpmc_and_serialize(2);
-
-  //   u64 dt = t2 - ((((u64)cycles_high) << 32) | cycles_low);
-  //   if (dt > 10 || true) {
-  //     times[j++] = dt;
-  //     if (j >= 1024) {
-  //       cprintf("N = %d\n", i+1);
-  //       break;
-  //     }
-  //   }
+  // for (int i = 970; i < 1000; i++) {
+  //   if((i & 0x7) == 1)
+  //     cprintf("[%d] bbb = %ld\n", i, ENTRY_TIMES[i]);
+  //   else 
+  //     cprintf("[%d] aaa = %ld\n", i, ENTRY_TIMES[i]);
   // }
 
-  __asm volatile("movq $0x200, %%r11; movq $0x1000, %%rcx; sysretq; syscall_over:" 
-      ::: "eax", "ebx", "rcx", "edx", "r11");
+  ENTRY_COUNT=0;
+
+  for (int i = 0; i < 1024; i++) {
+    //u64 t = rdpmc(2);
+    //__asm volatile("syscall; syscall_over:" ::: "r11", "rcx");
+
+    // int k = 0;
+    // void(*arr[4])()  = { &aaa, &bbb, &ccc, &ddd };
+
+    *branch_target = aaa;
+    for (int j = 0; j < 1024; j++)
+      time_branch();
+
+    uint32_t cycles_low = 0, cycles_high = 0;
+    //__asm volatile("movq $0x200, %%r11; movq $0x1000, %%rcx; sysretq; syscall_over: mov %%edx, %0; mov %%eax, %1" 
+    //   : "=r" (cycles_high), "=r" (cycles_low) :: "eax", "ebx", "rcx", "edx", "r11");
+
+    // u64 t1 = serialize_and_rdtsc();
+    // writemsr(0x48, 0x1);
+
+    u64 t2 = rdtscp_and_serialize();
+    //u64 t2 = rdpmc_and_serialize(2);
+
+    *branch_target = bbb;
+    DIV_COUNTS[ENTRY_COUNT] = time_branch();
+
+    u64 dt = t2 - ((((u64)cycles_high) << 32) | cycles_low);
+    ENTRY_TIMES[ENTRY_COUNT++] = dt;
+  }
+
+   __asm volatile("movq $0x200, %%r11; movq $0x1000, %%rcx; sysretq; syscall_over:" 
+        ::: "eax", "ebx", "rcx", "edx", "r11");
 
   kpml4[0] = 0;
   writemsr(MSR_LSTAR, (u64)&sysentry);
 
-  // for (int i = 0; i < ENTRY_COUNT; i++)
-  //   cprintf("%d\n", ENTRY_TIMES[i]);
+  int count[2] = {0, 0};
+  int with_div[2] = {0, 0};
+  for (int i = 128; i < ENTRY_COUNT; i++) {
+    int is_fast = ENTRY_TIMES[i] < 200 ? 0 : 1;
+    count[is_fast]++;
+    if (DIV_COUNTS[i] > 0)
+      with_div[is_fast]++;
+  }
+
+  for (int i = 0; i < 2; i++) {
+    if(count[i] == 0) 
+      continue;
+      
+    int v = with_div[i] * 100000 / count[i];
+    cprintf("%s: %d.%03d%%  \t(%d/%d)\n", i ? "slow" : "fast", v / 1000, v % 1000, with_div[i], count[i]);
+  }
+
+  for (int i = 340; i < 350; i++)
+     cprintf("%ld \t(%ld)\n", ENTRY_TIMES[i], DIV_COUNTS[i]);
   ENTRY_COUNT = 0xffffffff;
 
   kfree(ENTRY_TIMES);
