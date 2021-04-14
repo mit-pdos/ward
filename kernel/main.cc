@@ -176,62 +176,16 @@ bootothers(void)
   }
 }
 
-void aaa() { 
-  // serialize_and_rdtsc();
-  __asm volatile("mov $3456, %%rax; mov $7654, %%rdx; mov $123456789355, %%rcx; divq %%rcx" ::: "rax", "rdx", "rcx" );
-  __asm volatile("mov $3456, %%rax; mov $7654, %%rdx; mov $123456789355, %%rcx; divq %%rcx" ::: "rax", "rdx", "rcx" );
-  __asm volatile("mov $3456, %%rax; mov $7654, %%rdx; mov $123456789355, %%rcx; divq %%rcx" ::: "rax", "rdx", "rcx" );
-  __asm volatile("mov $3456, %%rax; mov $7654, %%rdx; mov $123456789355, %%rcx; divq %%rcx" ::: "rax", "rdx", "rcx" );
-  __asm volatile("mov $3456, %%rax; mov $7654, %%rdx; mov $123456789355, %%rcx; divq %%rcx" ::: "rax", "rdx", "rcx" );
-}
-void bbb() { __asm volatile("nop"); }
-void ccc() { __asm volatile("nop; nop"); }
-void ddd() { __asm volatile("nop; nop; nop"); }
-unsigned int hash_int(unsigned int x) {
-    x += ( x << 10u );
-    x ^= ( x >>  6u );
-    x += ( x <<  3u );
-    x ^= ( x >> 11u );
-    x += ( x << 15u );
-    return x;
-}
+extern "C" u64 do_reverse_syscall();
+extern "C" u64 time_branch();
+extern "C" void target_aaa();
+extern "C" void target_bbb();
+
+extern char syscall_over[];
+extern char usercode_segment[];
 
 u64* ENTRY_TIMES;
 u64 ENTRY_COUNT;
-
-
-void(**branch_target)() = nullptr;
-
-/*
-u64 time_branch2(int i) {
-  if ( i > 0) {
-    __asm volatile("");
-    return time_branch2(i - 1);
-  } else {
-    u64 t = rdpmc(2);
-    (*branch_target)();
-    return rdpmc(2) - t;
-  }
-}
-*/
-
-__attribute__((noinline)) u64 time_branch() {
-  clflush(branch_target);
-
-  //return time_branch2(50);
-  //clflush(branch_target);
-  //volatile unsigned int h = 5;
-  for(int i = 0; i < 150; i++)
-    __asm volatile("");
-
-  u64 t = rdpmc(2);
-  cpuid(0, 0, 0, 0, 0);
-  //serialize_and_rdtsc();
-  (*branch_target)();
-  cpuid(0, 0, 0, 0, 0);
-  //rdtscp_and_serialize();
-  return rdpmc(2) - t;
-}
 
 void
 cmain(u64 mbmagic, u64 mbaddr)
@@ -327,10 +281,12 @@ cmain(u64 mbmagic, u64 mbaddr)
   initpmc();
   initattack(); // for spectre demo
 
-  inituser();
-
-  extern char usercode_segment[];
   char* usercode = kalloc("usercode");
+  char* time_branch_page = kalloc("time_branch");
+  char* branch_target_page = zalloc("branch_target");
+  char* user_stack = zalloc("user_stack");
+
+  memmove(time_branch_page, (char*)time_branch, 4096);
   memmove(usercode, usercode_segment, 4096);
 
   extern u64 kpml4[];
@@ -338,85 +294,39 @@ cmain(u64 mbmagic, u64 mbaddr)
   u64* pml2 = (u64*)zalloc("");
   u64* pml1 = (u64*)zalloc("");
   pml1[1] = v2p(usercode) | PTE_A | PTE_D | PTE_U | PTE_P;
-  pml2[0] = v2p(pml1) | PTE_A | PTE_D | PTE_U | PTE_P;
-  pml3[0] = v2p(pml2) | PTE_A | PTE_D | PTE_U | PTE_P;
-  kpml4[0] = v2p(pml3) | PTE_A | PTE_D | PTE_U | PTE_P;
+  pml1[2] = v2p(time_branch_page) | PTE_A | PTE_D | PTE_U | PTE_P;
+  pml1[3] = v2p(branch_target_page) | PTE_A | PTE_D | PTE_W | PTE_U | PTE_P;
+  pml1[4] = v2p(user_stack) | PTE_A | PTE_D | PTE_W | PTE_U | PTE_P;
+  pml2[0] = v2p(pml1) | PTE_A | PTE_D | PTE_U | PTE_W | PTE_P;
+  pml3[0] = v2p(pml2) | PTE_A | PTE_D | PTE_U | PTE_W | PTE_P;
+  kpml4[0] = v2p(pml3) | PTE_A | PTE_D | PTE_U | PTE_W | PTE_P;
 
+  ENTRY_COUNT = 0;
   ENTRY_TIMES = (u64*)kalloc("times", 8 * 1024 * 8);
   u64* DIV_COUNTS = (u64*)kalloc("div_counts", 8*1024 *8);
 
-  // cprintf("kpml2 = %lx\n", (u64)v2p(pml2));
-  // cprintf("kpml3 = %lx\n", (u64)v2p(pml3));
-  // cprintf("kpml4 = %lx\n", (u64)v2p(kpml4));
-
-  // cprintf("kpml2[1] = %lx\n", (u64)pml2[1]);
-  // cprintf("kpml3[0] = %lx\n", (u64)pml3[0]);
-  // cprintf("kpml4[0] = %lx\n", (u64)kpml4[0]);
-
-//   extern char syscall_init[];
-//   writemsr(MSR_LSTAR, (u64)syscall_init);
-// //  __asm volatile("syscall; syscall_init:" ::: "r11", "rcx");
-//   __asm volatile("pushq $59; pushq $0x200; pushq $51; pushq $1000; iretq; syscall_init:" ::: "r11", "rcx");
-
-  extern char syscall_over[];
   writemsr(MSR_LSTAR, (u64)syscall_over);
+  writemsr(0x48, readmsr(0x48) | (0x1)); // IA32_SPEC_CTRL: Enable IBRS
+
+  cprintf("IA32_SPEC_CTRL = %lx\n", readmsr(0x48));
   //cprintf("IA32_ARCH_CAPABILITIES = %lx\n", readmsr(0x10A));
   //assert(readmsr(0x10A) & 0x2);
 
-  writemsr(0x48, readmsr(0x48) | (0x1)); // IA32_SPEC_CTRL: Enable IBRS
-  cprintf("IA32_SPEC_CTRL = %lx\n", readmsr(0x48));
-
-  branch_target = (void(**)())kalloc("branch_target");
-  *branch_target = aaa;
-
-  // void(*ptrs[8])() = { aaa, bbb, aaa, aaa, aaa, aaa, aaa, aaa };
-  // for (int i = 0; i < 1000; i++) {
-  //   *branch_target = ptrs[((i)) & 0x7];
-  //   ENTRY_TIMES[ENTRY_COUNT++] = time_branch();
-  // }
-  // // *branch_target = bbb;
-  // // u64 t1 = time_branch();
-  // // cprintf("\nt2 = %ld\n", t1);
-
-  // for (int i = 970; i < 1000; i++) {
-  //   if((i & 0x7) == 1)
-  //     cprintf("[%d] bbb = %ld\n", i, ENTRY_TIMES[i]);
-  //   else 
-  //     cprintf("[%d] aaa = %ld\n", i, ENTRY_TIMES[i]);
-  // }
-
-  ENTRY_COUNT=0;
+  u64 aaa = 0x2000 + ((char*)target_aaa - (char*)time_branch);
+  u64 bbb = 0x2000 + ((char*)target_bbb - (char*)time_branch);
 
   for (int i = 0; i < 1024; i++) {
-    //u64 t = rdpmc(2);
-    //__asm volatile("syscall; syscall_over:" ::: "r11", "rcx");
-
-    // int k = 0;
-    // void(*arr[4])()  = { &aaa, &bbb, &ccc, &ddd };
-
-    *branch_target = aaa;
+    *(u64*)branch_target_page = aaa;
     for (int j = 0; j < 1024; j++)
-      time_branch();
+      ((u64(*)())0x2000)();
 
-    uint32_t cycles_low = 0, cycles_high = 0;
-    //__asm volatile("movq $0x200, %%r11; movq $0x1000, %%rcx; sysretq; syscall_over: mov %%edx, %0; mov %%eax, %1" 
-    //   : "=r" (cycles_high), "=r" (cycles_low) :: "eax", "ebx", "rcx", "edx", "r11");
-
-    // u64 t1 = serialize_and_rdtsc();
-    // writemsr(0x48, 0x1);
-
+    u64 t1 = do_reverse_syscall();
     u64 t2 = rdtscp_and_serialize();
-    //u64 t2 = rdpmc_and_serialize(2);
 
-    *branch_target = bbb;
-    DIV_COUNTS[ENTRY_COUNT] = time_branch();
-
-    u64 dt = t2 - ((((u64)cycles_high) << 32) | cycles_low);
-    ENTRY_TIMES[ENTRY_COUNT++] = dt;
+    *(u64*)branch_target_page = bbb;
+    DIV_COUNTS[ENTRY_COUNT] = ((u64(*)())0x2000)();
+    ENTRY_TIMES[ENTRY_COUNT++] = t2 - t1;
   }
-
-   __asm volatile("movq $0x200, %%r11; movq $0x1000, %%rcx; sysretq; syscall_over:" 
-        ::: "eax", "ebx", "rcx", "edx", "r11");
 
   kpml4[0] = 0;
   writemsr(MSR_LSTAR, (u64)&sysentry);
