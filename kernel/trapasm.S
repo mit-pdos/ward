@@ -384,16 +384,108 @@ emulate_rdfsbase:
     pop %rdx
     ret
 
+.globl do_reverse_syscall
+do_reverse_syscall:
+    push %r12
+    push %rbx
+    movq $0x200, %r11
+    movq $0x1000, %rcx
+    sysretq
+.globl syscall_over
+syscall_over:
+    shlq $32, %rdx
+    or %rdx, %rax
+    pop %rbx
+    pop %r12
+    ret
+
 .balign 4096
 .globl usercode_segment
 usercode_segment:
-    //mov $100, %r8
+    mov %rsp, %r12
+    mov $0x4ff0, %rsp
+
+//    movq $(0x2000+target_aaa-time_branch), (0x3000)
+//    mov $1024, %r11
+//1:  push %r11
+//    callq time_branch
+//    pop %r11
+//    dec %r11
+//    jnz 1b
+
+//    movq $(0x2000+target_bbb-time_branch), (0x3000)
+//    callq time_branch
+//    push %rax
+
 1:  rdtsc
     //mov 123, %r11
     //ud2
     //dec %r8
     //jnz 1b
+
+    pop %rbx
+    mov %r12, %rsp
     syscall
+
+.balign 4096
+.globl time_branch
+time_branch:
+    push %rbx
+    clflush (0x3000)
+    mov $150, %r11
+1:  dec %r11
+    jnz 1b
+
+    mov $2, %rcx
+    rdpmc
+    shl $32, %rdx
+    or %rdx, %rax
+    push %rax
+
+    cpuid
+    mov 0x3000, %rax
+    call *%rax
+    cpuid
+
+    mov $2, %rcx
+    rdpmc
+    shl $32, %rdx
+    or %rdx, %rax
+    pop %rdx
+
+    sub %rdx, %rax
+    pop %rbx
+    ret
+
+.globl target_aaa
+target_aaa:
+    push %rcx
+    mov $3456, %rax
+    mov $7654, %rdx
+    mov $123456789355, %rcx
+    divq %rcx
+    mov $3456, %rax
+    mov $7654, %rdx
+    mov $123456789355, %rcx
+    divq %rcx
+    mov $3456, %rax
+    mov $7654, %rdx
+    mov $123456789355, %rcx
+    divq %rcx
+    mov $3456, %rax
+    mov $7654, %rdx
+    mov $123456789355, %rcx
+    divq %rcx
+    mov $3456, %rax
+    mov $7654, %rdx
+    mov $123456789355, %rcx
+    divq %rcx
+    pop %rcx
+    ret
+
+.globl target_bbb
+target_bbb:
+    ret
 
 .balign 4096
 
