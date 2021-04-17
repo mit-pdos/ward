@@ -7,29 +7,30 @@
 #include "atomic_util.hh"
 #include "proc.hh"
 #include "file.hh"
-#include <uk/socket.h>
-#include <uk/un.h>
+
+#include <sys/un.h>
+#include <sys/socket.h>
 
 #define QUEUELEN 10   // Number of message per queue of a local socket
 #define LB 0          // Run with load balancer?
 
-struct msghdr {
+struct ward_msghdr {
   u32 len;
   struct sockaddr_un uaddr;
   char *data;
-  islink<msghdr> link;
-  typedef isqueue<msghdr, &msghdr::link> list_t;
+  islink<ward_msghdr> link;
+  typedef isqueue<ward_msghdr, &ward_msghdr::link> list_t;
 
-  msghdr() {}
-  ~msghdr() {}
+  ward_msghdr() {}
+  ~ward_msghdr() {}
 
-  NEW_DELETE_OPS(msghdr);
+  NEW_DELETE_OPS(ward_msghdr);
 };
 
 struct coresocket : public balance_pool<coresocket> {
   int len;
   struct spinlock lock;
-  msghdr::list_t messages;
+  ward_msghdr::list_t messages;
 
   coresocket() : balance_pool(QUEUELEN), len(0),
                  lock("coresocket", LOCKSTAT_LOCALSOCK) {}
@@ -57,7 +58,7 @@ struct coresocket : public balance_pool<coresocket> {
       n++;
       target->len++;
       len--;
-      msghdr& m = messages.front();
+      ward_msghdr& m = messages.front();
       messages.pop_front();
       target->messages.push_back(&m);
     }
@@ -133,7 +134,7 @@ struct localsock {
 #endif
   }
 
-  int write(msghdr *m) {
+  int write(ward_msghdr *m) {
     bool toyield = true;
     for (;;) {
       if (myproc()->killed)
@@ -174,7 +175,7 @@ struct localsock {
     }
   }
 
-  msghdr* read() {
+  ward_msghdr* read() {
     bool toyield = true;
     for (;;) {
       if (myproc()->killed)
@@ -199,7 +200,7 @@ struct localsock {
       scoped_acquire l(&cp->lock);
       if (cp->len > 0) {
         // cprintf("r %d(%d): coresocket %p\n", myproc()->pid, myproc()->cpuid, cp);
-        msghdr &m = cp->messages.front();
+        ward_msghdr &m = cp->messages.front();
         cp->messages.pop_front();
         cp->len--;
         return &m;
@@ -244,9 +245,9 @@ public:
   void dec() override { referenced::dec(); }
 
   int
-  bind(const struct sockaddr *addr, size_t addrlen) override
+  bind(const struct ward_sockaddr *addr, size_t addrlen) override
   {
-    auto uaddr = check_sockaddr(addr, addrlen);
+    auto uaddr = check_sockaddr((sockaddr*)addr, addrlen);
     if (!uaddr)
       return -1;
 
@@ -261,12 +262,12 @@ public:
 
   ssize_t
   sendto(userptr<void> buf, size_t len, int flags,
-         const struct sockaddr *dest_addr, size_t addrlen) override
+         const struct ward_sockaddr *dest_addr, size_t addrlen) override
   {
     kstats::timer timer_fill(&kstats::socket_local_sendto_cycles);
     kstats::inc(&kstats::socket_local_sendto_cnt);
 
-    auto uaddr = check_sockaddr(dest_addr, addrlen);
+    auto uaddr = check_sockaddr((sockaddr*)dest_addr, addrlen);
     if (!uaddr)
       return -1;
 
@@ -289,7 +290,7 @@ public:
       return -1;
     }
 
-    msghdr *m = new msghdr();
+    ward_msghdr *m = new ward_msghdr();
     m->data = b;
     m->len = len;
     m->uaddr.sun_family = AF_UNIX;
@@ -306,14 +307,14 @@ public:
 
   ssize_t
   recvfrom(userptr<void> buf, size_t len, int flags,
-           struct sockaddr_storage *src_addr, size_t *addrlen) override
+           struct ward_sockaddr_storage *src_addr, size_t *addrlen) override
   {
     kstats::timer timer_fill(&kstats::socket_local_recvfrom_cycles);
     kstats::inc(&kstats::socket_local_recvfrom_cnt);
 
     ssize_t r = -1;
 
-    msghdr *m = localsock_->read();
+    ward_msghdr *m = localsock_->read();
     if (src_addr) {
       *(struct sockaddr_un*)src_addr = m->uaddr;
       *addrlen = sizeof(m->uaddr);
@@ -344,8 +345,8 @@ unixsocket(int domain, int type, int protocol, file **out)
 {
   if (type == SOCK_DGRAM)
     *out = new file_unix_dgram{true};
-  else if (type == SOCK_DGRAM_UNORDERED)
-    *out = new file_unix_dgram{false};
+  // else if (type == SOCK_DGRAM_UNORDERED)
+  //   *out = new file_unix_dgram{false};
   else
     return -1;
   return 0;

@@ -8,9 +8,8 @@
 #include <string.h>
 #include <sys/stat.h>
 
-// #include <sys/socket.h>
-// #include <arpa/inet.h>
-// #include "sockutil.h"
+#include <sys/socket.h>
+#include <arpa/inet.h>
 
 #include "sysstubs.h"
 
@@ -20,26 +19,7 @@
 
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
 
-#define SOCK_STREAM 1
-#define AF_INET 2
-#define INADDR_ANY 0
-typedef uint32_t socklen_t;
-struct in_addr {
-  uint32_t s_addr;
-};
-struct sockaddr_in {
-  uint8_t sin_len;
-  uint8_t sin_family;
-  uint16_t sin_port;
-  struct in_addr sin_addr;
-  char sin_zero[8];
-};
-unsigned long htonl(unsigned long x) {
-  return ((x & 0xff) << 24) | ((x & 0xff00) << 8) | ((x >> 8) & 0xff00) | (x >> 24);
-}
-unsigned short htons(unsigned short x) {
-  return ((x & 0xff) << 8) | ((x & 0xff00) >> 8);
-}
+
 
 static int xwrite(int fd, const void *buf, u64 n)
 {

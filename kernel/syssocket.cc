@@ -4,7 +4,7 @@
 #include "filetable.hh"
 #include <fcntl.h>
 #include <uk/stat.h>
-#include <uk/socket.h>
+#include <sys/socket.h>
 
 // Copy *sa into *ss, where sa is sa_len bytes long, and make sure
 // there's a NUL after the end of the copied sockaddr.
@@ -81,13 +81,17 @@ sys_bind(int xsock, const userptr<struct sockaddr> xaddr, uint32_t xaddrlen)
   if (r < 0)
     return r;
 
-  return f->bind((struct sockaddr*)&ss, xaddrlen);
+  STRACE_PARAMS("%d, addr<%s>, %u", xsock, ss.ss_family == AF_INET ? "INET" : ss.ss_family == AF_INET6 ? "INET6" : "???", xaddrlen);
+
+  return f->bind((ward_sockaddr*)(sockaddr*)&ss, xaddrlen);
 }
 
 //SYSCALL
 long
 sys_listen(int xsock, int backlog)
 {
+  STRACE_PARAMS("%d, %d", xsock, backlog);
+
   sref<file> f = getfile(xsock);
 
   if (!f)
@@ -108,7 +112,7 @@ sys_accept(int xsock, userptr<struct sockaddr> xaddr,
   struct sockaddr_storage ss;
   size_t ss_len;
   file *newfp;
-  int r = f->accept(&ss, &ss_len, &newfp);
+  int r = f->accept((ward_sockaddr_storage*)&ss, &ss_len, &newfp);
   if (r < 0)
     return r;
   sref<file> newf(sref<file>::transfer(newfp));
@@ -131,7 +135,7 @@ sys_recvfrom(int sockfd, userptr<void> buf, size_t len, int flags,
   struct sockaddr_storage ss;
   size_t ss_len;
   ssize_t size = f->recvfrom(buf, len, flags,
-                             src_addr ? &ss : nullptr, &ss_len);
+                             src_addr ? (ward_sockaddr_storage*)&ss : nullptr, &ss_len);
   if (size < 0)
     return size;
 
@@ -160,7 +164,7 @@ sys_sendto(int sockfd, const userptr<void> buf, size_t len, int flags,
   }
 
   return f->sendto(buf, len, flags,
-                   dest_addr ? (struct sockaddr*)&ss : nullptr,
+                   dest_addr ? (ward_sockaddr*)(sockaddr*)&ss : nullptr,
                    addrlen);
 }
 

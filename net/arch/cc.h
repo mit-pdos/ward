@@ -1,6 +1,14 @@
 #ifndef LWIP_ARCH_CC_H
 #define LWIP_ARCH_CC_H
 
+#ifndef SSIZE_MAX
+#define SSIZE_MAX LONG_MAX
+#endif
+
+#undef LITTLE_ENDIAN
+#undef BIG_ENDIAN
+#include <endian.h>
+
 #include "types.h"
 
 void lwip_cprintf(const char*, ...) __attribute__((format(printf, 1, 2)));

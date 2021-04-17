@@ -26,6 +26,28 @@ static struct lwprot {
 
 extern void lwip_core_sleep(struct condvar *, uint64_t deadline = ~0);
 
+u32_t sys_now(void) {
+  return nsectime() / 1000'000;
+}
+
+// From musl
+int atoi(const char *s) {
+	int n=0, neg=0;
+	while ((*s) == ' ') s++;
+	switch (*s) {
+	case '-': neg=1;
+	case '+': s++;
+	}
+	/* Compute n as a negative number to avoid overflow on INT_MIN */
+	while ((*s) >= '0' && (*s) <= '9')
+		n = 10*n - (*s++ - '0');
+	return neg ? n : -n;
+}
+
+int isxdigit(int arg) {
+  return (arg >= '0' && arg <= '9') || (arg >= 'a' && arg <= 'z') || (arg >= 'A' && arg <= 'Z');
+}
+
 //
 // mbox
 //
@@ -81,6 +103,13 @@ sys_mbox_trypost(sys_mbox_impl **mboxp, void *msg)
 
   return r;
 }
+
+err_t
+sys_mbox_trypost_fromisr(sys_mbox_t *mbox, void *msg)
+{
+  return sys_mbox_trypost(mbox, msg);
+}
+
 
 void
 sys_mbox_post(sys_mbox_impl **mboxp, void *msg)

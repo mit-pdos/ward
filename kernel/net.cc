@@ -8,17 +8,13 @@
 #include "net.hh"
 #include "major.h"
 #include "netdev.hh"
-#include <uk/socket.h>
 
-extern "C" {
-#include "lwip/tcp_impl.h"
 #include "lwip/tcpip.h"
 #include "lwip/ip.h"
 #include "lwip/netif.h"
 #include "lwip/dhcp.h"
 #include "lwip/sockets.h"
 #include "netif/etharp.h"
-}
 
 err_t if_init(struct netif *netif);
 void if_input(struct netif *netif, void *buf, u16 len);
@@ -98,10 +94,21 @@ public:
     return r;
   }
 
-  int bind(const struct sockaddr *addr, size_t addrlen) override
+  int bind(const struct ward_sockaddr *addr, size_t addrlen) override
   {
+    sockaddr a;
+    if (addr->sa_family == WARD_AF_INET) {
+      a.sa_family = AF_INET;
+    } else if(addr->sa_family == WARD_AF_INET6) {
+      a.sa_family = AF_INET6;
+    } else {
+      return -1;
+    }
+    memcpy(a.sa_data, addr->sa_data, 14);
+    a.sa_len = sizeof(sockaddr);
+
     lwip_core_lock();
-    int r = lwip_bind(socket_, addr, addrlen);
+    int r = lwip_bind(socket_, &a, addrlen);
     lwip_core_unlock();
     return r;
   }
@@ -114,17 +121,29 @@ public:
     return r;
   }
 
-  int accept(struct sockaddr_storage* addr, size_t *addrlen, file **out)
+  int accept(struct ward_sockaddr_storage* addr, size_t *addrlen, file **out)
     override
   {
+    ward_sockaddr_storage a;
+
     lwip_core_lock();
     socklen_t len = sizeof(*addr);
-    int ss = lwip_accept(socket_, (struct sockaddr*)addr, &len);
+    int ss = lwip_accept(socket_, (struct sockaddr*)&a, &len);
     lwip_core_unlock();
     if (ss < 0)
       return -1;
     *addrlen = len;
     *out = new file_lwip_socket{ss};
+
+    memcpy(((ward_sockaddr*)addr)->sa_data, ((sockaddr*)&a)->sa_data, 14);
+    if (((sockaddr*)&a)->sa_family == AF_INET) {
+      ((ward_sockaddr*)addr)->sa_family = WARD_AF_INET;
+    } else if(((sockaddr*)&a)->sa_family == AF_INET6) {
+      ((ward_sockaddr*)addr)->sa_family = WARD_AF_INET6;
+    } else {
+      panic("unknown address family");
+    }
+
     return 0;
   }
 
@@ -185,8 +204,8 @@ static void
 lwip_init(struct netif *xnif, void *if_state,
 	  u32 init_addr, u32 init_mask, u32 init_gw)
 {
-  struct ip_addr ipaddr, netmask, gateway;
-  ipaddr.addr  = init_addr;
+  ip4_addr_t ipaddr, netmask, gateway;
+  ipaddr.addr = init_addr;
   netmask.addr = init_mask;
   gateway.addr = init_gw;
   
@@ -214,9 +233,14 @@ netifread(char *dst, u32 off, u32 n)
   char buf[512];
   u32 len;
 
-  ip = ntohl(nif.ip_addr.addr);
-  nm = ntohl(nif.netmask.addr);
-  gw = ntohl(nif.gw.addr);
+  // TODO: handle printing ipv6 addresses
+  assert(nif.ip_addr.type == IPADDR_TYPE_V4);
+  assert(nif.netmask.type == IPADDR_TYPE_V4);
+  assert(nif.gw.type == IPADDR_TYPE_V4);
+
+  ip = ntohl(nif.ip_addr.u_addr.ip4.addr);
+  nm = ntohl(nif.netmask.u_addr.ip4.addr);
+  gw = ntohl(nif.gw.u_addr.ip4.addr);
 
 #define IP(x)              \
   (x & 0xff000000) >> 24, \
@@ -264,9 +288,6 @@ initnet_worker(void *x)
   dhcp_start(&nif);
 
   start_timer(&t_arp, &etharp_tmr, "arp_timer", ARP_TMR_INTERVAL);
-  start_timer(&t_tcpf, &tcp_fasttmr, "tcp_f_timer", TCP_FAST_INTERVAL);
-  start_timer(&t_tcps, &tcp_slowtmr, "tcp_s_timer", TCP_SLOW_INTERVAL);
-
   start_timer(&t_dhcpf, &dhcp_fine_tmr,	"dhcp_f_timer",	DHCP_FINE_TIMER_MSECS);
   start_timer(&t_dhcpc, &dhcp_coarse_tmr, "dhcp_c_timer", DHCP_COARSE_TIMER_MSECS);
 

@@ -18,6 +18,22 @@ class filetable;
 
 u64 namehash(const strbuf<DIRSIZ>&);
 
+// lwIP and musl have conflicting definitions for these types. These versions
+// match musl (and thus by extension Linux), but are prefixed so they don't 
+// conflict with the lwIP versions are in scope.
+#define WARD_AF_INET         2
+#define WARD_AF_INET6        10
+typedef unsigned short ward_sa_family_t;
+struct ward_sockaddr {
+	ward_sa_family_t sa_family;
+	char sa_data[14];
+};
+struct ward_sockaddr_storage {
+	ward_sa_family_t ss_family;
+	char __ss_padding[128-sizeof(long)-sizeof(ward_sa_family_t)];
+	unsigned long __ss_align;
+};
+
 struct file {
 
   virtual void on_ftable_insert(filetable* v) {}
@@ -33,24 +49,24 @@ struct file {
   virtual ssize_t getdents(linux_dirent* out_dirents, size_t bytes) { return -1; }
 
   // Socket operations
-  virtual int bind(const struct sockaddr *addr, size_t addrlen) { return -1; }
+  virtual int bind(const struct ward_sockaddr *addr, size_t addrlen) { return -1; }
   virtual int listen(int backlog) { return -1; }
   // Unlike the syscall, the return is only an error status.  The
   // caller will allocate an FD for *out on success.  addrlen is only
   // an out-argument.
-  virtual int accept(struct sockaddr_storage *addr, size_t *addrlen, file **out)
+  virtual int accept(struct ward_sockaddr_storage *addr, size_t *addrlen, file **out)
   { return -1; }
   // sendto and recvfrom take a userptr to the buf to avoid extra
   // copying in the kernel.  The other pointers will be kernel
   // pointers.  dest_addr may be null.
   virtual ssize_t sendto(userptr<void> buf, size_t len, int flags,
-                         const struct sockaddr *dest_addr, size_t addrlen)
+                         const struct ward_sockaddr *dest_addr, size_t addrlen)
   { return -1; }
   // Unlike the syscall, addrlen is only an out-argument, since
   // src_addr will be big enough for any sockaddr.  src_addr may be
   // null.
   virtual ssize_t recvfrom(userptr<void> buf, size_t len, int flags,
-                           struct sockaddr_storage *src_addr,
+                           struct ward_sockaddr_storage *src_addr,
                            size_t *addrlen)
   { return -1; }
 

@@ -1,11 +1,20 @@
 #ifndef XV6_LWIPOPTS_H
 #define XV6_LWIPOPTS_H
 
+#define LWIP_TIMEVAL_PRIVATE 0
+#include <sys/time.h>
+
+#define IPV6_FRAG_COPYHEADER 1
+
+#define LWIP_IPV4            1
+#define LWIP_IPV6            1
+
 #define LWIP_STATS		0
 #define LWIP_STATS_DISPLAY	0
 #define LWIP_DHCP		1
 #define LWIP_COMPAT_SOCKETS	0
 #define LWIP_COMPAT_MUTEX       1
+#define LWIP_COMPAT_MUTEX_ALLOWED 1 // TODO: remove this
 #define SYS_LIGHTWEIGHT_PROT	0
 #define LWIP_PROVIDE_ERRNO      1
 
@@ -18,7 +27,7 @@
 #define MEMP_NUM_TCP_SEG	TCP_SND_QUEUELEN// at least as big as TCP_SND_QUEUELEN
 #define MEMP_NUM_NETBUF		128
 #define MEMP_NUM_NETCONN	32
-#define MEMP_NUM_SYS_TIMEOUT    6
+#define MEMP_NUM_SYS_TIMEOUT    10
 
 #define PER_TCP_PCB_BUFFER	(16 * 4096)
 #define MEM_SIZE		(PER_TCP_PCB_BUFFER*MEMP_NUM_TCP_SEG + 4096*MEMP_NUM_TCP_SEG)

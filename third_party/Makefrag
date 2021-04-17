@@ -91,7 +91,8 @@ $(O)/compiler-rt.a: $(COMPILERRT_OBJ_FILES)
 #lwip
 LWIP_SRC = third_party/lwip/src
 LWIP_OBJ = $(O)/lwip
-LWIP_SRC_C_FILES := $(wildcard $(LWIP_SRC)/*/*.c) $(wildcard $(LWIP_SRC)/core/ipv4/*.c)
+LWIP_SRC_C_FILES := $(wildcard $(LWIP_SRC)/core/*.c) $(wildcard $(LWIP_SRC)/netif/*.c) \
+	$(wildcard $(LWIP_SRC)/api/*.c) $(wildcard $(LWIP_SRC)/core/*/*.c)
 LWIP_OBJ_FILES := $(patsubst $(LWIP_SRC)/%.c,$(LWIP_OBJ)/%.o,$(LWIP_SRC_C_FILES))
 LWIP_FLAGS = -Wno-attributes -Wno-address -Wno-char-subscripts -Wno-format -O2 \
 	-Ithird_party/lwip/src/include -Ithird_party/lwip/src/include/ipv4 -Inet -Inet/arch \
