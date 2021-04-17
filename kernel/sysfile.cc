@@ -355,6 +355,41 @@ sys_lstat(userptr_str path, userptr<struct kernel_stat> st)
 
 //SYSCALL
 long
+sys_newfstatat(int fd, userptr_str path, userptr<struct kernel_stat> st, int flag) {
+  char path_copy[WARD_PATH_MAX];
+  if (!path.load(path_copy, sizeof path_copy))
+    return -EINVAL;
+
+  STRACE_PARAMS("%d, \"%s\", %p, 0x%x", fd, path_copy, st.unsafe_get(), flag);
+
+  sref<vnode> cwd;
+  if (fd == AT_FDCWD) {
+    cwd = myproc()->cwd;
+  } else {
+    sref<file> fdir = getfile(fd);
+    if (!fdir)
+      return -EBADF;
+    file* ff = fdir.get();
+    if (&typeid(*ff) != &typeid(file_inode))
+      return -1;
+    file_inode* fdiri = static_cast<file_inode*>(ff);
+    cwd = fdiri->ip;
+  }
+
+  sref<vnode> m = vfs_root()->resolve(cwd, path_copy);
+  if(!m)
+    return -ENOENT;
+
+  struct kernel_stat st_buf;
+  m->stat(&st_buf, STAT_NO_FLAGS);
+  if (!st.store(&st_buf)) {
+    return -EINVAL;
+  }
+  return 0;
+}
+
+//SYSCALL
+long
 sys_access(userptr_str path, int mode)
 {
   char path_copy[WARD_PATH_MAX];
