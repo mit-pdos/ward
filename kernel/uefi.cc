@@ -51,6 +51,7 @@ extern "C" u64 efi_cmain (u64 mbmagic, u64 mbaddr, void* boot_system_table, void
   dtr.base = (u64)bootgdt;
   lgdt((void*)&dtr.limit);
 
+  // TODO: use trampoline_pml4
   __asm volatile("movabs $(kpml4-%a1), %%rax; mov %%rax, %%cr3; add %0, %%rsp; movabs $1f, %%rax; jmp *%%rax; 1:"
                  :: "r"(KBASE), "i"(KCODE) : "rax", "memory");
   cmain(mbmagic, mbaddr);

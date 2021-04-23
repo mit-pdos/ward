@@ -121,17 +121,19 @@ start:
     ljmp $KCSEG32, $PADDR(start32)  // code32 segment selector
 
 start32:
-    // Initialize page table.
     call init32e
-
-    // Enter 64-bit mode.
-    movl $PADDR(start64), %eax
-    ljmp $KCSEG, $PADDR(tramp64)  // code64 segment selector
+    ljmp $KCSEG, $PADDR(start64)  // code64 segment selector
 
 .code64
 start64:
-    // Load VA stack pointer
     movabsq $(stack+STACK), %rsp
+    movabsq $(relocate64), %rax
+    jmp *%rax
+
+relocate64:
+    movq $PADDR(kpml4), %rax
+    movq %rax, %cr3
+
     // Clear frame pointer for stack walks, and call into C code.
     movq $0, %rbp
     call cmain
@@ -152,28 +154,25 @@ apstart:
 
 apstart32:
     call init32e
-    movl $PADDR(apstart64), %eax
-    ljmp $KCSEG, $PADDR(tramp64)  // code64 segment selector
+    ljmp $KCSEG, $PADDR(apstart64)  // code64 segment selector
 
 .code64
 apstart64:
+    movabsq $(aprelocate64), %rax
+    jmp *%rax
+
+aprelocate64:
     # Remember (from bootothers), that our kernel stack pointer is
     # at the top of our temporary stack.
     popq %rax
     movq %rax, %rsp
+
+    movq $PADDR(kpml4), %rax
+    movq %rax, %cr3
+
     movq $0, %rbp
     call mpboot
 1:  jmp 1b
-
-.code64
-tramp64:
-    // The linker thinks we are running at tramp64, but we're actually
-    // running at PADDR(tramp64), so use an explicit calculation to
-    // load and jump to the correct address.  %rax should hold the
-    // physical address of the jmp target.
-    movq $KCODE, %r11
-    addq %r11, %rax
-    jmp *%rax
 
 // Initialize IA-32e mode.  See section 9.8.5 of 253668.pdf.
 .code32
@@ -184,7 +183,7 @@ init32e:
     movl %eax, %cr4
 
     // Load CR3 with physical base address of level 4 page table.
-    movl $PADDR(kpml4), %eax
+    movl $PADDR(tampoline_pml4), %eax
     movl %eax, %cr3
 
     // Enable IA-32e mode by setting IA32_EFER.LME = 1.
@@ -236,6 +235,13 @@ loadgdt:
 .balign 4096
 .global kpml4
 kpml4:
+    .space 4096 - 2*8
+    // We can't just use pdpt0 because we mark pdpt0 no-execute
+    // in initpg.
+    .quad PADDR(pdptbase) + (1<<0) + (1<<1)  // present, read/write
+    .quad PADDR(pdptcode) + (1<<0) + (1<<1)  // present, read/write
+.balign 4096
+tampoline_pml4:
     .quad PADDR(pdpt0) + (1<<0) + (1<<1)  // present, read/write
     .space 4096 - 3*8
     // We can't just use pdpt0 because we mark pdpt0 no-execute
