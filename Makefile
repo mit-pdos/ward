@@ -110,7 +110,7 @@ QEMUNET := -net user,hostfwd=tcp::2323-:23,hostfwd=tcp::8080-:80 -net nic,model=
 QEMUSERIAL := $(if $(QEMUOUTPUT),-serial file:$(QEMUOUTPUT),-serial mon:stdio)
 QEMUCOMMAND = $(QEMU) -cpu Skylake-Client,+spec-ctrl,+md-clear -nographic -device sga \
 			  -smp $(QEMUSMP) -m size=$(QEMUMEM) $(QEMUACCEL) $(QEMUNET) $(QEMUSERIAL) \
-		      $(QEMUEXTRA) $(QEMUKERNEL) -no-reboot
+		      $(QEMUEXTRA) $(QEMUKERNEL) -no-reboot #-d int,cpu_reset
 
 # We play a Makefile trick here: variables like QEMUCOMMAND which are declared with '=' are only
 # evaluated when they are used. Thus future assignments to QEMUAPPEND and QEMUKERNEL (including this
@@ -128,6 +128,15 @@ qemu-grub: $(O)/ward.img
 qemu-test: $(KERN)
 	$(eval QEMUAPPEND += %/bin/unittests.sh)
 	timeout --foreground 15m $(QEMUCOMMAND) -device isa-debug-exit
+qemu-efi: $(O)/ward.efi
+	$(Q)mkdir -p $(O)/fat/EFI/BOOT
+	$(Q)cp $(O)/ward.efi $(O)/fat/EFI/BOOT/bootx64.efi
+	$(Q)cp OVMF_VARS-1024x768.fd $(O)/OVMF_VARS-1024x768.fd
+	$(eval QEMUKERNEL = )
+	$(QEMUCOMMAND) -nodefaults -drive if=pflash,format=raw,readonly,file=OVMF_CODE.fd \
+		-drive if=pflash,format=raw,file=$(O)/OVMF_VARS-1024x768.fd \
+		-drive format=raw,file=fat:rw:$(O)/fat -machine q35
+
 
 codex: $(KERN)
 
