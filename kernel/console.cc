@@ -313,11 +313,16 @@ panic(const char *fmt, ...)
   va_list ap;
 
   cli();
-  acquire(&cons.lock);
 
-  __cprintf("cpu%d-%s: panic: ",
-            mycpu()->id,
-            myproc() ? myproc()->name : "(unknown)");
+  int locking = cons.locking;
+  if(locking) {
+    acquire(&cons.lock);
+    __cprintf("cpu%d-%s: panic: ",
+              mycpu()->id,
+              myproc() ? myproc()->name : "(unknown)");
+  } else {
+    __cprintf("panic: ");
+  }
   va_start(ap, fmt);
   vprintfmt(writecons, 0, fmt, ap);
   va_end(ap);
