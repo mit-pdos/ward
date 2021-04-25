@@ -70,13 +70,20 @@ public:
   void inc() override { referenced::inc(); }
   void dec() override { referenced::dec(); }
 
-  ssize_t read(char *buf, size_t n) override
+  ssize_t read(userptr<void> addr, size_t n) override
   {
+    char b[PGSIZE];
+    if (n > PGSIZE)
+      n = PGSIZE;
+
     auto l = rsem_.guard();
     lwip_core_lock();
-    int r = lwip_read(socket_, buf, n);
+    int ret = lwip_read(socket_, b, n);
     lwip_core_unlock();
-    return r;
+
+    if (ret <= 0 || addr.store_bytes(b, ret))
+      return ret;
+    return -1;
   }
 
   ssize_t write(const userptr<void> data, size_t n) override

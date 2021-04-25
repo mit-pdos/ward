@@ -24,22 +24,32 @@ file_inode::stat(struct kernel_stat *st, enum stat_flags flags)
 }
 
 ssize_t
-file_inode::read(char *addr, size_t n)
+file_inode::read(userptr<void> addr, size_t total_bytes)
 {
   if (!readable)
     return -1;
 
   lock_guard<sleeplock> l;
-  ssize_t r;
+  ssize_t r = 0;
   u16 major, minor;
   if (ip->as_device(&major, &minor)) {
     if (major >= NDEV)
       return -1;
+
+    char b[PGSIZE];
+    if (total_bytes > PGSIZE)
+      total_bytes = PGSIZE;
+
     if (devsw[major].read) {
-      return devsw[major].read(addr, n);
+      r = devsw[major].read(b, total_bytes);
+      if (r > 0 && !addr.store_bytes(b, r))
+        r = -1;
+      return r;
     } else if (devsw[major].pread) {
       l = off_lock.guard();
-      r = devsw[major].pread(addr, off, n);
+      r = devsw[major].pread(b, off, total_bytes);
+      if (r > 0 && !addr.store_bytes(b, r))
+        r = -1;
     } else {
       return -1;
     }
@@ -49,8 +59,32 @@ file_inode::read(char *addr, size_t n)
     if (!ip->is_offset_in_file(off))
       return 0;
 
+
     l = off_lock.guard();
-    r = ip->read_at(addr, off, n);
+
+    char b[PGSIZE];
+    ssize_t bytes = 0;
+    while (bytes < total_bytes) {
+      size_t n = total_bytes - bytes;
+      if (n > PGSIZE)
+        n = PGSIZE;
+
+      r = ip->read_at(b, off + bytes, n);
+      if (r <= 0){
+        break;
+      }
+      if (!(addr+bytes).store_bytes(b, r)) {
+        r = -1;
+        break;
+      }
+
+      bytes += r;
+      if (r < PGSIZE)
+        break;
+    }
+
+    if (bytes > 0)
+      r = bytes;
   }
   if (r > 0)
     off += r;
@@ -95,17 +129,30 @@ file_inode::write(const userptr<void> data, size_t n) {
 }
 
 ssize_t
-file_inode::pread(char *addr, size_t n, off_t off)
+file_inode::pread(userptr<void> addr, size_t n, off_t off)
 {
   if (!readable)
     return -1;
+
+  if (n > 4*1024*1024)
+    n = 4*1024*1024;
+
+  char* b = (char*) kmalloc(n, "preadbuf");
+  auto cleanup = scoped_cleanup([&](){kmfree(b, n);});
+
+  ssize_t ret;
   u16 major, minor;
   if (ip->as_device(&major, &minor)) {
     if (major >= NDEV || !devsw[major].pread)
       return -1;
-    return devsw[major].pread(addr, off, n);
+    ret = devsw[major].pread(b, off, n);
+  } else {
+    ret =  ip->read_at(b, off, n);
   }
-  return ip->read_at(addr, off, n);
+
+  if (ret <= 0 || addr.store_bytes(b, n))
+    return ret;
+  return -1;
 }
 
 ssize_t
@@ -179,9 +226,17 @@ file_pipe_reader::stat(struct kernel_stat *st, enum stat_flags flags)
 }
 
 ssize_t
-file_pipe_reader::read(char *addr, size_t n)
+file_pipe_reader::read(userptr<void> addr, size_t n)
 {
-  return piperead(pipe, addr, n);
+  char b[PGSIZE];
+  if (n > PGSIZE)
+    n = PGSIZE;
+
+  ssize_t ret = piperead(pipe, b, n);
+
+  if (ret <= 0 || addr.store_bytes(b, ret))
+    return ret;
+  return -1;
 }
 
 void

@@ -124,28 +124,6 @@ sys_fsync(int fd)
   return -ENOSYS;
 }
 
-ssize_t
-impl_read(sref<file>&& f, userptr<void> p, size_t total_bytes)
-{
-  char b[PGSIZE];
-  ssize_t bytes = 0;
-  while (bytes < total_bytes) {
-    size_t n = total_bytes - bytes;
-    if (n > PGSIZE)
-      n = PGSIZE;
-
-    ssize_t ret = f->read(b, n);
-    if (ret <= 0){
-      return bytes ? bytes : ret;
-    }
-    if (!(p+bytes).store_bytes(b, ret)) {
-      return bytes ? bytes : -1;
-    }
-
-    bytes += ret;
-  }
-  return bytes;
-}
 
 //SYSCALL
 ssize_t
@@ -165,26 +143,18 @@ sys_read(int fd, userptr<void> p, size_t total_bytes)
   //   ensure_secrets();
   }
 
-  return impl_read(std::move(f), p, total_bytes);
+  return f->read(p, total_bytes);
 }
 
 //SYSCALL
 ssize_t
-sys_pread(int fd, void *ubuf, size_t count, off_t offset)
+sys_pread(int fd, userptr<void> ubuf, size_t count, off_t offset)
 {
   sref<file> f = getfile(fd);
   if (!f)
     return -1;
 
-  if (count > 4*1024*1024)
-    count = 4*1024*1024;
-
-  char* b = (char*) kmalloc(count, "preadbuf");
-  auto cleanup = scoped_cleanup([&](){kmfree(b, count);});
-  ssize_t r = f->pread(b, count, offset);
-  if (r > 0)
-    putmem(ubuf, b, r);
-  return r;
+  return f->pread(ubuf, count, offset);
 }
 
 //SYSCALL
@@ -245,10 +215,6 @@ sys_readv(int fd, const void* iov, int count) {
   sref<file> f = getfile(fd);
   if (!f)
     return -1;
-  char *b = kalloc("readbuf");
-  if (!b)
-    return -1;
-  auto cleanup = scoped_cleanup([b](){kfree(b);});
 
   kernel_iovec v;
   for(int i = 0; i < count; i++) {
@@ -258,14 +224,7 @@ sys_readv(int fd, const void* iov, int count) {
     if (v.len > PGSIZE)
       v.len = PGSIZE;
 
-    ssize_t ret = f->read(b, v.len);
-    if (ret <= 0)
-      return ret;
-
-    if (!userptr<void>(v.base).store_bytes(b, ret))
-      return -EIO;
-    return ret;
-
+    return f->read(userptr<void>(v.base), v.len);
   }
   return 0;
 }
