@@ -1,11 +1,9 @@
-#include "libutil.h"
-#include "sockutil.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <netinet/in.h>
 
 int
 dfork(void)
@@ -39,20 +37,26 @@ main(void)
   int r;
 
   s = socket(AF_INET, SOCK_STREAM, 0);
-  if (s < 0)
-    die("telnetd socket: %d\n", s);
+  if (s < 0) {
+    fprintf(stderr, "telnetd socket: %d\n", s);
+    exit(1);
+  }
 
   struct sockaddr_in sin;
   sin.sin_family = AF_INET;
   sin.sin_addr.s_addr = htonl(INADDR_ANY);
   sin.sin_port = htons(23);
   r = bind(s, (struct sockaddr *)&sin, sizeof(sin));
-  if (r < 0)
-    die("telnetd bind: %d\n", r);
+  if (r < 0) {
+    fprintf(stderr, "telnetd bind: %d\n", r);
+    exit(1);
+  }
   
   r = listen(s, 5);
-  if (r < 0)
-    die("telnetd listen: %d\n", r);
+  if (r < 0) {
+    fprintf(stderr, "telnetd listen: %d\n", r);
+    exit(1);
+  }
 
   fprintf(stderr, "telnetd: port 23\n");
 
@@ -66,10 +70,10 @@ main(void)
       fprintf(stderr, "telnetd accept: %d\n", ss);
       continue;
     }
-    fprintf(stderr, "telnetd: connection %s\n", ipaddr(&sin));
+    fprintf(stderr, "telnetd: new connection\n");
 
     if (dfork() == 0) {
-      static const char *argv[] = { "/login", 0 };
+      static const char *argv[] = { "/bin/sh", 0 };
       close(0);
       close(1);
       close(2);

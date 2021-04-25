@@ -3,6 +3,7 @@
 UPROGS_BIN= \
 	init \
 	httpd \
+	telnetd \
 	halt \
 	reboot \
 	anon \
