@@ -392,7 +392,7 @@ initdirectmap()
 {
   int level = cpuid::features().page1GB ? pgmap::L_1G : pgmap::L_2M;
   for (auto it = kpml4.find(KBASE, level); it.index() < KBASEEND; it += it.span()) {
-    *it.create(0) = (it.index() - KBASE) | PTE_W | PTE_P | PTE_PS | PTE_NX;
+    *it.create(0) = (it.index() - KBASE) | PTE_W | PTE_P | PTE_PS;
   }
 }
 
@@ -414,7 +414,7 @@ initpg(struct cpu *c)
     }
 
     // Make the text and rodata segments read only
-    *kpml4.find(KTEXT, pgmap::L_2M).create(0) = v2p((void*)KTEXT) | PTE_P | PTE_PS;
+    *kpml4.find(KTEXT, pgmap::L_2M).create(0) &= (~(PGSIZE-1)) | PTE_P | PTE_PS;
     reload_cr3();
 
     // Memory mapped I/O region might have MTRRs to set its caching mode, so we
@@ -518,6 +518,13 @@ cleanuppg(void)
 {
   // Remove 1GB identity mapping
   *kpml4.find(0, pgmap::L_PML4) = 0;
+
+  // Mark direct map non-executable
+  int level = cpuid::features().page1GB ? pgmap::L_1G : pgmap::L_2M;
+  for (auto it = kpml4.find(KBASE, level); it.index() < KBASEEND; it += it.span()) {
+    *it.create(0) = (it.index() - KBASE) | PTE_W | PTE_P | PTE_PS | PTE_NX;
+  }
+
   reload_cr3();
 }
 

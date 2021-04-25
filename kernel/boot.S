@@ -86,6 +86,14 @@ multiboot2_header:
     .long PADDR(efi_main)
     .long 0
 
+    .word 10
+    .word 1
+    .long 24
+    .long 0
+    .long 0x40000000
+    .long 0x200000
+    .long 1
+
     .word 0                        // type = end
     .word 0                        // flags
     .long 8                        // size
@@ -112,26 +120,92 @@ start:
     movl %eax, %edi
     movl %ebx, %esi
 
+    // Set %esp to the address offset
+    movl (%ebx), %eax
+    call 1f
+1:  popl %esp
+    subl $PADDR(1b), %esp
+    movl %eax, (%ebx)
+
+
     // Initialize stack.
-    movl $PADDR(stack+STACK), %esp
+    add $PADDR(stack+STACK), %esp
 
     call loadgdt
 
+    // Load address of start32 into %eax
+    call getoffset
+    add $PADDR(start32), %eax
+
     // Enter new 32-bit code segment (already in 32-bit mode).
-    ljmp $KCSEG32, $PADDR(start32)  // code32 segment selector
+    movl %esp, %ebx
+    sub $6, %ebx
+    movw $KCSEG32, 4(%ebx) // code32 segment selector
+    movl %eax, (%ebx)
+    ljmpl *(%ebx)
 
 start32:
+    // Relocate page table
+    call getoffset
+    movl %eax, %ebx
+    addl $PADDR(kpml4), %ebx
+    addl %eax, 0xff0(%ebx)
+    addl %eax, 0xff8(%ebx)
+
+    movl %eax, %ebx
+    addl $PADDR(trampoline_pml4), %ebx
+    addl %eax, (%ebx)
+    addl %eax, 0xff0(%ebx)
+    addl %eax, 0xff8(%ebx)
+
+    movl %eax, %ebx
+    addl $PADDR(pdpt0), %ebx
+    addl %eax, (%ebx)
+
+    movl %eax, %ebx
+    addl $PADDR(pdptbase), %ebx
+    addl %eax, 0x00(%ebx)
+    addl %eax, 0x08(%ebx)
+    addl %eax, 0x10(%ebx)
+    addl %eax, 0x18(%ebx)
+
+    movl %eax, %ebx
+    addl $PADDR(pdptcode), %ebx
+    addl %eax, 0xff8(%ebx)
+
+    movl 0xff8(%ebx), %ebx
+    and $0xfffff000, %ebx
+    mov $0x1000, %ecx
+1:  sub $8, %ecx
+    addl %eax, (%ebx,%ecx)
+    cmp $0, %ecx
+    jnz 1b
+
+    // Initialize page table.
     call init32e
-    ljmp $KCSEG, $PADDR(start64)  // code64 segment selector
+
+    // Enter 64-bit mode.
+    call getoffset
+    add $PADDR(start64), %eax
+    movl %esp, %ebx
+    sub $6, %ebx
+    movw $KCSEG, 4(%ebx) // code64 segment selector
+    movl %eax, (%ebx)
+    ljmpl *(%ebx)
 
 .code64
 start64:
+    call 1f
+1:  pop %rax
+    subq $PADDR(1b), %rax
+    mov %rax, physical_address_offset
+
     movabsq $(stack+STACK), %rsp
-    movabsq $(relocate64), %rax
-    jmp *%rax
+    movabsq $(relocate64), %rbx
+    jmp *%rbx
 
 relocate64:
-    movq $PADDR(kpml4), %rax
+    addq $PADDR(kpml4), %rax
     movq %rax, %cr3
 
     // Clear frame pointer for stack walks, and call into C code.
@@ -150,24 +224,39 @@ efi_main:
 .globl apstart
 apstart:
     call loadgdt
-    ljmp $KCSEG32, $PADDR(apstart32)  // code32 segment selector
+
+    call getoffset
+    add $PADDR(apstart32), %eax
+    movl %esp, %ebx
+    sub $6, %ebx
+    movw $KCSEG32, 4(%ebx) // code32 segment selector
+    movl %eax, (%ebx)
+    ljmpl *(%ebx)
 
 apstart32:
     call init32e
-    ljmp $KCSEG, $PADDR(apstart64)  // code64 segment selector
+
+    call getoffset
+    add $PADDR(apstart64), %eax
+    movl %esp, %ebx
+    sub $6, %ebx
+    movw $KCSEG, 4(%ebx) // code64 segment selector
+    movl %eax, (%ebx)
+    ljmpl *(%ebx)
 
 .code64
 apstart64:
-    movabsq $(aprelocate64), %rax
-    jmp *%rax
-
-aprelocate64:
     # Remember (from bootothers), that our kernel stack pointer is
     # at the top of our temporary stack.
     popq %rax
     movq %rax, %rsp
 
-    movq $PADDR(kpml4), %rax
+    movabsq $(aprelocate64), %rbx
+    jmp *%rbx
+
+aprelocate64:
+    movq physical_address_offset, %rax
+    addq $PADDR(kpml4), %rax
     movq %rax, %cr3
 
     movq $0, %rbp
@@ -183,7 +272,8 @@ init32e:
     movl %eax, %cr4
 
     // Load CR3 with physical base address of level 4 page table.
-    movl $PADDR(tampoline_pml4), %eax
+    call getoffset
+    addl $PADDR(trampoline_pml4), %eax
     movl %eax, %cr3
 
     // Enable IA-32e mode by setting IA32_EFER.LME = 1.
@@ -203,8 +293,11 @@ init32e:
     ret
 
 loadgdt:
+    call getoffset
+    add $PADDR(bootgdt), %eax
+
     subl $8, %esp
-    movl $PADDR(bootgdt), 4(%esp)
+    movl %eax, 4(%esp)
     movw $(8*NSEGS-1), 2(%esp)
     lgdt 2(%esp)
     addl $8, %esp
@@ -216,6 +309,12 @@ loadgdt:
     movl $0, %eax  // null segment selector
     movw %ax, %fs
     movw %ax, %gs
+    ret
+
+getoffset:
+    call 1f
+1:  pop %eax
+    subl $PADDR(1b), %eax
     ret
 
 // Initial stack
@@ -241,7 +340,8 @@ kpml4:
     .quad PADDR(pdptbase) + (1<<0) + (1<<1)  // present, read/write
     .quad PADDR(pdptcode) + (1<<0) + (1<<1)  // present, read/write
 .balign 4096
-tampoline_pml4:
+.global trampoline_pml4
+trampoline_pml4:
     .quad PADDR(pdpt0) + (1<<0) + (1<<1)  // present, read/write
     .space 4096 - 3*8
     // We can't just use pdpt0 because we mark pdpt0 no-execute
@@ -249,10 +349,12 @@ tampoline_pml4:
     .quad PADDR(pdptbase) + (1<<0) + (1<<1)  // present, read/write
     .quad PADDR(pdptcode) + (1<<0) + (1<<1)  // present, read/write
 .balign 4096
+.global pdpt0
 pdpt0:
-    .quad PADDR(pdtcode) + (1<<0) + (1<<1)  // present, read/write
+    .quad PADDR(pdtbase) + (1<<0) + (1<<1)  // present, read/write
     .space 4096 - 8
 .balign 4096
+.global pdptbase
 pdptbase:
     .quad PADDR(pdtbase) + (1<<0) + (1<<1)         // present, read/write
     .quad PADDR(pdtbase+0x1000) + (1<<0) + (1<<1)  // present, read/write
@@ -260,6 +362,10 @@ pdptbase:
     .quad PADDR(pdtbase+0x3000) + (1<<0) + (1<<1)  // present, read/write
     .space 4096 - 32
 .balign 4096
+.global pdptcode
 pdptcode:
     .space 4096 - 8
     .quad PADDR(pdtcode) + (1<<0) + (1<<1)  // present, read/write
+.global physical_address_offset
+physical_address_offset:
+    .quad 0

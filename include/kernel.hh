@@ -17,11 +17,12 @@ extern "C" {
 #define KDSEG (3<<3)  /* kernel data segment */
 
 static inline uptr v2p(void *a) {
+  extern u64 physical_address_offset;
   uptr ua = (uptr) a;
   if (ua >= KCODE)
-    return ua - KCODE;
+    return (ua - KCODE) + physical_address_offset;
   else
-    return ua - KBASE;
+    return (ua - KBASE);
 }
 
 static inline void *p2v(uptr a) {
