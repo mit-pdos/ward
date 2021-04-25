@@ -217,7 +217,10 @@ relocate64:
 efi_main:
     movl %eax, %edi
     movl %ebx, %esi
-    movq $PADDR(stack+STACK), %rsp
+
+    call 1f
+1:  pop %rsp
+    addq $(PADDR(stack+STACK)-PADDR(1b)), %rsp
     call efi_cmain
 
 .code32

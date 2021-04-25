@@ -7,6 +7,13 @@ struct efi_guid {
   u16 data2;
   u16 data3;
   u8  data4[8];
+
+  bool operator==(const efi_guid &b) const {
+    for (int i = 0; i < 8; i++)
+      if (data4[i] != b.data4[i])
+        return false;
+    return data1 == b.data1 && data2 == b.data2 && data3 == b.data3;
+  }
 };
 enum efi_locate_search_type { AllHandles, ByRegisterNotify, ByProtocol};
 
@@ -108,6 +115,11 @@ struct efi_runtime_services {
   void* reset_system;
 };
 
+struct efi_configuration_table {
+  efi_guid guid;
+  void* table;
+};
+
 struct efi_system_table {
   struct {
     u64 signature;
@@ -127,7 +139,7 @@ struct efi_system_table {
   efi_runtime_services* runtime_services;
   efi_boot_services* boot_services;
   u64 num_table_entries;
-  void* configuration_table;
+  efi_configuration_table* configuration_table;
 };
 
 struct efi_memory_descriptor {
