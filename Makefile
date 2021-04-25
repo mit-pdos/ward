@@ -198,6 +198,10 @@ grub/grub.efi: grub/grub-early.cfg
 	$(Q)grub-mkimage -O x86_64-efi -o $@ -p '/' -c grub/grub-early.cfg \
 		normal search part_msdos part_gpt fat multiboot multiboot2 all_video gfxmenu gfxterm echo video probe
 
+$(O)/ward.efi: efi_wrap/Cargo.toml efi_wrap/Cargo.lock efi_wrap/src/main.rs $(KERN)
+	@echo "  GEN    $@"
+	$(Q)cargo +nightly build -Z build-std --target x86_64-unknown-uefi --release --manifest-path $< \
+		--target-dir $(dir $@) -Z unstable-options --out-dir $(O)
 
 ##
 ## General commands
