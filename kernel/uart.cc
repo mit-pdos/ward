@@ -151,8 +151,8 @@ void inituart(void) {
     if (inb(com+COM_LINE_STATUS) != 0xFF) {
       uart_exists[i] = true;
 
-      // Clean up the serial console (beginning of line, erase down)
-      uartputs(i, "\r\x1b[J");
+      // Clean up the serial console (reset colors, beginning of line, erase down)
+      uartputs(i, "\x1b[0m\r\x1b[J");
 
       // Announce that we're here.
       uartputs(i, "Ward ");
