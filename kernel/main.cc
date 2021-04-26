@@ -183,12 +183,12 @@ cmain(u64 mbmagic, u64 mbaddr)
   percpu_offsets[0] = __percpu_start;
 
   // Initialize output
-  initmultiboot(mbmagic, mbaddr);
   inithz();
   inituart();              // Requires inithz
+  initmultiboot(mbmagic, mbaddr);
   initcmdline();           // Requires initmultiboot
-  initphysmem();
-  initdirectmap();         // Requires initmultiboot
+  initphysmem();           // Requires initmultiboot
+  initdirectmap();         // Requires initmultiboot, initphysmem
   initvga();               // Requires initcmdline, initdirectmap
 
   // Initialize trap handling
