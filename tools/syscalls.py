@@ -459,6 +459,8 @@ ward_syscall:
         print("#endif")
         print()
         types = set(typ for syscall in syscalls for typ in syscall.types())
+        types = list(types)
+        types.sort()
         for typ in types:
             print(typ + ";")
         for syscall in syscalls:
