@@ -21,6 +21,8 @@ void if_input(struct netif *netif, void *buf, u16 len);
 
 netdev *the_netdev;
 
+static bool lwip_initialized = false;
+
 void
 netfree(void *va)
 {
@@ -175,7 +177,9 @@ void
 netrx(void *va, u16 len)
 {
   lwip_core_lock();
-  if_input(&nif, va, len);
+  if (lwip_initialized) {
+    if_input(&nif, va, len);
+  }
   lwip_core_unlock();
 }
 
@@ -297,6 +301,8 @@ initnet_worker(void *x)
   start_timer(&t_arp, &etharp_tmr, "arp_timer", ARP_TMR_INTERVAL);
   start_timer(&t_dhcpf, &dhcp_fine_tmr,	"dhcp_f_timer",	DHCP_FINE_TIMER_MSECS);
   start_timer(&t_dhcpc, &dhcp_coarse_tmr, "dhcp_c_timer", DHCP_COARSE_TIMER_MSECS);
+
+  lwip_initialized = true;
 
 #if 1
   lwip_core_unlock();
