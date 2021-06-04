@@ -59,7 +59,7 @@ CXXFLAGS := $(COMFLAGS) -std=c++14 -Wno-sign-compare -faligned-new -DEXCEPTIONS=
 ASFLAGS  := $(ASFLAGS) -Iinclude -I$(O)/include -m64 -MD -MP -DHW_$(HW) -include param.h
 LDFLAGS  :=
 
-ALL :=
+ALL := $(O)/ward.efi
 all:
 
 
@@ -97,10 +97,6 @@ $(O)/%.o: %.S
 	$(Q)mkdir -p $(@D)
 	$(Q)$(CC) $(ASFLAGS) -c -o $@ $<
 
-$(O)/bootx64.efi: $(KERN)
-	objcopy --set-section-alignment *=4096 -j .text -j .rodata -j .stapsdt.base -j .kmeta -j .data -j .bss \
-		-O pei-x86-64 $< $@
-
 
 ##
 ## Qemu
@@ -116,16 +112,16 @@ QEMUCOMMAND = $(QEMU) -cpu Skylake-Client,+spec-ctrl,+md-clear -nographic -devic
 # evaluated when they are used. Thus future assignments to QEMUAPPEND and QEMUKERNEL (including this
 # one) will be expanded in QEMUCOMMAND even though they happen after the definition of that
 # variable. This lets us use "$(eval ...)" in build rules to change their values.
-QEMUKERNEL = -kernel $(KERN) -append "$(QEMUAPPEND)"
+QEMUKERNEL = -kernel $(O)/ward.efi -append "$(QEMUAPPEND)"
 
-qemu: $(KERN)
+qemu: $(O)/ward.efi
 	$(QEMUCOMMAND)
-qemu-gdb: $(KERN)
+qemu-gdb: $(O)/ward.efi
 	$(QEMUCOMMAND) -s -S
 qemu-grub: $(O)/ward.img
 	$(eval QEMUKERNEL = )
 	$(QEMUCOMMAND) $<
-qemu-test: $(KERN)
+qemu-test: $(O)/ward.efi
 	$(eval QEMUAPPEND += %/bin/unittests.sh)
 	timeout --foreground 15m $(QEMUCOMMAND) -device isa-debug-exit
 qemu-efi: $(O)/ward.efi
@@ -136,9 +132,6 @@ qemu-efi: $(O)/ward.efi
 	$(QEMUCOMMAND) -nodefaults -drive if=pflash,format=raw,readonly,file=OVMF_CODE.fd \
 		-drive if=pflash,format=raw,file=$(O)/OVMF_VARS-1024x768.fd \
 		-drive format=raw,file=fat:rw:$(O)/fat -machine q35
-
-
-codex: $(KERN)
 
 
 ##
@@ -154,13 +147,13 @@ $(O)/fs.part.gz: $(O)/fs.part
 	@echo "  GEN    $@"
 	$(Q)cat $^ | gzip -f -k -S ".gz.tmp" - > $@.tmp
 	$(Q)mv $@.tmp $@
-$(O)/boot.fat: output/ward.efi grub/grub.cfg grub/grub.efi $(O)/writeok
+$(O)/boot.fat: $(O)/ward.efi grub/grub.cfg grub/grub.efi $(O)/writeok
 	@echo "  GEN    $@"
 	$(Q)dd if=/dev/zero of=$@ bs=4096 count=66560 2> /dev/null
 	$(Q)mkfs.fat -F 32 -s 1 -S 512 $@ > /dev/null
 	$(Q)mmd -i $@ ::EFI
 	$(Q)mmd -i $@ ::EFI/Boot
-	$(Q)mcopy -i $@ output/ward.efi ::EFI/Boot/bootx64.efi
+	$(Q)mcopy -i $@ $(O)/ward.efi ::EFI/Boot/bootx64.efi
 	$(Q)mcopy -i $@ grub/grub.cfg ::grub.cfg
 	$(Q)mcopy -i $@ $(O)/writeok ::writeok
 $(O)/ward.img: $(O)/boot.fat $(O)/fs.part grub/boot.img grub/core.img
@@ -199,7 +192,7 @@ grub/core.img: grub/grub-early.cfg
 	$(Q)$(PYTHON) -c "print('\x41')" | dd of=$@.tmp bs=1 seek=500 count=1 conv=notrunc 2> /dev/null
 	$(Q)mv $@.tmp $@
 
-$(O)/ward.efi: efi_wrap/Cargo.toml efi_wrap/Cargo.lock efi_wrap/src/main.rs $(KERN)
+$(O)/ward.efi: efi_wrap/Cargo.toml efi_wrap/Cargo.lock efi_wrap/src/main.rs $(O)/ward.elf
 	@echo "  GEN    $@"
 	$(Q)cargo +nightly build -Z build-std --target x86_64-unknown-uefi --release --manifest-path $< \
 		--target-dir $(dir $@) -Z unstable-options --out-dir $(O)
