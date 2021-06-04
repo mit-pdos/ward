@@ -78,8 +78,8 @@ static mut DUMMY: u64 = 0;
 // Placing the payload in the .text section gets it inserted near the start of the binary. This is
 // needed for the multiboot headers to work.
 #[link_section = ".text"]
-static PAYLOAD: Aligned<[u8; include_bytes!("../../output/ward.elf").len()]> =
-    Aligned(*include_bytes!("../../output/ward.elf"));
+static PAYLOAD: Aligned<[u8; include_bytes!("../../output/kernel-stripped.elf").len()]> =
+    Aligned(*include_bytes!("../../output/kernel-stripped.elf"));
 
 static mut MBI: Mbi = Mbi {
     size: (core::mem::size_of::<Mbi>() - core::mem::size_of::<FramebufferTag>()) as u32,

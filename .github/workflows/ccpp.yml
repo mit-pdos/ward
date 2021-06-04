@@ -11,13 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Build ward.elf
+    - name: Build kernel
       run: make -j
-    - name: Upload ward.elf
+    - name: Upload kernel
       uses: actions/upload-artifact@v1
       with:
-        name: ward.elf
-        path: output/ward.elf
+        name: kernel
+        path: |
+          output/kernel.elf
+          output/ward.efi
     - name: Install QEMU
       run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
     - name: Unit tests

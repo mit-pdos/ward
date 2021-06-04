@@ -192,7 +192,7 @@ grub/core.img: grub/grub-early.cfg
 	$(Q)$(PYTHON) -c "print('\x41')" | dd of=$@.tmp bs=1 seek=500 count=1 conv=notrunc 2> /dev/null
 	$(Q)mv $@.tmp $@
 
-$(O)/ward.efi: efi_wrap/Cargo.toml efi_wrap/Cargo.lock efi_wrap/src/main.rs $(O)/ward.elf
+$(O)/ward.efi: efi_wrap/Cargo.toml efi_wrap/Cargo.lock efi_wrap/src/main.rs $(O)/kernel-stripped.elf
 	@echo "  GEN    $@"
 	$(Q)cargo +nightly build -Z build-std --target x86_64-unknown-uefi --release --manifest-path $< \
 		--target-dir $(dir $@) -Z unstable-options --out-dir $(O)

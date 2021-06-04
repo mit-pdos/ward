@@ -18,7 +18,7 @@ Ward Artifact
   - This guide has been tested on fresh Ubuntu 20.04 install, but other distros should work as well.
 * If isn't possible to get a non-virtualized Linux environment, you can try running steps 1-3 inside a Linux VM and steps 4-5 outside it on a Windows/macOS host system:
   - You'd need to clone the git repository on both the host and the guest
-  - Then between steps 3 and 4, copy _output/ward.elf_ (or the entire _output_ directory) from the guest to the host
+  - Then between steps 3 and 4, copy _output/ward.efi_ (or the entire _output_ directory) from the guest to the host
 
 ## 1. Getting Started
 * Install dependencies: `sudo apt-get install git build-essential clang qemu-system-x86 python3-numpy python3-matplotlib`
@@ -29,7 +29,7 @@ Ward Artifact
 ## 2. Compile Ward
 * Run `make -j` from the root of the repository to compile the Ward kernel.
   - You should see a list of source files scroll by as they are compiled.
-  - Once complete, there will be a directory called _output_ which should contain the _ward.elf_ kernel binary.
+  - Once complete, there will be a directory called _output_ which should contain the _ward.efi_ kernel binary.
   - If the command fails you can run `make clean` or delete the output directory to try again.
 
 ## 3. Boot Ward

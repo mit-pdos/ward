@@ -16,7 +16,7 @@ struct QStats {
 }
 
 fn main() {
-    let kernel_path = format!("{}/../../output/ward.elf", env!("CARGO_MANIFEST_DIR"));
+    let kernel_path = format!("{}/../../output/kernel.elf", env!("CARGO_MANIFEST_DIR"));
 
     let matches = App::new("Warden")
         .version("0.1")
