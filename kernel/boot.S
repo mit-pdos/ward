@@ -58,7 +58,7 @@ multiboot2_header:
     .word 1                        // flags = optional
     .long 24                       // size
     .long PADDR(multiboot2_header) // header address
-    .long PADDR(multiboot2_header) // load address
+    .long PADDR(multiboot_header)  // load address
     .long PADDR(edata)             // load end address
     .long PADDR(_end)              // bss end address
 
