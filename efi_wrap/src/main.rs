@@ -2,7 +2,6 @@
 #![no_main]
 #![feature(abi_efiapi)]
 #![feature(asm)]
-#![feature(naked_functions)]
 
 extern crate rlibc;
 
