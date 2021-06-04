@@ -6,9 +6,12 @@
 
 extern crate rlibc;
 
+use core::cell::UnsafeCell;
 use core::fmt::Write;
 use core::{panic::PanicInfo, slice};
 use uefi::prelude::*;
+use uefi::proto::console::gop::GraphicsOutput;
+use uefi::proto::console::gop::PixelFormat;
 use uefi::table::boot::{AllocateType, MemoryType};
 
 struct ST(Option<SystemTable<Boot>>);
@@ -17,6 +20,26 @@ unsafe impl Sync for ST {}
 
 #[repr(align(8))]
 struct Aligned<T>(T);
+
+#[repr(C, align(8))]
+#[derive(Default)]
+struct FramebufferTag {
+    ty: u32,
+    size: u32,
+    framebuffer_addr: u64,
+    framebuffer_pitch: u32,
+    framebuffer_width: u32,
+    framebuffer_height: u32,
+    framebuffer_bpp: u8,
+    framebuffer_type: u8,
+    framebuffer_reserved: u8,
+    framebuffer_red_field_position: u8,
+    framebuffer_red_mask_size: u8,
+    framebuffer_green_field_position: u8,
+    framebuffer_green_mask_size: u8,
+    framebuffer_blue_field_position: u8,
+    framebuffer_blue_mask_size: u8,
+}
 
 #[repr(C, align(8))]
 struct Mbi {
@@ -33,25 +56,33 @@ struct Mbi {
     image_handle_type: u32,
     image_handle_size: u32,
     image_handle_pointer: u64,
+
+    framebuffer: FramebufferTag,
 }
 
 macro_rules! print {
     ($( $arg:expr ),*) => {
-        #[allow(unused_unsafe)]
-        unsafe { let _ = write!(SYSTEM_TABLE.0.as_mut().unwrap().stdout(), $( $arg, )* ); }
+        {
+            #[allow(unused_unsafe)]
+            unsafe { let _ = write!(SYSTEM_TABLE.0.as_mut().unwrap().stdout(), $( $arg, )* ); }
+        }
     }
 }
 
 static mut SYSTEM_TABLE: ST = ST(None);
 
+#[used]
+#[link_section = ".data"]
+static mut DUMMY: u64 = 0;
+
 // Placing the payload in the .text section gets it inserted near the start of the binary. This is
-// needed for the multiboot headers to work. 
+// needed for the multiboot headers to work.
 #[link_section = ".text"]
 static PAYLOAD: Aligned<[u8; include_bytes!("../../output/ward.elf").len()]> =
     Aligned(*include_bytes!("../../output/ward.elf"));
 
 static mut MBI: Mbi = Mbi {
-    size: core::mem::size_of::<Mbi>() as u32,
+    size: (core::mem::size_of::<Mbi>() - core::mem::size_of::<FramebufferTag>()) as u32,
     reserved: 0,
 
     system_table_pointer_type: 12,
@@ -64,6 +95,24 @@ static mut MBI: Mbi = Mbi {
     image_handle_type: 20,
     image_handle_size: 16,
     image_handle_pointer: 0,
+
+    framebuffer: FramebufferTag {
+        ty: 8,
+        size: core::mem::size_of::<FramebufferTag>() as u32,
+        framebuffer_addr: 0,
+        framebuffer_pitch: 0,
+        framebuffer_width: 0,
+        framebuffer_height: 0,
+        framebuffer_bpp: 32,
+        framebuffer_type: 1,
+        framebuffer_reserved: 0,
+        framebuffer_red_field_position: 0,
+        framebuffer_red_mask_size: 8,
+        framebuffer_green_field_position: 8,
+        framebuffer_green_mask_size: 8,
+        framebuffer_blue_field_position: 16,
+        framebuffer_blue_mask_size: 8,
+    },
 };
 
 #[panic_handler]
@@ -83,6 +132,7 @@ fn read_u32(bytes: &[u8]) -> u32 {
 #[entry]
 fn efi_main(handle: Handle, system_table: SystemTable<Boot>) -> Status {
     unsafe {
+        MBI.system_table_pointer_pointer = *core::mem::transmute::<_, &u64>(&system_table);
         SYSTEM_TABLE = ST(Some(system_table));
 
         let mut header = None;
@@ -200,22 +250,83 @@ fn efi_main(handle: Handle, system_table: SystemTable<Boot>) -> Status {
             }
         }
 
+        print!("Zeroing memory\n");
         let kernel = slice::from_raw_parts_mut(address as *mut u8, region_length);
         for b in kernel.iter_mut() {
             *b = 0;
         }
 
+        print!(
+            "Loading kernel at address=0x{:x} length=0x{:x}\n",
+            address, region_length
+        );
         let src_base = header_offset - (mb_header_addr - mb_load_addr);
         let dst_base = mb_load_addr & (mb_align - 1);
         let copy_len = mb_load_end_addr - mb_load_addr;
         kernel[dst_base..][..copy_len].copy_from_slice(&PAYLOAD.0[src_base..][..copy_len]);
 
-        MBI.image_handle_pointer = core::mem::transmute::<_, u64>(handle);
-        MBI.system_table_pointer_pointer =
-            core::mem::transmute::<_, u64>(SYSTEM_TABLE.0.take().unwrap());
-
-        let f = (address + mb_entry_addr - region_base) as *const fn(u32, u32);
+        let f = address + mb_entry_addr - region_base;
         let mbi = &MBI as *const _ as u64;
-        asm!("push 0; push {0}; ret; 3: jmp 3b", in(reg) f, in("rax") 0x36d76289, in("rbx") mbi, options(noreturn));
+        MBI.image_handle_pointer = core::mem::transmute::<_, u64>(handle);
+
+        if let Ok(ref mut gop) = SYSTEM_TABLE
+            .0
+            .as_mut()
+            .unwrap()
+            .boot_services()
+            .locate_protocol::<GraphicsOutput>()
+        {
+            if gop.status() == Status::SUCCESS {
+                print!("Configuring framebuffer\n");
+
+                let gop: &UnsafeCell<_> = gop.log();
+                let gop = &mut *UnsafeCell::get(gop);
+
+                let mode = gop.current_mode_info();
+                if gop.current_mode_info().pixel_format() != PixelFormat::Rgb {
+                    let mut chosen = None;
+                    for m in gop
+                        .modes()
+                        .filter(|m| m.status() == Status::SUCCESS)
+                        .map(|m| m.log())
+                    {
+                        if m.info().pixel_format() != PixelFormat::Rgb && m.info().pixel_format() != PixelFormat::Bgr {
+                            continue;
+                        }
+
+                        if m.info().resolution() == mode.resolution() {
+                            chosen = Some(m);
+                            break;
+                        } else if chosen.is_none()
+                            || m.info().resolution().1
+                                > chosen.as_ref().unwrap().info().resolution().1
+                        {
+                            chosen = Some(m);
+                        }
+                    }
+                    if let Some(chosen) = chosen {
+                        let _ = gop.set_mode(&chosen);
+                    }
+                }
+
+                let mode = gop.current_mode_info();
+                if mode.pixel_format() == PixelFormat::Rgb || mode.pixel_format() == PixelFormat::Bgr {
+                    MBI.size += core::mem::size_of::<FramebufferTag>() as u32;
+                    MBI.framebuffer.framebuffer_addr = gop.frame_buffer().as_mut_ptr() as u64;
+                    MBI.framebuffer.framebuffer_pitch = mode.stride() as u32 * 4;
+                    MBI.framebuffer.framebuffer_width = mode.resolution().0 as u32;
+                    MBI.framebuffer.framebuffer_height = mode.resolution().1 as u32;
+
+                    if mode.pixel_format() == PixelFormat::Bgr {
+                        MBI.framebuffer.framebuffer_red_field_position = 16;
+                        MBI.framebuffer.framebuffer_blue_field_position = 0;
+                    }
+                }
+            }
+        }
+
+        print!("Booting kernel entry=0x{:x}\n", f as u64);
+
+        asm!("or rsp, 0xf; sub rsp, 0xf; push {0}; mov rbx, {1}; ret; 3: jmp 3b", in(reg) f, in(reg) mbi, in("rax") 0x36d76289, options(noreturn));
     }
 }

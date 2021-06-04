@@ -23,6 +23,7 @@ typedef u64 (__attribute__((ms_abi)) *EFI_EXIT_BOOT_SERVICES)(void*, u64);
 typedef u64 (__attribute__((ms_abi)) *EFI_LOCATE_PROTOCOL)(efi_guid*, void*, void**);
 typedef u64 (__attribute__((ms_abi)) *EFI_LOCATE_HANDLE)(efi_locate_search_type, efi_guid*, void*, u64*, void*);
 typedef u64 (__attribute__((ms_abi)) *EFI_HANDLE_PROTOCOL)(void*, efi_guid*, void**);
+typedef u64 (__attribute__((ms_abi)) *EFI_TEXT_STRING)(void*, uint16_t*);
 
 typedef u64 (__attribute__((ms_abi)) *EFI_SET_VIRTUAL_ADDRESS_MAP)(u64, u64, u32, efi_memory_descriptor*);
 
@@ -115,6 +116,19 @@ struct efi_runtime_services {
   void* reset_system;
 };
 
+struct efi_simple_text_output_protocol {
+  void* reset;
+  EFI_TEXT_STRING output_string;
+  void* test_string;
+  void* query_mode;
+  void* set_mode;
+  void* set_attribute;
+  void* clear_screen;
+  void* set_cursor_position;
+  void* enable_cursor;
+  void* mode;
+};
+
 struct efi_configuration_table {
   efi_guid guid;
   void* table;
@@ -133,7 +147,7 @@ struct efi_system_table {
   void* console_in_handle;
   void* console_in_prot;
   void* console_out_handle;
-  void* console_out_prot;
+  efi_simple_text_output_protocol* console_out_prot;
   void* console_err_handle;
   void* console_err_prot;
   efi_runtime_services* runtime_services;
