@@ -475,6 +475,8 @@ initpg(struct cpu *c)
     //   }
     // }
 
+    vga_boot_animation();
+
     use_invpcid = cpuid::features().invpcid;
 
     if (!cpuid::features().invpcid) {
