@@ -147,7 +147,7 @@ $(O)/fs.part.gz: $(O)/fs.part
 	@echo "  GEN    $@"
 	$(Q)cat $^ | gzip -f -k -S ".gz.tmp" - > $@.tmp
 	$(Q)mv $@.tmp $@
-$(O)/boot.fat: $(O)/ward.efi grub/grub.cfg grub/grub.efi $(O)/writeok
+$(O)/boot.fat: $(O)/ward.efi grub/grub.cfg $(O)/writeok
 	@echo "  GEN    $@"
 	$(Q)dd if=/dev/zero of=$@ bs=4096 count=66560 2> /dev/null
 	$(Q)mkfs.fat -F 32 -s 1 -S 512 $@ > /dev/null
@@ -202,6 +202,7 @@ $(O)/ward.efi: efi_wrap/Cargo.toml efi_wrap/Cargo.lock efi_wrap/src/main.rs $(O)
 ##
 .PRECIOUS: $(O)/%.o
 .PHONY: clean qemu qemu-gdb qemu-grub qemu-test disks
+
 
 clean:
 	rm -fr $(O)
