@@ -154,17 +154,14 @@ $(O)/fs.part.gz: $(O)/fs.part
 	@echo "  GEN    $@"
 	$(Q)cat $^ | gzip -f -k -S ".gz.tmp" - > $@.tmp
 	$(Q)mv $@.tmp $@
-$(O)/boot.fat: $(KERN) grub/grub.cfg grub/grub.efi $(O)/writeok
+$(O)/boot.fat: output/ward.efi grub/grub.cfg grub/grub.efi $(O)/writeok
 	@echo "  GEN    $@"
 	$(Q)dd if=/dev/zero of=$@ bs=4096 count=66560 2> /dev/null
 	$(Q)mkfs.fat -F 32 -s 1 -S 512 $@ > /dev/null
 	$(Q)mmd -i $@ ::EFI
 	$(Q)mmd -i $@ ::EFI/Boot
-	$(Q)mmd -i $@ ::EFI/Grub
-	$(Q)mcopy -i $@ grub/grub.efi ::EFI/Boot/bootx64.efi
-	$(Q)mcopy -i $@ grub/grub.efi ::EFI/Grub/grub.efi
+	$(Q)mcopy -i $@ output/ward.efi ::EFI/Boot/bootx64.efi
 	$(Q)mcopy -i $@ grub/grub.cfg ::grub.cfg
-	$(Q)mcopy -i $@ $(KERN) ::ward
 	$(Q)mcopy -i $@ $(O)/writeok ::writeok
 $(O)/ward.img: $(O)/boot.fat $(O)/fs.part grub/boot.img grub/core.img
 	@echo "  GEN    $@"
@@ -201,11 +198,6 @@ grub/core.img: grub/grub-early.cfg
 		biosdisk normal search part_msdos part_gpt fat multiboot multiboot2 all_video gfxmenu gfxterm echo probe
 	$(Q)$(PYTHON) -c "print('\x41')" | dd of=$@.tmp bs=1 seek=500 count=1 conv=notrunc 2> /dev/null
 	$(Q)mv $@.tmp $@
-grub/grub.efi: grub/grub-early.cfg
-	@echo "  GEN    $@"
-	$(Q)mkdir -p $(@D)
-	$(Q)grub-mkimage -O x86_64-efi -o $@ -p '/' -c grub/grub-early.cfg \
-		normal search part_msdos part_gpt fat multiboot multiboot2 all_video gfxmenu gfxterm echo video probe
 
 $(O)/ward.efi: efi_wrap/Cargo.toml efi_wrap/Cargo.lock efi_wrap/src/main.rs $(KERN)
 	@echo "  GEN    $@"
