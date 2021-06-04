@@ -26,6 +26,9 @@ extern "C" u64 efi_cmain (u64 mbmagic, u64 mbaddr)
   auto get_memory_map = system_table->boot_services->get_memory_map;
   auto exit_boot_services = system_table->boot_services->exit_boot_services;
 
+  // u16 hello_world[] = {'H', 'e', 'l', 'l', 'o', '\n', 0};
+  // (system_table->console_out_prot->output_string)(system_table->console_out_prot, hello_world);
+
   for (int i = 0; i < system_table->num_table_entries; i++) {
     if (system_table->configuration_table[i].guid == efi_acpi10_table_guid) {
       memcpy(mb->acpi_rsdpv1, system_table->configuration_table[i].table, 20);
