@@ -77,6 +77,7 @@
         popq %rdi;
 
 .section .rodata
+.globl mds_clear_cpu_buffers_ds
 mds_clear_cpu_buffers_ds:
 .long KDSEG
 .text

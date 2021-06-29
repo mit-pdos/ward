@@ -306,54 +306,67 @@ cmain(u64 mbmagic, u64 mbaddr)
   u64* DIV_COUNTS = (u64*)kalloc("div_counts", 8*1024 *8);
 
   writemsr(MSR_LSTAR, (u64)syscall_over);
-  writemsr(0x48, readmsr(0x48) | (0x1)); // IA32_SPEC_CTRL: Enable IBRS
+  for (int k = 0; k < 2; k++) {
+    writemsr(0x48, (readmsr(0x48)&0xfffffffe) | (k)); // IA32_SPEC_CTRL: Enable IBRS
 
-  cprintf("IA32_SPEC_CTRL = %lx\n", readmsr(0x48));
-  //cprintf("IA32_ARCH_CAPABILITIES = %lx\n", readmsr(0x10A));
-  //assert(readmsr(0x10A) & 0x2);
+    cprintf("IA32_SPEC_CTRL = %lx\n", readmsr(0x48));
+    //cprintf("IA32_ARCH_CAPABILITIES = %lx\n", readmsr(0x10A));
+    //assert(readmsr(0x10A) & 0x2);
 
-  u64 aaa = 0x2000 + ((char*)target_aaa - (char*)time_branch);
-  u64 bbb = 0x2000 + ((char*)target_bbb - (char*)time_branch);
+    u64 aaa = 0x2000 + ((char*)target_aaa - (char*)time_branch);
+    u64 bbb = 0x2000 + ((char*)target_bbb - (char*)time_branch);
 
-  for (int i = 0; i < 1024; i++) {
-    *(u64*)branch_target_page = aaa;
-    for (int j = 0; j < 1024; j++)
-      ((u64(*)())0x2000)();
+    for (int i = 0; i < 1024; i++) {
+      *(u64*)branch_target_page = aaa;
+      for (int j = 0; j < 1024; j++)
+        ((u64(*)())0x2000)();
 
-    u64 t1 = do_reverse_syscall();
-    u64 t2 = rdtscp_and_serialize();
+      u64 t1 = do_reverse_syscall();
+      u64 t2 = rdtscp_and_serialize();
 
-    *(u64*)branch_target_page = bbb;
-    DIV_COUNTS[ENTRY_COUNT] = ((u64(*)())0x2000)();
-    ENTRY_TIMES[ENTRY_COUNT++] = t2 - t1;
+      *(u64*)branch_target_page = bbb;
+      DIV_COUNTS[ENTRY_COUNT] = ((u64(*)())0x2000)();
+      ENTRY_TIMES[ENTRY_COUNT++] = t2 - t1;
+    }
+
+    int count[2] = {0, 0};
+    int with_div[2] = {0, 0};
+    for (int i = 128; i < ENTRY_COUNT; i++) {
+      int is_fast = ENTRY_TIMES[i] < 200 ? 0 : 1;
+      count[is_fast]++;
+      if (DIV_COUNTS[i] > 0)
+        with_div[is_fast]++;
+    }
+
+    for (int i = 0; i < 2; i++) {
+      if(count[i] == 0) 
+        continue;
+        
+      int v = with_div[i] * 100000 / count[i];
+      cprintf("%s: %d.%03d%%  \t(%d/%d)\n", i ? "slow" : "fast", v / 1000, v % 1000, with_div[i], count[i]);
+    }
   }
 
   kpml4[0] = 0;
   writemsr(MSR_LSTAR, (u64)&sysentry);
-
-  int count[2] = {0, 0};
-  int with_div[2] = {0, 0};
-  for (int i = 128; i < ENTRY_COUNT; i++) {
-    int is_fast = ENTRY_TIMES[i] < 200 ? 0 : 1;
-    count[is_fast]++;
-    if (DIV_COUNTS[i] > 0)
-      with_div[is_fast]++;
-  }
-
-  for (int i = 0; i < 2; i++) {
-    if(count[i] == 0) 
-      continue;
-      
-    int v = with_div[i] * 100000 / count[i];
-    cprintf("%s: %d.%03d%%  \t(%d/%d)\n", i ? "slow" : "fast", v / 1000, v % 1000, with_div[i], count[i]);
-  }
-
-  for (int i = 340; i < 350; i++)
-     cprintf("%ld \t(%ld)\n", ENTRY_TIMES[i], DIV_COUNTS[i]);
   ENTRY_COUNT = 0xffffffff;
-
   kfree(ENTRY_TIMES);
 
+  extern const char mds_clear_cpu_buffers_ds[];
+
+  u64 sum = 0;
+  u64 maxt = 0;
+
+  for (int i = 0; i < 1000000; i++) {
+    u64 t = serialize_and_rdtsc();
+    asm volatile ("verw (mds_clear_cpu_buffers_ds)");
+    u64 dt = rdtscp_and_serialize() - t;
+
+    sum += dt;
+    maxt = dt > maxt ? dt : maxt;
+  }
+  cprintf("verw time = %ld (max = %ld) \n", sum / 1000000, maxt);
+  
   idleloop();
 
   panic("Unreachable");
