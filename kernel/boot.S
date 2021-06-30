@@ -215,8 +215,8 @@ relocate64:
 
 .globl efi_main
 efi_main:
-    movl %eax, %edi
-    movl %ebx, %esi
+    movq %rax, %rdi
+    movq %rbx, %rsi
 
     call 1f
 1:  pop %rsp
