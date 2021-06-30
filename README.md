@@ -105,7 +105,7 @@ the device number of your flash drive), and then select the drive as a temporary
 boot device from the pre-boot menu:
 
 ```bash
-$ sudo dd if=output/ward.img of=/dev/sdX bs=4M && sync
+$ sudo dd conv=nocreat if=output/ward.img of=/dev/sdX bs=4M && sync
 ```
 
 And if you want to make sure the drive works:
