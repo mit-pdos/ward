@@ -388,49 +388,114 @@ emulate_rdfsbase:
 .globl do_reverse_syscall
 do_reverse_syscall:
     push %r12
-    push %rbx
+    movq %rdi, %rcx
     movq $0x200, %r11
-    movq $0x1000, %rcx
+    subq $(usercode_segment - 0x1000), %rcx
+    movq %rsp, %r12
+    movq $0x4ff0, %rsp
     sysretq
 .globl syscall_over
 syscall_over:
     shlq $32, %rdx
     or %rdx, %rax
-    pop %rbx
+    pop %rdx
+    movq %r12, %rsp
     pop %r12
     ret
 
 .balign 4096
 .globl usercode_segment
 usercode_segment:
-    mov %rsp, %r12
-    mov $0x4ff0, %rsp
+//     mov %rsp, %r12
+//     mov $0x4ff0, %rsp
+// 
+// //    movq $(0x2000+target_aaa-time_branch), (0x3000)
+// //    mov $1024, %r11
+// //1:  push %r11
+// //    callq time_branch
+// //    pop %r11
+// //    dec %r11
+// //    jnz 1b
+// 
+// //    movq $(0x2000+target_bbb-time_branch), (0x3000)
+// //    callq time_branch
+// //    push %rax
+// 
+// 1:  rdtsc
+//     //mov 123, %r11
+//     //ud2
+//     //dec %r8
+//     //jnz 1b
+// 
+//     pop %rbx
+//     mov %r12, %rsp
+//     syscall
 
-//    movq $(0x2000+target_aaa-time_branch), (0x3000)
-//    mov $1024, %r11
-//1:  push %r11
-//    callq time_branch
-//    pop %r11
-//    dec %r11
-//    jnz 1b
-
-//    movq $(0x2000+target_bbb-time_branch), (0x3000)
-//    callq time_branch
-//    push %rax
-
-1:  rdtsc
-    //mov 123, %r11
-    //ud2
-    //dec %r8
-    //jnz 1b
-
-    pop %rbx
-    mov %r12, %rsp
+.globl spectre2_kk
+spectre2_kk:
+    push $0
+    rdtsc
     syscall
 
-.balign 4096
-.globl time_branch
-time_branch:
+.globl spectre2_uk
+spectre2_uk:
+    movq $(0x1000+target_aaa-usercode_segment), (0x3000)
+    mov $1024, %r11
+1:  push %r11
+    callq measure_branch
+    pop %r11
+    dec %r11
+    jnz 1b
+
+    push $0
+    rdtsc
+    syscall
+
+.globl spectre2_ku
+spectre2_ku:
+    movq $(0x1000+target_bbb-usercode_segment), (0x3000)
+    callq measure_branch
+    push %rax
+
+    rdtsc
+    syscall
+
+.globl spectre2_uu
+spectre2_uu:
+    movq $(0x1000+target_bbb-usercode_segment), (0x3000)
+    callq measure_branch
+    push %rax
+
+    movq $(0x1000+target_aaa-usercode_segment), (0x3000)
+    mov $1024, %r11
+1:  push %r11
+    callq measure_branch
+    pop %r11
+    dec %r11
+    jnz 1b
+
+    rdtsc
+    syscall
+
+.globl spectre2_uu_nosyscall
+spectre2_uu_nosyscall:
+    movq $(0x1000+target_aaa-usercode_segment), (0x3000)
+    mov $1024, %r11
+1:  push %r11
+    callq measure_branch
+    pop %r11
+    dec %r11
+    jnz 1b
+
+    movq $(0x1000+target_bbb-usercode_segment), (0x3000)
+    callq measure_branch
+    push %rax
+
+    rdtsc
+    syscall
+
+.globl measure_branch
+measure_branch:
     push %rbx
     clflush (0x3000)
     mov $150, %r11
@@ -457,6 +522,60 @@ time_branch:
     sub %rdx, %rax
     pop %rbx
     ret
+
+.globl time_branch
+time_branch:
+    push %rbx
+    clflush (0x3000)
+    mov $150, %r11
+1:  dec %r11
+    jnz 1b
+
+    cpuid
+    rdtsc
+    shl $32, %rdx
+    or %rdx, %rax
+    push %rax
+
+    mov 0x3000, %rax
+    call *%rax
+
+    rdtscp
+    shl $32, %rdx
+    or %rdx, %rax
+    pop %rdx
+    sub %rdx, %rax
+
+    pop %rbx
+    ret
+
+.global time_branches_u
+time_branches_u:
+    mov $1024, %r11
+1:  push %r11
+    callq time_branch
+    pop %r11
+    dec %r11
+    jnz 1b
+
+    movq $(0x1000+target_bbb-usercode_segment), (0x3000)
+    callq time_branch
+    push %rax
+    syscall
+
+.global time_branches_k
+time_branches_k:
+    mov $1024, %r11
+1:  push %r11
+    callq time_branch
+    pop %r11
+    dec %r11
+    jnz 1b
+
+    movq $(0x1000+target_bbb-usercode_segment), (0x3000)
+    callq time_branch
+    ret
+
 
 .globl target_aaa
 target_aaa:
