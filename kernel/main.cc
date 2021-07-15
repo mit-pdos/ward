@@ -12,6 +12,7 @@
 #include "codex.hh"
 #include "mfs.hh"
 #include "cpuid.hh"
+#include "sampler.h"
 
 void vga_boot_animation();
 void initmultiboot(u64 mbmagic, u64 mbaddr);
@@ -185,6 +186,7 @@ extern "C" void spectre2_kk();
 extern "C" void spectre2_uk();
 extern "C" void spectre2_ku();
 extern "C" void spectre2_uu();
+extern "C" void spectre2_uu_train();
 extern "C" void spectre2_uu_nosyscall();
 extern "C" void time_branches_u();
 extern "C" u64 time_branches_k();
@@ -286,7 +288,7 @@ cmain(u64 mbmagic, u64 mbaddr)
   cleanuppg();             // Requires bootothers
   initcpprt();
   //initwd();                // Requires initnmi
-  initpmc();
+  //initpmc();
   initattack(); // for spectre demo
 
   char* usercode = kalloc("usercode");
@@ -306,16 +308,26 @@ cmain(u64 mbmagic, u64 mbaddr)
   pml3[0] = v2p(pml2) | PTE_A | PTE_D | PTE_U | PTE_W | PTE_P;
   kpml4[0] = v2p(pml3) | PTE_A | PTE_D | PTE_U | PTE_W | PTE_P;
 
-  ENTRY_TIMES = (u64*)kalloc("times", 8 * 1024 * 8);
-  u64* DIV_COUNTS = (u64*)kalloc("div_counts", 8*1024 *8);
+  int num_iterations = 1024*8;
+  ENTRY_TIMES = (u64*)kalloc("times", 8 * num_iterations);
+  u64* DIV_COUNTS = (u64*)kalloc("div_counts", 8 * num_iterations);
 
   u64 aaa = 0x1000 + ((char*)target_aaa - (char*)usercode_segment);
   u64 bbb = 0x1000 + ((char*)target_bbb - (char*)usercode_segment);
 
-  int num_iterations = 1024*8;
-
   void(*targets[])()  = {spectre2_kk, nullptr, spectre2_uu, spectre2_uu_nosyscall, spectre2_uk, spectre2_ku };
-  const char* names[] = {"k-s-k", "k-*-k", "u-s-u", "u-*-u", "u-s-k", "k-s-u" };
+  const char* target_names[] = {"k-s-k", "k-*-k", "u-s-u", "u-*-u", "u-s-k", "k-s-u" };
+
+  u64 counters[] = {
+    0x0914 | PERF_SEL_USR | PERF_SEL_OS | (1ull << PERF_SEL_CMASK_SHIFT) | PERF_SEL_EDGE,
+    0x02C5 | PERF_SEL_USR | PERF_SEL_OS,
+    0x80C4 | PERF_SEL_USR | PERF_SEL_OS
+  };
+  const char* counter_names[] = {
+    "ARITH.DIVIDER_ACTIVE>0         ", 
+    "BR_MISP_RETIRED.INDIRECT_CALL>0", 
+    "BR_INST_RETIRED.INDIRECT==1    "
+  };
 
   cprintf("IA32_ARCH_CAPABILITIES = %lx\n", readmsr(0x10A));
   writemsr(MSR_LSTAR, (u64)syscall_over);
@@ -324,79 +336,90 @@ cmain(u64 mbmagic, u64 mbaddr)
     cprintf("IA32_SPEC_CTRL = %lx\n", readmsr(0x48));
     //assert(readmsr(0x10A) & 0x2);
 
-    for (int kind = 0; kind < 6; kind++) {
-      ENTRY_COUNT = 0;
-      for (int iteration = 0; iteration < num_iterations; iteration++) {
-        if (kind == 0 || kind == 1 || kind == 5) {
-          *(u64*)branch_target_page = aaa;
-          for (int j = 0; j < 1024; j++)
-            ((u64(*)())(0x1000 + (char*)measure_branch - usercode_segment))();
+    for (int counter = 0; counter < 2; counter++) {
+      configure_perf_counter_intel(counters[counter]);
+
+      for (int kind = 0; kind < 6; kind++) {
+        for (int iteration = 0; iteration < num_iterations; iteration++) {
+          u128 result;
+          u64 t1=0, t2=0;
+
+          if (kind == 0 || kind == 1 || kind == 5) {
+            *(u64*)branch_target_page = aaa;
+            for (int j = 0; j < 1024; j++)
+              ((u64(*)())(0x1000 + (char*)measure_branch - usercode_segment))();
+          } else if (kind == 2) {
+            result = do_reverse_syscall(spectre2_uu_train);
+            t2 = rdtscp_and_serialize();
+            t1 = (u64)result;
+          }
+
+          if (kind != 1) {
+            result = do_reverse_syscall(targets[kind]);
+          } else {
+            result = rdtsc();
+          }
+
+          if (kind != 2) {
+            t2 = rdtscp_and_serialize();
+            t1 = (u64)result;
+          }
+
+          if (kind == 2 || kind == 3 || kind == 5) {
+            DIV_COUNTS[iteration] = result >> 64;
+          } else {
+            *(u64*)branch_target_page = bbb;
+            DIV_COUNTS[iteration] = ((u64(*)())(0x1000 + (char*)measure_branch - usercode_segment))();
+          }
+
+          ENTRY_TIMES[iteration] = t2 - t1;
         }
 
-        u128 result;
-        u64 t1=0, t2=0;
-        if (kind != 1) {
-          result = do_reverse_syscall(targets[kind]);
-        } else {
-          result = rdtsc();
-        }
-        t2 = rdtscp_and_serialize();
-        t1 = (u64)result;
+        u64 avg = 0;
+        for (int i = 128; i < num_iterations; i++)
+          avg += ENTRY_TIMES[i];
+        avg /= num_iterations - 128;
 
-        if (kind == 2 || kind == 3 || kind == 5) {
-          DIV_COUNTS[ENTRY_COUNT] = result >> 64;
-        } else {
-          *(u64*)branch_target_page = bbb;
-          DIV_COUNTS[ENTRY_COUNT] = ((u64(*)())(0x1000 + (char*)measure_branch - usercode_segment))();
+        int count[2] = {0, 0};
+        int with_div[2] = {0, 0};
+        for (int i = 128; i < num_iterations; i++) {
+          int is_fast = ENTRY_TIMES[i] <= avg*3/2 ? 1 : 0;
+          count[is_fast]++;
+          if (((counter == 0 || counter == 1) && DIV_COUNTS[i] > 0) || (counter == 2 && DIV_COUNTS[i] == 1))
+            with_div[is_fast]++;
         }
 
-        ENTRY_TIMES[ENTRY_COUNT++] = t2 - t1;
+        int v_slow = with_div[0] * 100000 / (count[0] > 0 ? count[0] : 0xffffffff);
+        int v_fast = with_div[1] * 100000 / (count[1] > 0 ? count[1] : 0xffffffff);
+        cprintf("%s [%s] fast: %4d.%04d%% (%4d/%4d)    ", 
+          counter_names[counter], target_names[kind], v_fast / 1000, v_fast % 1000, with_div[1], count[1]);
+        if (count[0] > 0)
+          cprintf("slow: %4d.%04d%% (%4d/%4d)    ", v_slow / 1000, v_slow % 1000, with_div[0], count[0]);
+        else
+          cprintf("                                ");
+        cprintf("average=%lu cycles\n", avg);
       }
 
-      u64 avg = 0;
-      for (int i = 128; i < ENTRY_COUNT; i++)
-        avg += ENTRY_TIMES[i];
-      avg /= ENTRY_COUNT - 128;
+      // u64 time_sums[2] = {0, 0};
+      // for (int mistrain = 0; mistrain < 2; mistrain++) {
+      //   for (int iteration = 0; iteration < num_iterations; iteration++) {
+      //     *(u64*)branch_target_page = mistrain ? aaa : bbb;
+      //     time_sums[mistrain] += do_reverse_syscall(time_branches_u) >> 64;
+      //   }
+      // }
+      // cprintf("[u] trained: %3lu cycles, mistrained: %3lu cycles\n", time_sums[0] / num_iterations, time_sums[1] / num_iterations);
 
-      int count[2] = {0, 0};
-      int with_div[2] = {0, 0};
-      for (int i = 128; i < ENTRY_COUNT; i++) {
-        int is_fast = ENTRY_TIMES[i] <= avg*3/2 ? 1 : 0;
-        count[is_fast]++;
-        if (DIV_COUNTS[i] > 0)
-          with_div[is_fast]++;
-      }
+      // for (int mistrain = 0; mistrain < 2; mistrain++) {
+      //   for (int iteration = 0; iteration < num_iterations; iteration++) {
+      //     *(u64*)branch_target_page = mistrain ? aaa : bbb;
+      //     time_sums[mistrain] += time_branches_k();
+      //   }
+      // }
+      // cprintf("[k] trained: %3lu cycles, mistrained: %3lu cycles\n", time_sums[0] / num_iterations, time_sums[1] / num_iterations);
 
-      int v_slow = with_div[0] * 100000 / (count[0] > 0 ? count[0] : 0xffffffff);
-      int v_fast = with_div[1] * 100000 / (count[1] > 0 ? count[1] : 0xffffffff);
-      cprintf("[%s] fast: %4d.%04d%% (%4d/%4d)    ", 
-        names[kind], v_fast / 1000, v_fast % 1000, with_div[1], count[1]);
-      if (count[0] > 0)
-        cprintf("slow: %4d.%04d%% (%4d/%4d)    ", v_slow / 1000, v_slow % 1000, with_div[0], count[0]);
-      else
-        cprintf("                                ");
-      cprintf("average=%lu cycles\n", avg);
+      // for (int i = 340; i < 354; i++)
+      //   cprintf("%ld \t(%ld)\n", ENTRY_TIMES[i], DIV_COUNTS[i]);   
     }
-
-    u64 time_sums[2] = {0, 0};
-    for (int mistrain = 0; mistrain < 2; mistrain++) {
-      for (int iteration = 0; iteration < num_iterations; iteration++) {
-        *(u64*)branch_target_page = mistrain ? aaa : bbb;
-        time_sums[mistrain] += do_reverse_syscall(time_branches_u) >> 64;
-      }
-    }
-    cprintf("[u] trained: %3lu cycles, mistrained: %3lu cycles\n", time_sums[0] / num_iterations, time_sums[1] / num_iterations);
-
-    for (int mistrain = 0; mistrain < 2; mistrain++) {
-      for (int iteration = 0; iteration < num_iterations; iteration++) {
-        *(u64*)branch_target_page = mistrain ? aaa : bbb;
-        time_sums[mistrain] += time_branches_k();
-      }
-    }
-    cprintf("[k] trained: %3lu cycles, mistrained: %3lu cycles\n", time_sums[0] / num_iterations, time_sums[1] / num_iterations);
-
-    // for (int i = 340; i < 354; i++)
-    //   cprintf("%ld \t(%ld)\n", ENTRY_TIMES[i], DIV_COUNTS[i]);   
   }
 
   kpml4[0] = 0;

