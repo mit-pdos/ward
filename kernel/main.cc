@@ -314,8 +314,8 @@ cmain(u64 mbmagic, u64 mbaddr)
 
   int num_iterations = 1024*8;
 
-  void(*targets[])()  = {spectre2_kk, spectre2_uk, spectre2_ku, spectre2_uu, nullptr, spectre2_uu_nosyscall};
-  const char* names[] = {"k-s-k", "u-s-k", "k-s-u", "u-s-u", "k-*-k", "u-*-u"};
+  void(*targets[])()  = {spectre2_kk, nullptr, spectre2_uu, spectre2_uu_nosyscall, spectre2_uk, spectre2_ku };
+  const char* names[] = {"k-s-k", "k-*-k", "u-s-u", "u-*-u", "u-s-k", "k-s-u" };
 
   cprintf("IA32_ARCH_CAPABILITIES = %lx\n", readmsr(0x10A));
   writemsr(MSR_LSTAR, (u64)syscall_over);
@@ -327,7 +327,7 @@ cmain(u64 mbmagic, u64 mbaddr)
     for (int kind = 0; kind < 6; kind++) {
       ENTRY_COUNT = 0;
       for (int iteration = 0; iteration < num_iterations; iteration++) {
-        if (kind == 0 || kind == 2 || kind == 4) {
+        if (kind == 0 || kind == 1 || kind == 5) {
           *(u64*)branch_target_page = aaa;
           for (int j = 0; j < 1024; j++)
             ((u64(*)())(0x1000 + (char*)measure_branch - usercode_segment))();
@@ -335,11 +335,13 @@ cmain(u64 mbmagic, u64 mbaddr)
 
         u128 result;
         u64 t1=0, t2=0;
-        if (kind != 4) {
+        if (kind != 1) {
           result = do_reverse_syscall(targets[kind]);
-          t2 = rdtscp_and_serialize();
-          t1 = (u64)result;
+        } else {
+          result = rdtsc();
         }
+        t2 = rdtscp_and_serialize();
+        t1 = (u64)result;
 
         if (kind == 2 || kind == 3 || kind == 5) {
           DIV_COUNTS[ENTRY_COUNT] = result >> 64;

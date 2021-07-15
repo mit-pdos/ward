@@ -498,9 +498,8 @@ spectre2_uu_nosyscall:
 measure_branch:
     push %rbx
     clflush (0x3000)
-    mov $150, %r11
-1:  dec %r11
-    jnz 1b
+
+    cpuid
 
     mov $2, %rcx
     rdpmc
@@ -509,16 +508,26 @@ measure_branch:
     push %rax
 
     cpuid
+
+    mov $150, %r11
+1:  dec %r11
+    jnz 1b
+
     mov 0x3000, %rax
     call *%rax
+
     cpuid
 
     mov $2, %rcx
     rdpmc
     shl $32, %rdx
     or %rdx, %rax
-    pop %rdx
 
+    push %rax
+    cpuid
+    pop %rax
+
+    pop %rdx
     sub %rdx, %rax
     pop %rbx
     ret

@@ -913,7 +913,8 @@ initpmc(void)
     if (dynamic_cast<intel_pmu*>(pmu)) {
       wd_selector.selector =
 //        0x0114 | PERF_SEL_USR | PERF_SEL_OS | (1ull << PERF_SEL_CMASK_SHIFT) | PERF_SEL_EDGE;
-        0x0914 | PERF_SEL_USR | PERF_SEL_OS | (1ull << PERF_SEL_CMASK_SHIFT) | PERF_SEL_EDGE;
+//        0x0914 | PERF_SEL_USR | PERF_SEL_OS | (1ull << PERF_SEL_CMASK_SHIFT) | PERF_SEL_EDGE;
+         0x02C5 | PERF_SEL_USR | PERF_SEL_OS; // BR_MISP_RETIRED.INDIRECT_CALL
     } else {
       return;
     }
