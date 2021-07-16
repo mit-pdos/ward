@@ -13,6 +13,7 @@
 #include "mfs.hh"
 #include "cpuid.hh"
 #include "sampler.h"
+#include "nospec-branch.hh"
 
 void vga_boot_animation();
 void initmultiboot(u64 mbmagic, u64 mbaddr);
@@ -190,6 +191,7 @@ extern "C" void spectre2_uu_train();
 extern "C" void spectre2_uu_nosyscall();
 extern "C" void time_branches_u();
 extern "C" u64 time_branches_k();
+extern "C" void fill_return_buffer();
 
 extern char syscall_over[];
 extern char usercode_segment[];
@@ -308,20 +310,27 @@ cmain(u64 mbmagic, u64 mbaddr)
   pml3[0] = v2p(pml2) | PTE_A | PTE_D | PTE_U | PTE_W | PTE_P;
   kpml4[0] = v2p(pml3) | PTE_A | PTE_D | PTE_U | PTE_W | PTE_P;
 
-  int num_iterations = 1024*8;
+  int num_iterations = 1024*8/16;
   ENTRY_TIMES = (u64*)kalloc("times", 8 * num_iterations);
   u64* DIV_COUNTS = (u64*)kalloc("div_counts", 8 * num_iterations);
 
   u64 aaa = 0x1000 + ((char*)target_aaa - (char*)usercode_segment);
   u64 bbb = 0x1000 + ((char*)target_bbb - (char*)usercode_segment);
 
-  void(*targets[])()  = {spectre2_kk, nullptr, spectre2_uu, spectre2_uu_nosyscall, spectre2_uk, spectre2_ku };
-  const char* target_names[] = {"k-s-k", "k-*-k", "u-s-u", "u-*-u", "u-s-k", "k-s-u" };
+  void(*targets[])()  = {spectre2_kk, nullptr, spectre2_uu, spectre2_uu_nosyscall, spectre2_uk, spectre2_ku, nullptr };
+  const char* target_names[] = {"k-s-k", "k-*-k", "u-s-u", "u-*-u", "u-s-k", "k-s-u", "k-!-u" };
 
-  u64 counters[] = {
-    0x0914 | PERF_SEL_USR | PERF_SEL_OS | (1ull << PERF_SEL_CMASK_SHIFT) | PERF_SEL_EDGE,
-    0x02C5 | PERF_SEL_USR | PERF_SEL_OS,
-    0x80C4 | PERF_SEL_USR | PERF_SEL_OS
+  u64 counters[][3] = {
+    { // Ice Lake
+      0x0914 | PERF_SEL_USR | PERF_SEL_OS | (1ull << PERF_SEL_CMASK_SHIFT) | PERF_SEL_EDGE,
+      0x02C5 | PERF_SEL_USR | PERF_SEL_OS, // BR_MISP_RETIRED.INDIRECT_CALL
+      0x80C4 | PERF_SEL_USR | PERF_SEL_OS // BR_INST_RETIRED.INDIRECT
+    },
+    { // Skylake
+      0x0114 | PERF_SEL_USR | PERF_SEL_OS | (1ull << PERF_SEL_CMASK_SHIFT) | PERF_SEL_EDGE,
+      0x02C5 | PERF_SEL_USR | PERF_SEL_OS, // BR_MISP_RETIRED.NEAR_CALL
+      0x02C4 | PERF_SEL_USR | PERF_SEL_OS // BR_INST_RETIRED.NEAR_CALL
+    },
   };
   const char* counter_names[] = {
     "ARITH.DIVIDER_ACTIVE>0         ", 
@@ -337,14 +346,23 @@ cmain(u64 mbmagic, u64 mbaddr)
     //assert(readmsr(0x10A) & 0x2);
 
     for (int counter = 0; counter < 2; counter++) {
-      configure_perf_counter_intel(counters[counter]);
+      int family = cpuid::model().family;
+      int model = cpuid::model().model;
+      if (family == 6 && (model == 0x7e || model == 0x6a || model == 0x6c)) // Ice Lake
+        configure_perf_counter_intel(counters[0][counter]);
+      else if (family == 6 && (model == 0x4e || model == 0x5e | model == 0x55)) // Skylake
+        configure_perf_counter_intel(counters[1][counter]);
+      else {
+        cprintf("WARN: Unable to recognize CPU Model. Using Skylake performance counter configuration");
+        configure_perf_counter_intel(counters[1][counter]);
+      }
 
-      for (int kind = 0; kind < 6; kind++) {
+      for (int kind = 0; kind < 7; kind++) {
         for (int iteration = 0; iteration < num_iterations; iteration++) {
           u128 result;
           u64 t1=0, t2=0;
 
-          if (kind == 0 || kind == 1 || kind == 5) {
+          if (kind == 0 || kind == 1 || kind == 5 || kind == 6) {
             *(u64*)branch_target_page = aaa;
             for (int j = 0; j < 1024; j++)
               ((u64(*)())(0x1000 + (char*)measure_branch - usercode_segment))();
@@ -354,10 +372,13 @@ cmain(u64 mbmagic, u64 mbaddr)
             t1 = (u64)result;
           }
 
-          if (kind != 1) {
-            result = do_reverse_syscall(targets[kind]);
-          } else {
+          if (kind == 1) {
             result = rdtsc();
+          } else if (kind == 6) {
+            result = rdtsc();
+            indirect_branch_prediction_barrier();
+          } else {
+            result = do_reverse_syscall(targets[kind]);
           }
 
           if (kind != 2) {
@@ -397,8 +418,19 @@ cmain(u64 mbmagic, u64 mbaddr)
           cprintf("slow: %4d.%04d%% (%4d/%4d)    ", v_slow / 1000, v_slow % 1000, with_div[0], count[0]);
         else
           cprintf("                                ");
-        cprintf("average=%lu cycles\n", avg);
+        cprintf("average = %4lu cycles   [", avg);
+
+        for (int i = 340; i < 340 + 96; i++) {
+          if (ENTRY_TIMES[i] <= avg*3/2)
+            cprintf(DIV_COUNTS[i] > 0 ? "." : " ");
+          else
+            cprintf("*");
+        }
+
+        cprintf("]\n");
       }
+
+
 
       // u64 time_sums[2] = {0, 0};
       // for (int mistrain = 0; mistrain < 2; mistrain++) {
@@ -429,19 +461,70 @@ cmain(u64 mbmagic, u64 mbaddr)
 
   extern const char mds_clear_cpu_buffers_ds[];
 
-  u64 sum = 0;
-  u64 maxt = 0;
+  const char* operation_names[] = { 
+    "nop               ",
+    "verw              ",
+    "IBPB              ",
+    "FILL_RETURN_BUFFER",
+    "lfence            ",
+    "retpoline         ",
+    "indirect call     ",
+    "indirect call+ibrs"
+  };
+  for (int op = 0; op < 8; op++) {
+    // IA32_SPEC_CTRL: Disable then re-enable IBRS
+    if (op == 4) writemsr(0x48, (readmsr(0x48)&0xfffffffe));
+    if (op == 6) writemsr(0x48, (readmsr(0x48)&0xfffffffe) | 1);
 
-  for (int i = 0; i < 1000000; i++) {
-    u64 t = serialize_and_rdtsc();
-    asm volatile ("verw (mds_clear_cpu_buffers_ds)");
-    u64 dt = rdtscp_and_serialize() - t;
+    u64 sum = 0, mint = 999999999, maxt = 0;
+    for (int i = 0; i < 1000000; i++) {
+      u64 t;
 
-    sum += dt;
-    maxt = dt > maxt ? dt : maxt;
+      switch (op) {
+        case 0:
+          t = serialize_and_rdtsc();
+          t = rdtscp_and_serialize() - t;
+          break;
+        case 1:
+          t = serialize_and_rdtsc();
+          asm volatile ("verw (mds_clear_cpu_buffers_ds)");
+          t = rdtscp_and_serialize() - t;
+          break;
+        case 2:
+          t = serialize_and_rdtsc();
+          indirect_branch_prediction_barrier();
+          t = rdtscp_and_serialize() - t;
+          break;
+        case 3:
+          t = serialize_and_rdtsc();
+          fill_return_buffer();
+          t = rdtscp_and_serialize() - t;
+          break;
+        case 4:
+          t = serialize_and_rdtsc();
+          barrier_nospec();
+          t = rdtscp_and_serialize() - t;
+          break;
+        case 5:
+          t = serialize_and_rdtsc();
+          asm volatile ("movq %0, %%r11; call __x86_indirect_thunk_r11" :: "r" (bbb) : "r11");
+          t = rdtscp_and_serialize() - t;
+          break;
+        case 6:
+        case 7:
+          t = serialize_and_rdtsc();
+          asm volatile ("movq %0, %%r11; callq *%%r11" :: "r" (bbb) : "r11");
+          t = rdtscp_and_serialize() - t;
+          break;
+      }
+
+      sum += t;
+      mint = t < mint ? t : mint;
+      maxt = t > maxt ? t : maxt;
+    }
+    cprintf("%s = %5ld (min = %5ld, max = %5ld)\n", operation_names[op], sum / 1000000, mint, maxt);
   }
-  cprintf("verw time = %ld (max = %ld) \n", sum / 1000000, maxt);
-  
+
   idleloop();
 
   panic("Unreachable");

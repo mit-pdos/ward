@@ -403,6 +403,13 @@ syscall_over:
     pop %r12
     ret
 
+.globl fill_return_buffer
+fill_return_buffer:
+    mov %rbx, %rax
+    FILL_RETURN_BUFFER
+    mov %rax, %rbx
+    ret
+
 .balign 4096
 .globl usercode_segment
 usercode_segment:
