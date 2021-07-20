@@ -89,6 +89,22 @@ runcmdline(void)
   }
 }
 
+void
+try_update_ucode() 
+{
+  static const char *argv[] = { "update_ucode", 0 };
+  int pid = ward_fork_flags(0);
+  if(pid < 0){
+    fputs(1, "init: fork failed");
+    ward_exit(-1);
+  }
+  if(pid == 0){
+    ward_execv(argv[0], const_cast<char * const *>(argv));
+    ward_exit(-1);
+  }
+  ward_waitpid(pid, NULL, 0);
+}
+
 int
 main(void)
 {
@@ -108,6 +124,10 @@ main(void)
   for(const char** a = busybox_aliases; *a; a++) {
     ward_link("/bin/busybox", *a);
   }
+
+  try_update_ucode();
+
+  ward_ibrs_test();
 
   for (auto &argv : app_argv)
     startone(argv);

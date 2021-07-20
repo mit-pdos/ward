@@ -101,7 +101,7 @@ mpboot(void)
   initmsr();
   initsamp();
   initidle();
-  initwd();                     // Requires initnmi
+  //initwd();                     // Requires initnmi
   bstate.store(1);
   idleloop();
 }
@@ -293,13 +293,23 @@ cmain(u64 mbmagic, u64 mbaddr)
   //initpmc();
   initattack(); // for spectre demo
 
+  idleloop();
+
+  panic("Unreachable");
+}
+
+void ibrs_test() {
+  extern u64 kpml4[];
+
+  u64 old_cr3 = rcr3();
+  lcr3(v2p(kpml4));
+
   char* usercode = kalloc("usercode");
   char* branch_target_page = zalloc("branch_target");
   char* user_stack = zalloc("user_stack");
 
   memmove(usercode, usercode_segment, 4096);
 
-  extern u64 kpml4[];
   u64* pml3 = (u64*)zalloc("");
   u64* pml2 = (u64*)zalloc("");
   u64* pml1 = (u64*)zalloc("");
@@ -310,7 +320,7 @@ cmain(u64 mbmagic, u64 mbaddr)
   pml3[0] = v2p(pml2) | PTE_A | PTE_D | PTE_U | PTE_W | PTE_P;
   kpml4[0] = v2p(pml3) | PTE_A | PTE_D | PTE_U | PTE_W | PTE_P;
 
-  int num_iterations = 1024*8/16;
+  int num_iterations = 1024*8;
   ENTRY_TIMES = (u64*)kalloc("times", 8 * num_iterations);
   u64* DIV_COUNTS = (u64*)kalloc("div_counts", 8 * num_iterations);
 
@@ -318,7 +328,7 @@ cmain(u64 mbmagic, u64 mbaddr)
   u64 bbb = 0x1000 + ((char*)target_bbb - (char*)usercode_segment);
 
   void(*targets[])()  = {spectre2_kk, nullptr, spectre2_uu, spectre2_uu_nosyscall, spectre2_uk, spectre2_ku, nullptr };
-  const char* target_names[] = {"k-s-k", "k-*-k", "u-s-u", "u-*-u", "u-s-k", "k-s-u", "k-!-u" };
+  const char* target_names[] = {"k-s-k", "k-*-k", "u-s-u", "u-*-u", "u-s-k", "k-s-u", "k-!-k" };
 
   u64 counters[][3] = {
     { // Ice Lake
@@ -338,7 +348,7 @@ cmain(u64 mbmagic, u64 mbaddr)
     "BR_INST_RETIRED.INDIRECT==1    "
   };
 
-  cprintf("IA32_ARCH_CAPABILITIES = %lx\n", readmsr(0x10A));
+  //cprintf("IA32_ARCH_CAPABILITIES = %lx\n", readmsr(0x10A));
   writemsr(MSR_LSTAR, (u64)syscall_over);
   for (int ibrs_mode = 0; ibrs_mode < 2; ibrs_mode++) {
     writemsr(0x48, (readmsr(0x48)&0xfffffffe) | ibrs_mode); // IA32_SPEC_CTRL: Enable IBRS
@@ -473,8 +483,8 @@ cmain(u64 mbmagic, u64 mbaddr)
   };
   for (int op = 0; op < 8; op++) {
     // IA32_SPEC_CTRL: Disable then re-enable IBRS
-    if (op == 4) writemsr(0x48, (readmsr(0x48)&0xfffffffe));
-    if (op == 6) writemsr(0x48, (readmsr(0x48)&0xfffffffe) | 1);
+  if (op == 4) writemsr(0x48, (readmsr(0x48)&0xfffffffe));
+  if (op == 6) writemsr(0x48, (readmsr(0x48)&0xfffffffe) | 1);
 
     u64 sum = 0, mint = 999999999, maxt = 0;
     for (int i = 0; i < 1000000; i++) {
@@ -525,9 +535,16 @@ cmain(u64 mbmagic, u64 mbaddr)
     cprintf("%s = %5ld (min = %5ld, max = %5ld)\n", operation_names[op], sum / 1000000, mint, maxt);
   }
 
-  idleloop();
+  lcr3(old_cr3);
+}
 
-  panic("Unreachable");
+//SYSCALL
+long
+sys_ibrs_test(void)
+{
+  ensure_secrets();
+  pause_other_cpus_and_call(ibrs_test);
+  return 0;
 }
 
 void

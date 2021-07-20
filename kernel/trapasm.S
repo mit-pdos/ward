@@ -389,7 +389,7 @@ emulate_rdfsbase:
 do_reverse_syscall:
     push %r12
     movq %rdi, %rcx
-    movq $0x200, %r11
+    movq $0x0, %r11
     subq $(usercode_segment - 0x1000), %rcx
     movq %rsp, %r12
     movq $0x4ff0, %rsp
