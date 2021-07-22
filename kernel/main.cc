@@ -345,6 +345,11 @@ void ibrs_test() {
       0x0D3 | PERF_SEL_USR | PERF_SEL_OS, // Div Cycles Busy count
       0x0CA | PERF_SEL_USR | PERF_SEL_OS, // Retired Indirect Branch Instructions Mispredicted
       0x0C2 | PERF_SEL_USR | PERF_SEL_OS  // Retired Branch Instructions
+    },
+    { // Zen 3
+      0x0D3 | PERF_SEL_USR | PERF_SEL_OS, // Div Cycles Busy count
+      0x0CA | PERF_SEL_USR | PERF_SEL_OS, // Retired Indirect Branch Instructions Mispredicted
+      0x0C2 | PERF_SEL_USR | PERF_SEL_OS  // Retired Branch Instructions
     }
   };
   const char* counter_names[] = {
@@ -375,6 +380,8 @@ void ibrs_test() {
       } else if (cpuid::vendor_is_amd()) {
         if (family == 0x17) {
           configure_perf_counter(counters[2][counter]);
+        } else if (family == 0x19 && model == 33) {
+          configure_perf_counter(counters[3][counter]);
         } else {
           cprintf("WARN: Unable to recognize AMD CPU Model\n");
           break;
