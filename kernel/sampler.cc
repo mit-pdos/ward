@@ -930,8 +930,18 @@ initpmc(void)
   popcli();
 }
 
-void configure_perf_counter_intel(u64 selector) {
+void configure_perf_counter(u64 selector) {
   if (dynamic_cast<intel_pmu*>(pmu)) {
+    selector_state &wd_selector = selectors[2];
+    wd_selector.selector = selector;
+    wd_selector.enable = true;
+    wd_selector.period = 0;
+    wd_selector.on_overflow = nullptr;
+
+    pushcli();
+    pmu->configure(&wd_selector - selectors, wd_selector);
+    popcli();
+  } else if (dynamic_cast<amd_pmu*>(pmu)) {
     selector_state &wd_selector = selectors[2];
     wd_selector.selector = selector;
     wd_selector.enable = true;

@@ -47,4 +47,4 @@ struct logheader {
   } cpu[];
 } __attribute__((packed));
 
-void configure_perf_counter_intel(u64 selector);
+void configure_perf_counter(u64 selector);

@@ -320,7 +320,7 @@ void ibrs_test() {
   pml3[0] = v2p(pml2) | PTE_A | PTE_D | PTE_U | PTE_W | PTE_P;
   kpml4[0] = v2p(pml3) | PTE_A | PTE_D | PTE_U | PTE_W | PTE_P;
 
-  int num_iterations = 1024*8;
+  int num_iterations = 1024;
   ENTRY_TIMES = (u64*)kalloc("times", 8 * num_iterations);
   u64* DIV_COUNTS = (u64*)kalloc("div_counts", 8 * num_iterations);
 
@@ -341,6 +341,11 @@ void ibrs_test() {
       0x02C5 | PERF_SEL_USR | PERF_SEL_OS, // BR_MISP_RETIRED.NEAR_CALL
       0x02C4 | PERF_SEL_USR | PERF_SEL_OS // BR_INST_RETIRED.NEAR_CALL
     },
+    { // Zen / Zen+ / Zen 2 
+      0x0D3 | PERF_SEL_USR | PERF_SEL_OS, // Div Cycles Busy count
+      0x0CA | PERF_SEL_USR | PERF_SEL_OS, // Retired Indirect Branch Instructions Mispredicted
+      0x0C2 | PERF_SEL_USR | PERF_SEL_OS  // Retired Branch Instructions
+    }
   };
   const char* counter_names[] = {
     "ARITH.DIVIDER_ACTIVE>0         ", 
@@ -358,13 +363,25 @@ void ibrs_test() {
     for (int counter = 0; counter < 2; counter++) {
       int family = cpuid::model().family;
       int model = cpuid::model().model;
-      if (family == 6 && (model == 0x7e || model == 0x6a || model == 0x6c)) // Ice Lake
-        configure_perf_counter_intel(counters[0][counter]);
-      else if (family == 6 && (model == 0x4e || model == 0x5e | model == 0x55)) // Skylake
-        configure_perf_counter_intel(counters[1][counter]);
-      else {
-        cprintf("WARN: Unable to recognize CPU Model. Using Skylake performance counter configuration");
-        configure_perf_counter_intel(counters[1][counter]);
+      if (cpuid::vendor_is_intel()) {
+        if (family == 6 && (model == 0x7e || model == 0x6a || model == 0x6c)) // Ice Lake
+          configure_perf_counter(counters[0][counter]);
+        else if (family == 6 && (model == 0x4e || model == 0x5e | model == 0x55)) // Skylake
+          configure_perf_counter(counters[1][counter]);
+        else {
+          cprintf("WARN: Unable to recognize Intel CPU Model. Using Skylake performance counter configuration\n");
+          configure_perf_counter(counters[1][counter]);
+        }
+      } else if (cpuid::vendor_is_amd()) {
+        if (family == 0x17) {
+          configure_perf_counter(counters[2][counter]);
+        } else {
+          cprintf("WARN: Unable to recognize AMD CPU Model\n");
+          break;
+        }
+      } else {
+        cprintf("WARN: Unknown vendor\n");
+        break;
       }
 
       for (int kind = 0; kind < 7; kind++) {
