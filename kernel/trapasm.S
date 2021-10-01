@@ -596,6 +596,50 @@ time_branches_k:
     callq time_branch
     ret
 
+.globl time_sysret
+time_sysret:
+    push %r12
+    movq $(0x1000 + time_sysret_user - usercode_segment), %rcx
+    movq $0x0, %r11
+    movq %rsp, %r12
+    movq $0x4ff0, %rsp
+    rdtsc
+    sysretq
+time_sysret_user:
+    shl $32, %rdx
+    or %rdx, %rax
+    mov %rax, %r11
+    rdtscp
+    shl $32, %rdx
+    or %rdx, %rax
+    sub %r11, %rax
+    push %rax
+    syscall
+
+.globl time_sysret_baseline
+time_sysret_baseline:
+    push %r12
+    movq $(0x1000 + time_sysret_user - usercode_segment), %rcx
+    movq $0x0, %r11
+    movq %rsp, %r12
+    movq $0x4ff0, %rsp
+    rdtsc
+
+    shl $32, %rdx
+    or %rdx, %rax
+    mov %rax, %r11
+    rdtscp
+    shl $32, %rdx
+    or %rdx, %rax
+    sub %r11, %rax
+    push %rax
+
+    shlq $32, %rdx
+    or %rdx, %rax
+    pop %rdx
+    movq %r12, %rsp
+    pop %r12
+    ret
 
 .globl target_aaa
 target_aaa:

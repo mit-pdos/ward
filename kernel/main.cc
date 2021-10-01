@@ -192,6 +192,8 @@ extern "C" void spectre2_uu_nosyscall();
 extern "C" void time_branches_u();
 extern "C" u64 time_branches_k();
 extern "C" void fill_return_buffer();
+extern "C" u128 time_sysret();
+extern "C" u64 time_sysret_baseline();
 
 extern char syscall_over[];
 extern char usercode_segment[];
@@ -360,7 +362,7 @@ void ibrs_test() {
 
   //cprintf("IA32_ARCH_CAPABILITIES = %lx\n", readmsr(0x10A));
   writemsr(MSR_LSTAR, (u64)syscall_over);
-  for (int ibrs_mode = 0; ibrs_mode < 2; ibrs_mode++) {
+  for (int ibrs_mode = 0; ibrs_mode < 2*0; ibrs_mode++) {
     writemsr(0x48, (readmsr(0x48)&0xfffffffe) | ibrs_mode); // IA32_SPEC_CTRL: Enable IBRS
     cprintf("IA32_SPEC_CTRL = %lx\n", readmsr(0x48));
     //assert(readmsr(0x10A) & 0x2);
@@ -488,12 +490,13 @@ void ibrs_test() {
     }
   }
 
-  kpml4[0] = 0;
-  writemsr(MSR_LSTAR, (u64)&sysentry);
   ENTRY_COUNT = 0xffffffff;
   kfree(ENTRY_TIMES);
 
   extern const char mds_clear_cpu_buffers_ds[];
+  u64 pml4_value = (rcr3() | CR3_NOFLUSH) & mycpu()->cr3_mask;
+  u64 alt_pml4_value = (v2p(kalloc("alt_kpml4")) | CR3_NOFLUSH | 14) & mycpu()->cr3_mask;
+  memcpy(p2v(alt_pml4_value&0x00fffff000), p2v(pml4_value&0x00fffff000), PGSIZE);
 
   const char* operation_names[] = { 
     "nop               ",
@@ -503,13 +506,17 @@ void ibrs_test() {
     "lfence            ",
     "retpoline         ",
     "indirect call     ",
-    "indirect call+ibrs"
+    "indirect call+ibrs",
+    "2x swap cr3       ",
+    "sysret baseline   ",
+    "sysret            "
   };
-  for (int op = 0; op < 8; op++) {
+  for (int op = 0; op < 11; op++) {
     // IA32_SPEC_CTRL: Disable then re-enable IBRS
-  if (op == 4) writemsr(0x48, (readmsr(0x48)&0xfffffffe));
-  if (op == 6) writemsr(0x48, (readmsr(0x48)&0xfffffffe) | 1);
+    if (op == 6) writemsr(0x48, (readmsr(0x48)&0xfffffffe));
+    if (op == 7) writemsr(0x48, (readmsr(0x48)&0xfffffffe) | 1);
 
+    u64 min_nop_time = 0;
     u64 sum = 0, mint = 999999999, maxt = 0;
     for (int i = 0; i < 1000000; i++) {
       u64 t;
@@ -550,15 +557,36 @@ void ibrs_test() {
           asm volatile ("movq %0, %%r11; callq *%%r11" :: "r" (bbb) : "r11");
           t = rdtscp_and_serialize() - t;
           break;
+        case 8:
+          t = serialize_and_rdtsc();
+          lcr3(alt_pml4_value);
+          t = rdtscp_and_serialize() - t;
+          lcr3(pml4_value);
+          break;
+        case 9:
+          t = time_sysret_baseline();
+          break;
+        case 10:
+          t = time_sysret() >> 64;
+          break;
       }
 
       sum += t;
       mint = t < mint ? t : mint;
       maxt = t > maxt ? t : maxt;
     }
+    if (op == 0) 
+      min_nop_time = mint;
+    else {
+      mint -= min_nop_time;
+      maxt -= min_nop_time;
+      sum -= min_nop_time * 1000000;
+    }
     cprintf("%s = %5ld (min = %5ld, max = %5ld)\n", operation_names[op], sum / 1000000, mint, maxt);
   }
 
+  writemsr(MSR_LSTAR, (u64)&sysentry);
+  kpml4[0] = 0;
   lcr3(old_cr3);
 }
 
