@@ -194,6 +194,8 @@ extern "C" u64 time_branches_k();
 extern "C" void fill_return_buffer();
 extern "C" u128 time_sysret();
 extern "C" u64 time_sysret_baseline();
+extern "C" void time_syscall_user();
+extern "C" u128 time_syscall_baseline();
 
 extern char syscall_over[];
 extern char usercode_segment[];
@@ -507,16 +509,18 @@ void ibrs_test() {
     "retpoline         ",
     "indirect call     ",
     "indirect call+ibrs",
-    "2x swap cr3       ",
+    "mov %cr3          ",
+    "syscall baseline  ",
+    "syscall           ",
     "sysret baseline   ",
     "sysret            "
   };
-  for (int op = 0; op < 11; op++) {
+  u64 min_nop_time = 0;
+  for (int op = 0; op <= 12; op++) {
     // IA32_SPEC_CTRL: Disable then re-enable IBRS
     if (op == 6) writemsr(0x48, (readmsr(0x48)&0xfffffffe));
     if (op == 7) writemsr(0x48, (readmsr(0x48)&0xfffffffe) | 1);
 
-    u64 min_nop_time = 0;
     u64 sum = 0, mint = 999999999, maxt = 0;
     for (int i = 0; i < 1000000; i++) {
       u64 t;
@@ -564,10 +568,22 @@ void ibrs_test() {
           lcr3(pml4_value);
           break;
         case 9:
-          t = time_sysret_baseline();
+          t = (u64)time_syscall_baseline();
+          t = rdtscp_and_serialize() - t;
+          t += min_nop_time;
           break;
         case 10:
+          t = (u64)do_reverse_syscall(time_syscall_user);
+          t = rdtscp_and_serialize() - t;
+          t += min_nop_time;
+          break;
+        case 11:
+          t = time_sysret_baseline();
+          t += min_nop_time;
+          break;
+        case 12:
           t = time_sysret() >> 64;
+          t += min_nop_time;
           break;
       }
 
@@ -575,9 +591,9 @@ void ibrs_test() {
       mint = t < mint ? t : mint;
       maxt = t > maxt ? t : maxt;
     }
-    if (op == 0) 
+    if (op == 0) {
       min_nop_time = mint;
-    else {
+    } else {
       mint -= min_nop_time;
       maxt -= min_nop_time;
       sum -= min_nop_time * 1000000;

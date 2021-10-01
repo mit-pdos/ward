@@ -641,6 +641,32 @@ time_sysret_baseline:
     pop %r12
     ret
 
+.globl time_syscall_user
+time_syscall_user:
+    push $0
+    rdtsc
+    syscall
+
+.globl time_syscall_baseline
+time_syscall_baseline:
+    push %r12
+    movq %rdi, %rcx
+    movq $0x0, %r11
+    subq $(usercode_segment - 0x1000), %rcx
+    movq %rsp, %r12
+    movq $0x4ff0, %rsp
+
+    push $0
+    rdtsc
+
+    shlq $32, %rdx
+    or %rdx, %rax
+    pop %rdx
+    movq %r12, %rsp
+    pop %r12
+    ret
+
+
 .globl target_aaa
 target_aaa:
 //    push %rcx
