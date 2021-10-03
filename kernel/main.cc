@@ -384,10 +384,10 @@ void ibrs_test() {
       } else if (cpuid::vendor_is_amd()) {
         if (family == 0x17) {
           configure_perf_counter(counters[2][counter]);
-        } else if (family == 0x19 && model == 33) {
+        } else if (family == 0x19) {
           configure_perf_counter(counters[3][counter]);
         } else {
-          cprintf("WARN: Unable to recognize AMD CPU Model\n");
+          cprintf("WARN: Unable to recognize AMD CPU Model (family=0x%x, model = %u)\n", family, model);
           break;
         }
       } else {
