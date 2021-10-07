@@ -513,13 +513,14 @@ void ibrs_test() {
     "syscall baseline  ",
     "syscall           ",
     "sysret baseline   ",
-    "sysret            "
+    "sysret            ",
+    "AMD retpoline     "
   };
   u64 min_nop_time = 0;
-  for (int op = 0; op <= 12; op++) {
+  for (int op = 0; op <= 13; op++) {
     // IA32_SPEC_CTRL: Disable then re-enable IBRS
-    if (op == 6) writemsr(0x48, (readmsr(0x48)&0xfffffffe));
     if (op == 7) writemsr(0x48, (readmsr(0x48)&0xfffffffe) | 1);
+    else writemsr(0x48, (readmsr(0x48)&0xfffffffe));
 
     u64 sum = 0, mint = 999999999, maxt = 0;
     for (int i = 0; i < 1000000; i++) {
@@ -584,6 +585,11 @@ void ibrs_test() {
         case 12:
           t = time_sysret() >> 64;
           t += min_nop_time;
+          break;
+        case 13:
+          t = serialize_and_rdtsc();
+          asm volatile ("movq %0, %%r11; lfence; callq *%%r11" :: "r" (bbb) : "r11");
+          t = rdtscp_and_serialize() - t;
           break;
       }
 
