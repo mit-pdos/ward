@@ -283,7 +283,7 @@ fn efi_main(handle: Handle, system_table: SystemTable<Boot>) -> Status {
 
                 let mode = gop.current_mode_info();
                 if gop.current_mode_info().pixel_format() != PixelFormat::Rgb {
-                    let mut chosen = None;
+                    let mut chosen: Option<uefi::proto::console::gop::Mode> = None;
                     for m in gop
                         .modes()
                         .filter(|m| m.status() == Status::SUCCESS)
@@ -293,10 +293,10 @@ fn efi_main(handle: Handle, system_table: SystemTable<Boot>) -> Status {
                             continue;
                         }
 
-                        if m.info().resolution() == mode.resolution() {
+                        /*if m.info().resolution() == mode.resolution() {
                             chosen = Some(m);
                             break;
-                        } else if chosen.is_none()
+                        } else*/ if chosen.is_none()
                             || m.info().resolution().1
                                 > chosen.as_ref().unwrap().info().resolution().1
                         {

@@ -38,8 +38,8 @@ multiboot_header:
     .long PADDR(_end)              # bss end address
     .long PADDR(start)             # entry address
 	.long 0                        # graphics mode
-	.long 800                      # x-resolution
-	.long 600                      # y-resolution
+	.long 1920                      # x-resolution
+	.long 1080                      # y-resolution
 	.long 32                       # bit depth
 
 .balign 8
@@ -71,8 +71,8 @@ multiboot2_header:
     .word 5                        // type = framebuffer
     .word 1                        // flags = optional
     .long 20                       // size
-    .long 800                      // width
-    .long 600                      // height
+    .long 1920                      // width
+    .long 1080                      // height
     .long 32                       // depth
     .long 0                        // padding
 

@@ -365,6 +365,9 @@ consoleintr(int (*getc)(void))
 {
   int c;
 
+  extern bool vga_graphics_output;
+  extern void swap_buffers();
+
   acquire(&input.lock);
   while((c = getc()) >= 0){
     switch(c){
@@ -398,6 +401,14 @@ consoleintr(int (*getc)(void))
     case C('Y'):  // scopedperf stats
       // scopedperf::perfsum_base::printall();
       // scopedperf::perfsum_base::resetall();
+      break;
+    case 0x3b: // F1
+      vga_graphics_output = false;
+      swap_buffers();
+      break;
+    case 0x3c: // F2
+      vga_graphics_output = true;
+      swap_buffers();
       break;
     default:
       if(c != 0 && input.e-input.r < INPUT_BUF){

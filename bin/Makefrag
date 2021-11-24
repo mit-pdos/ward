@@ -18,6 +18,7 @@ UPROGS_BIN= \
 	param \
 	spectrev2 \
 	spectrev2u \
+	slides \
 
 # Binaries that are known to build on PLATFORM=native
 UPROGS_NATIVE := \
@@ -32,6 +33,7 @@ FSCONTENTS := $(addprefix $(O)/fs/bin/, $(UPROGS_BIN)) \
               $(O)/fs/bin/unittests.sh \
               $(addprefix $(O)/fs/, $(wildcard intel-ucode/*)) \
               $(O)/fs/bin/busybox \
+              $(addprefix $(O)/fs/, $(wildcard slides/*.png)) \
 
 $(O)/include/types.h: include/types.h
 	$(Q)mkdir -p $(@D)
@@ -63,6 +65,10 @@ $(O)/fs/bin/git: git/root/bin/git
 	$(Q)cp -r git/root/bin/git $(O)/fs/bin/git
 $(O)/fs/lwip: lwip
 	$(Q)cp -r lwip $(O)/fs/lwip
+
+$(O)/fs/slides/%.png: slides/%.png
+	$(Q)mkdir -p $(O)/fs/slides
+	$(Q)cp $< $@
 
 $(O)/native/%.o: bin/%.c
 	@echo "  CC     $@"

@@ -42,7 +42,7 @@ void
 initmemide(void)
 {
   if (_fs_img_size > 0) {
-    size_t len = 32 << 20;
+    size_t len = 64 << 20;
     void* buf = kalloc("memide", len);
     if (!buf)
       buf = vmalloc_raw(len, PGSIZE, "memide");

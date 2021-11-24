@@ -170,6 +170,7 @@ const u16 BORDER = 4;
 
 u32* front_buffer = nullptr;
 u32* back_buffer = nullptr;
+u32* graphics_buffer = nullptr;
 u16 screen_width;
 u16 screen_height;
 
@@ -187,11 +188,15 @@ char ansi_escape_sequence[ESCAPE_SEQ_MAX_LEN] = { 0 };
 
 int text_scale = 2;
 
-static void swap_buffers() {
-  u64* back = (u64*)back_buffer;
-  volatile u64* front = (volatile u64*)front_buffer;
-  for (size_t i = 0; i < screen_width * screen_height / 2; i++)
-    front[i] = back[i];
+bool vga_graphics_output = false;
+
+void swap_buffers() {
+  u64* back = vga_graphics_output ? (u64*)graphics_buffer : (u64*)back_buffer;
+  if (back) {
+    volatile u64* front = (volatile u64*)front_buffer;
+    for (size_t i = 0; i < screen_width * screen_height / 2; i++)
+      front[i] = back[i];
+  }
 }
 
 void initvga() {
@@ -213,7 +218,9 @@ void initvga() {
     if (front_buffer != multiboot.framebuffer) {
       front_buffer = multiboot.framebuffer;
       back_buffer = (u32*)kalloc("back_buffer", screen_width * screen_height * 4);
+      graphics_buffer = (u32*)kalloc("graphics_buffer", screen_width * screen_height * 4);
       memcpy(back_buffer, front_buffer, screen_width * screen_height * 4);
+      memset(graphics_buffer, 0, screen_width * screen_height * 4);
     }
   } else {
     verbose.println("vga: could not detect framebuffer\n");
@@ -373,12 +380,9 @@ void vgaputc(int c) {
     }
   }
 
-  if (back_buffer) {
+  if (back_buffer && !vga_graphics_output) {
     if (full_redraw) {
-      u64* back = (u64*)back_buffer;
-      volatile u64* front = (volatile u64*)front_buffer;
-      for (size_t i = 0; i < screen_width * screen_height / 2; i++)
-        front[i] = back[i];
+      swap_buffers();
     } else {
       for (int y = cursor_y; y < cursor_y + height; y++){
         auto front = (volatile u64*)&front_buffer[cursor_x + y * screen_width];
@@ -427,7 +431,7 @@ void vga_put_image(u32* data, int width, int height) {
     }
   }
 
-  if (back_buffer) {
+  if (back_buffer && !vga_graphics_output) {
     u64* back = (u64*)back_buffer;
     volatile u64* front = (volatile u64*)front_buffer;
     for (size_t i = 0; i < screen_width * screen_height / 2; i++)
@@ -435,4 +439,35 @@ void vga_put_image(u32* data, int width, int height) {
   }
 
   cursor_y += (height | 15) + 1;
+}
+
+u32 swap_channels(u32 c) {
+  u32 r = c & 0x0000ff;
+  u32 g = (c & 0x00ff00) >> 8;
+  u32 b = (c & 0xff0000) >> 16;
+  return (r << 16) | (g << 8) | b;
+}
+
+//SYSCALL
+long
+sys_vga_op(int op, userptr<void> data)
+{
+  ensure_secrets();
+  if (op == 0)
+    return screen_width;
+  if (op == 1)
+    return screen_height;
+  if (op == 2) {
+    if (!data.load_bytes(graphics_buffer, screen_width * screen_height * 4))
+      return -1;
+
+    for (int y = 0; y < screen_height; y++)
+      for (int x = 0; x < screen_width; x++)
+        graphics_buffer[y*screen_width+x] = swap_channels(graphics_buffer[y*screen_width+x]);
+
+    swap_buffers();
+    return 0;
+  }
+  
+  return -1;
 }

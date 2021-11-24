@@ -10,7 +10,7 @@
 #include <dirent.h>
 
 int ninodes = 2400;
-int size = 8192;
+int size = 8192*2;
 
 int fsfd;
 ward_superblock sb;
