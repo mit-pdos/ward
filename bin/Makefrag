@@ -69,6 +69,9 @@ $(O)/fs/lwip: lwip
 $(O)/fs/slides/%.png: slides/%.png
 	$(Q)mkdir -p $(O)/fs/slides
 	$(Q)cp $< $@
+slides/001.png: ThesisDefenseTalk.pdf
+	$(Q)mkdir -p slides
+	gs -sDEVICE=pngalpha -o slides/%03d.png -r384 -dDownScaleFactor=2 ThesisDefenseTalk.pdf
 
 $(O)/native/%.o: bin/%.c
 	@echo "  CC     $@"

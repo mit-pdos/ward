@@ -8542,7 +8542,7 @@ main(int argc, char *argv[])
     fflush(stdout);
 
 	struct termios old_tio, new_tio;
-	unsigned char c;
+	unsigned char c = 0;
 	/* get the terminal settings for stdin */
 	tcgetattr(STDIN_FILENO,&old_tio);
 
@@ -8559,7 +8559,7 @@ main(int argc, char *argv[])
 
     char filename[64] = "slides/000.png";
 
-    while (ward_read(0, &c, 1) == 1) {
+    do {
         if (c == 229)
             slide += 1;
         if (c == 228 && slide > 1)
@@ -8576,7 +8576,7 @@ main(int argc, char *argv[])
         if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
         ward_vga_op(2, image);
         fflush(stdout);
-    }
+    } while (ward_read(0, &c, 1) == 1);
 
     /*use image here*/
 
