@@ -226,6 +226,7 @@ cmdline_change_param(const char *name, const char *value)
       return 0;
     }
   }
+  cprintf("Unrecognized parameter '%s'\n", name);
   return -1;
 }
 

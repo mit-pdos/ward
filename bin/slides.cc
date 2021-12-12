@@ -8538,8 +8538,8 @@ main(int argc, char *argv[])
     //if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
     ward_vga_op(2, image);
-    printf("Resolution = %ldx%ld\n", swidth, sheight);
-    fflush(stdout);
+    //printf("Resolution = %ldx%ld\n", swidth, sheight);
+    //fflush(stdout);
 
 	struct termios old_tio, new_tio;
 	unsigned char c = 0;

@@ -366,16 +366,16 @@ AcpiOsWritePciConfiguration(ACPI_PCI_ID *pci_id, uint32_t reg, uint64_t value,
 void ACPI_INTERNAL_VAR_XFACE
 AcpiOsPrintf(const char *format, ...)
 {
-  va_list ap;
-  va_start(ap, format);
-  vcprintf(format, ap);
-  va_end(ap);
+  // va_list ap;
+  // va_start(ap, format);
+  // vcprintf(format, ap);
+  // va_end(ap);
 }
 
 void
 AcpiOsVprintf(const char *format, va_list args)
 {
-  vcprintf(format, args);
+  //vcprintf(format, args);
 }
 
 // Miscellaneous

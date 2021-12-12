@@ -281,7 +281,7 @@ fn efi_main(handle: Handle, system_table: SystemTable<Boot>) -> Status {
                 let gop: &UnsafeCell<_> = gop.log();
                 let gop = &mut *UnsafeCell::get(gop);
 
-                let mode = gop.current_mode_info();
+                let _mode = gop.current_mode_info();
                 if gop.current_mode_info().pixel_format() != PixelFormat::Rgb {
                     let mut chosen: Option<uefi::proto::console::gop::Mode> = None;
                     for m in gop
@@ -324,7 +324,7 @@ fn efi_main(handle: Handle, system_table: SystemTable<Boot>) -> Status {
             }
         }
 
-        print!("Booting kernel entry=0x{:x}\n", f as u64);
+        //print!("Booting kernel entry=0x{:x}\n", f as u64);
 
         asm!("or rsp, 0xf; sub rsp, 0xf; push {0}; mov rbx, {1}; ret; 3: jmp 3b", in(reg) f, in(reg) mbi, in("rax") 0x36d76289, options(noreturn));
     }

@@ -312,9 +312,11 @@ void vgaputc(int c) {
     return;
   }
 
+  int scale = 3;
+
   if (c == '\n') {
     cursor_x = BORDER;
-    cursor_y += 16;
+    cursor_y += 16 * scale;
     line_end = 0;
     return;
   }
@@ -333,11 +335,11 @@ void vgaputc(int c) {
 
     line_end -= 1;
     if ((unifont[line[line_end]])[32] == '\0') {
-      cursor_x -= 8;
+      cursor_x -= 8 * scale;
       bitmap = erase[0];
       width = 8;
     } else {
-      cursor_x -= 16;
+      cursor_x -= 16 * scale;
       bitmap = erase[1];
       width = 16;
     }
@@ -349,18 +351,18 @@ void vgaputc(int c) {
   int height = 16;
   bool full_redraw = false;
 
-  if (cursor_x + width + BORDER > screen_width) {
+  if (cursor_x + width * scale + BORDER > screen_width) {
     cursor_x = BORDER;
-    cursor_y += 16;
+    cursor_y += 16 * scale;
     line_end = 0;
   }
-  while (cursor_y + height + BORDER > screen_height) {
+  while (cursor_y + height * scale + BORDER > screen_height) {
     memmove(buffer,
-            buffer + 16 * screen_width,
-            screen_width * (screen_height - 16) * 4);
-    for(int i = 0; i < 16 * screen_width; i++)
-      buffer[(screen_height - 16) * screen_width + i] = vga_background_color;
-    cursor_y -= 16;
+            buffer + 16 * scale * screen_width,
+            screen_width * (screen_height - 16 * scale) * 4);
+    for(int i = 0; i < 16 * scale * screen_width; i++)
+      buffer[(screen_height - 16 * scale) * screen_width + i] = vga_background_color;
+    cursor_y -= 16 * scale;
     full_redraw = true;
     line_end = 0;
   }
@@ -375,8 +377,10 @@ void vgaputc(int c) {
     for(int j = 0; j < 4; j++) {
       int h = (i*4+j) % width;
       int k = (i*4+j) / width;
-      buffer[(cursor_x+h) + (cursor_y+k) * screen_width] = nibble & (1<<(3-j))
-        ? vga_foreground_color : vga_background_color;
+      for (int kk = 0; kk < scale; kk++)
+        for (int hh = 0; hh < scale; hh++)
+          buffer[(cursor_x+h*scale+hh) + (cursor_y+k*scale+kk) * screen_width] = nibble & (1<<(3-j))
+            ? vga_foreground_color : vga_background_color;
     }
   }
 
@@ -384,17 +388,17 @@ void vgaputc(int c) {
     if (full_redraw) {
       swap_buffers();
     } else {
-      for (int y = cursor_y; y < cursor_y + height; y++){
+      for (int y = cursor_y; y < cursor_y + height * scale; y++){
         auto front = (volatile u64*)&front_buffer[cursor_x + y * screen_width];
         auto back = (u64*)&back_buffer[cursor_x + y * screen_width];
-        for (size_t i = 0; i < width / 2; i++)
+        for (size_t i = 0; i < width * scale / 2; i++)
           front[i] = back[i];
       }
     }
   }
 
   if (c != '\b' && c != 0x100) { // BACKSPACE
-    cursor_x += width;
+    cursor_x += width * scale;
   }
 }
 
